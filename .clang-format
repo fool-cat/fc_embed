@@ -5,7 +5,7 @@
 
 Language: Cpp
 
-SortIncludes: true
+SortIncludes: false
 
 BasedOnStyle: Chromium
 
