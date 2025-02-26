@@ -30,6 +30,7 @@
  */
 #include <stdarg.h>
 #include <string.h>
+#include <stdbool.h>
 #include "fc_stdio.h"
 
 #ifndef SZB_OUTPUT
@@ -215,46 +216,55 @@ static void ftoa(
 #endif /* XF_USE_FLOAT */
 
 //+********************************* vfprintf **********************************/
-#define _write_ch(f, ch)                                         \
-    do                                                           \
-    {                                                            \
-        if (f->p_now)                                            \
-        {                                                        \
-            *f->p_now++ = (char)ch;                              \
-            if ((size_t)f->p_now >= (size_t)f->p_end)            \
-            {                                                    \
-                int _size = (int)(f->p_now - f->p_start);        \
-                f->n += _size;                                   \
-                if (f->write)                                    \
-                {                                                \
-                    f->p_now = NULL;                             \
-                    if (_size != f->write(f, f->p_start, _size)) \
-                    {                                            \
-                        goto _exit;                              \
-                    }                                            \
-                }                                                \
-                else                                             \
-                {                                                \
-                    goto _exit;                                  \
-                }                                                \
-            }                                                    \
-        }                                                        \
-        else if (f->write)                                       \
-        {                                                        \
-            char _temp = (char)ch;                               \
-            if (1 != f->write(f, &_temp, 1))                     \
-            {                                                    \
-                goto _exit;                                      \
-            }                                                    \
-            f->n++;                                              \
-        }                                                        \
-        else                                                     \
-        {                                                        \
-            goto _exit;                                          \
-        }                                                        \
+static bool _write_ch(FC_FILE* f, char ch)
+{
+    if (f->p_now)
+    {
+        *f->p_now++ = (char)ch;
+        f->n++;
+        if ((size_t)f->p_now >= (size_t)f->p_end)
+        {
+            f->p_now = NULL;
+            if (f->write)
+            {
+                int _size = (int)(f->p_now - f->p_start);
+                if (_size != f->write(f, f->p_start, _size))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
+    else if (f->write)
+    {
+        char _temp = (char)ch;
+        if (1 != f->write(f, &_temp, 1))
+        {
+            return false;
+        }
+        f->n++;
+    }
+    else
+    {
+        return false;
+    }
+
+    return true;
+}
+
+#undef __fputc
+#define __fputc(f, ch)                 \
+    do                                 \
+    {                                  \
+        if (false == _write_ch(f, ch)) \
+            goto _exit;                \
     } while (0)
 
-// 退出后处理,将写入计数放到最后计算提升效率
+// 退出的后处理
 #define _exit_handle(f)           \
     if (f->write)                 \
     {                             \
@@ -285,7 +295,7 @@ int fc_vfprintf(
             break; /* End of format? */
         if (c != '%')
         { /* Pass it through if not a % sequense */
-            _write_ch(pf, c);
+            __fputc(pf, c);
             continue;
         }
         f = w = 0; /* Clear parms */
@@ -373,7 +383,7 @@ int fc_vfprintf(
             r = 16;
             break;
         case 'c': /* A character */
-            _write_ch(pf, (char)va_arg(arp, int));
+            __fputc(pf, (char)va_arg(arp, int));
             continue;
         case 's':                   /* String */
             p = va_arg(arp, char*); /* Get a pointer argument */
@@ -383,11 +393,11 @@ int fc_vfprintf(
             if (prec >= 0 && j > (unsigned int)prec)
                 j = prec; /* Limited length of string body */
             for (; !(f & 2) && j < w; j++)
-                _write_ch(pf, pad); /* Left pads */
+                __fputc(pf, pad); /* Left pads */
             while (*p && prec--)
-                _write_ch(pf, *p++); /* String body */
+                __fputc(pf, *p++); /* String body */
             while (j++ < w)
-                _write_ch(pf, ' '); /* Right pads */
+                __fputc(pf, ' '); /* Right pads */
             continue;
 #if XF_USE_FP
         case 'f':                                        /* Float (decimal) */
@@ -395,15 +405,15 @@ int fc_vfprintf(
         case 'E':                                        /* Float (E) */
             ftoa(p = str, va_arg(arp, double), prec, c); /* Make fp string */
             for (j = strlen(p); !(f & 2) && j < w; j++)
-                _write_ch(pf, pad); /* Left pads */
+                __fputc(pf, pad); /* Left pads */
             while (*p)
-                _write_ch(pf, *p++); /* Value */
+                __fputc(pf, *p++); /* Value */
             while (j++ < w)
-                _write_ch(pf, ' '); /* Right pads */
+                __fputc(pf, ' '); /* Right pads */
             continue;
 #endif
         default: /* Unknown type (passthrough) */
-            _write_ch(pf, c);
+            __fputc(pf, c);
             continue;
         }
 
@@ -452,12 +462,12 @@ int fc_vfprintf(
         if (f & 1)
             str[i++] = '-'; /* Sign */
         for (j = i; !(f & 2) && j < w; j++)
-            _write_ch(pf, pad); /* Left pads */
+            __fputc(pf, pad); /* Left pads */
         do
-            _write_ch(pf, str[--i]);
+            __fputc(pf, str[--i]);
         while (i != 0); /* Value */
         while (j++ < w)
-            _write_ch(pf, ' '); /* Right pads */
+            __fputc(pf, ' '); /* Right pads */
     }
 
 _exit:

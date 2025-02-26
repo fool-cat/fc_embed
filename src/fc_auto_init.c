@@ -28,7 +28,7 @@ INIT_EXPORT_ENV(__void__func);
 
 // 可以无需显式调用
 /**
- * @briefmain 函数之前自动初始化
+ * @brief main 函数之前自动初始化
  *
  */
 __attribute__((constructor)) fc_used void fc_section0_init_func(void)

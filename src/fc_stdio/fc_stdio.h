@@ -13,6 +13,7 @@
 #ifndef _FC_STDIO_CONFIG_H_
 #define _FC_STDIO_CONFIG_H_
 
+#include <stdarg.h>
 #include <stdio.h>
 
 #ifdef FC_CONFIG_HEADER
