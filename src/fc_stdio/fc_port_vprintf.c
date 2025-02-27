@@ -15,9 +15,6 @@
 
 #include "fc_port.h"
 
-// 声明一下
-int fc_vfprintf(FC_FILE* pf, const char* fmt, va_list arp);
-
 #ifndef FC_PORT_VPRINTF_LINEAR_WRITE
     #define FC_PORT_VPRINTF_LINEAR_WRITE 0
 #endif

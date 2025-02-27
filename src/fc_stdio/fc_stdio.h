@@ -77,11 +77,14 @@ extern "C"
     extern int fc_sprintf(char* buf, const char* fmt, ...);
     extern int fc_snprintf(char* buf, size_t size, const char* fmt, ...);
     extern int fc_vsprintf(char* buf, const char* fmt, va_list arp);
-    extern int fc_vsnprintf(char* buf, size_t size, const char* fmt, va_list arp);  // 字符串格式化核心函数
+    extern int fc_vsnprintf(char* buf, size_t size, const char* fmt, va_list arp);
+    extern int fc_vfprintf(FC_FILE* pf, const char* fmt, va_list arp);  // 字符串格式化核心函数
 
-    extern int fc_sscanf(const char* __restrict, const char* __restrict, ...);
-    extern int fc_vsscanf(const char* __restrict, const char* __restrict, va_list);
+    extern int fc_sscanf(const char* res, const char* fmt, ...);
+    extern int fc_vscanf(const char* fmt, va_list arp);
+    extern int fc_vsscanf(const char* res, const char* fmt, va_list arp);
     extern int fc_vfscanf(FC_FILE* f, const char* fmt, va_list arp);
+    extern int fc_fscanf(FC_FILE* f, const char* fmt, ...);
 
 #ifdef __cplusplus
 }

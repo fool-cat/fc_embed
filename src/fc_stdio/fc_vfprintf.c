@@ -256,13 +256,13 @@ static bool _write_ch(FC_FILE* f, char ch)
     return true;
 }
 
+// 不使用do{}while(0)的结构节省一条指令的性能开销
 #undef __fputc
-#define __fputc(f, ch)                 \
-    do                                 \
-    {                                  \
-        if (false == _write_ch(f, ch)) \
-            goto _exit;                \
-    } while (0)
+#define __fputc(f, ch)         \
+    {                          \
+        if (!_write_ch(f, ch)) \
+            goto _exit;        \
+    }
 
 // 退出的后处理
 #define _exit_handle(f)           \
@@ -383,8 +383,10 @@ int fc_vfprintf(
             r = 16;
             break;
         case 'c': /* A character */
+        {
             __fputc(pf, (char)va_arg(arp, int));
             continue;
+        }
         case 's':                   /* String */
             p = va_arg(arp, char*); /* Get a pointer argument */
             if (!p)
@@ -393,11 +395,17 @@ int fc_vfprintf(
             if (prec >= 0 && j > (unsigned int)prec)
                 j = prec; /* Limited length of string body */
             for (; !(f & 2) && j < w; j++)
+            {
                 __fputc(pf, pad); /* Left pads */
+            }
             while (*p && prec--)
+            {
                 __fputc(pf, *p++); /* String body */
+            }
             while (j++ < w)
+            {
                 __fputc(pf, ' '); /* Right pads */
+            }
             continue;
 #if XF_USE_FP
         case 'f':                                        /* Float (decimal) */
@@ -405,16 +413,24 @@ int fc_vfprintf(
         case 'E':                                        /* Float (E) */
             ftoa(p = str, va_arg(arp, double), prec, c); /* Make fp string */
             for (j = strlen(p); !(f & 2) && j < w; j++)
+            {
                 __fputc(pf, pad); /* Left pads */
+            }
             while (*p)
+            {
                 __fputc(pf, *p++); /* Value */
+            }
             while (j++ < w)
+            {
                 __fputc(pf, ' '); /* Right pads */
+            }
             continue;
 #endif
         default: /* Unknown type (passthrough) */
+        {
             __fputc(pf, c);
             continue;
+        }
         }
 
         /* Get an integer argument and put it in numeral */
@@ -462,12 +478,17 @@ int fc_vfprintf(
         if (f & 1)
             str[i++] = '-'; /* Sign */
         for (j = i; !(f & 2) && j < w; j++)
+        {
             __fputc(pf, pad); /* Left pads */
+        }
         do
+        {
             __fputc(pf, str[--i]);
-        while (i != 0); /* Value */
+        } while (i != 0); /* Value */
         while (j++ < w)
+        {
             __fputc(pf, ' '); /* Right pads */
+        }
     }
 
 _exit:
