@@ -198,40 +198,48 @@ extern "C"
     #define log_verbose(fmt, ...) \
         log_format(VERBOSE_TEXT, FC_LOG_VERBOSE, fmt, ##__VA_ARGS__)
 
-    #define log_assert(expr, ...)                                                               \
-        if (!(expr))                                                                            \
-        {                                                                                       \
-            log_error("\"" #expr "\" assert failed at file: %s, line: %d", __FILE__, __LINE__); \
-            ##__VA_ARGS__;                                                                      \
+    #define log_assert(expr, ...)                                                                   \
+        if (!(expr))                                                                                \
+        {                                                                                           \
+            log_error("\"" #expr "\" assert failed at file: %s, line: %d\r\n", __FILE__, __LINE__); \
+            __VA_ARGS__;                                                                            \
         }
 
-    // 用到下面这些情况很少,不提供格式化,需要提供地址和长度
-    // 使用下面的宏如果加锁请使用递归锁!
-    #define log_format_ex(text, level, buf, len)                                  \
-        do                                                                        \
-        {                                                                         \
-            if (FC_LOG_OBJ->lock)                                                 \
-                FC_LOG_OBJ->lock(FC_LOG_OBJ);                                     \
-            fc_log_printf(FC_LOG_OBJ, level, text "" fmt, FC_LOG_PREFIX_CONTENT); \
-            fc_log_write(FC_LOG_OBJ, level, buf, len);                            \
-            if (FC_LOG_OBJ->unlock)                                               \
-                FC_LOG_OBJ->unlock(FC_LOG_OBJ);                                   \
+        // 用到下面这些情况很少,会创建一个临时缓冲区
+    #define log_format_ex(text, lv, fmt, ...)                                                      \
+        do                                                                                         \
+        {                                                                                          \
+            if (FC_LOG_OBJ->active && FC_LOG_OBJ->level >= lv)                                     \
+            {                                                                                      \
+                extern int fc_snprintf(char*, size_t, const char*, ...);                           \
+                char       buff[FC_LOG_LINE_SIZE];                                                 \
+                int        len = fc_snprintf(buff, FC_LOG_LINE_SIZE, text, FC_LOG_PREFIX_CONTENT); \
+                len += fc_snprintf(buff + len, FC_LOG_LINE_SIZE - len, fmt, ##__VA_ARGS__);        \
+                fc_log_write(FC_LOG_OBJ, lv, buff, len);                                           \
+            }                                                                                      \
         } while (0)
 
-    #define log_error_ex(buf, len) \
-        log_format_ex(ERROR_TEXT, FC_LOG_ERROR, buf, len)
+    #define log_error_ex(fmt, ...) \
+        log_format_ex(ERROR_TEXT, FC_LOG_ERROR, fmt, ##__VA_ARGS__)
 
-    #define log_warning_ex(buf, len) \
-        log_format_ex(WARNING_TEXT, FC_LOG_WRANING, buf, len)
+    #define log_warning_ex(fmt, ...) \
+        log_format_ex(WARNING_TEXT, FC_LOG_WRANING, fmt, ##__VA_ARGS__)
 
-    #define log_info_ex(buf, len) \
-        log_format_ex(INFO_TEXT, FC_LOG_INFO, buf, len)
+    #define log_info_ex(fmt, ...) \
+        log_format_ex(INFO_TEXT, FC_LOG_INFO, fmt, ##__VA_ARGS__)
 
-    #define log_debug_ex(buf, len) \
-        log_format_ex(DEBUG_TEXT, FC_LOG_DEBUG, buf, len)
+    #define log_debug_ex(fmt, ...) \
+        log_format_ex(DEBUG_TEXT, FC_LOG_DEBUG, fmt, ##__VA_ARGS__)
 
-    #define log_verbose_ex(buf, len) \
-        log_format_ex(VERBOSE_TEXT, FC_LOG_VERBOSE, buf, len)
+    #define log_verbose_ex(fmt, ...) \
+        log_format_ex(VERBOSE_TEXT, FC_LOG_VERBOSE, fmt, ##__VA_ARGS__)
+
+    #define log_assert_ex(expr, ...)                                                                   \
+        if (!(expr))                                                                                   \
+        {                                                                                              \
+            log_error_ex("\"" #expr "\" assert failed at file: %s, line: %d\r\n", __FILE__, __LINE__); \
+            __VA_ARGS__;                                                                               \
+        }
 
 #else
 
@@ -243,11 +251,12 @@ extern "C"
     #define log_verbose(fmt, ...) (void)(0)
     #define log_assert(expr, ...) (void)(0)
 
-    #define log_error_ex(buf, len) (void)(0)
-    #define log_warning_ex(buf, len) (void)(0)
-    #define log_info_ex(buf, len) (void)(0)
-    #define log_debug_ex(buf, len) (void)(0)
-    #define log_verbose_ex(buf, len) (void)(0)
+    #define log_error_ex(fmt, ...) (void)(0)
+    #define log_warning_ex(fmt, ...) (void)(0)
+    #define log_info_ex(fmt, ...) (void)(0)
+    #define log_debug_ex(fmt, ...) (void)(0)
+    #define log_verbose_ex(fmt, ...) (void)(0)
+    #define log_assert_ex(expr, ...) (void)(0)
 
 #endif
 
