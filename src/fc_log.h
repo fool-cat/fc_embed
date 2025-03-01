@@ -19,6 +19,7 @@
 #endif
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "fc_helper.h"
@@ -29,6 +30,10 @@
 
 #ifndef FC_LOG_LINE_SIZE
     #define FC_LOG_LINE_SIZE 256 /**< log输出缓冲大小 */
+#endif
+
+#ifndef FC_LOG_STACK_LINE_SIZE
+    #define FC_LOG_STACK_LINE_SIZE (FC_LOG_LINE_SIZE) /**< log自身缓存被占用时在栈上使用的缓冲大小 */
 #endif
 
 #ifndef FC_LOG_USING_COLOR
@@ -118,19 +123,17 @@ extern "C"
     struct _fc_log_t
     {
         fc_log_level_t level;
-        char           active;
+        bool           active;
+        bool           buff_busy;               // 自身的缓冲区是否被占用
         char           buff[FC_LOG_LINE_SIZE];  // 行缓冲,每个log独立拥有自己的行缓冲
+        // 每个log拥有自己独立的行缓冲是为了提高性能,避免频繁栈内存创建和销毁
 
         void* user;  // 预留用户个人数据
-
-        // 锁只对自己的port负责
-        void (*lock)(fc_log_t* log);
-        void (*unlock)(fc_log_t* log);
 
         size_t (*write)(fc_log_t* log, const void* buff, size_t len);  // 写入数据
     };
 
-    extern void fc_log_set_active(fc_log_t* log, char active);
+    extern void fc_log_set_active(fc_log_t* log, bool active);
     extern void fc_log_set_level(fc_log_t* log, fc_log_level_t level);
     extern void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...);
     extern void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, size_t len);
@@ -139,17 +142,10 @@ extern "C"
 
     extern fc_log_t default_log;  // 默认log对象
 
-#define fc_log_write_catch(write) \
-    do                            \
-    {                             \
-        default_log.write = write \
-    } while (0)
-
-#define fc_log_locker_catch(lock, unlock) \
-    do                                    \
-    {                                     \
-        default_log.lock = lock;          \
-        default_log.unlock = unlock;      \
+#define fc_log_write_catch(write_func) \
+    do                                 \
+    {                                  \
+        default_log.write = write_func \
     } while (0)
 
 #ifndef FC_LOG_OBJ
@@ -157,7 +153,7 @@ extern "C"
 #endif
 
 #ifndef FC_LOG_LOSE_HOOK
-    extern void fc_log_write_lose_hook(fc_log_t* log, const void* buff, size_t len);
+    extern size_t fc_log_write_lose_hook(fc_log_t* log, const void* buff, size_t len);
     #if 0
         #define FC_LOG_LOSE_HOOK(exp, log, buf, len)       \
             if (!(exp))                                    \
@@ -205,42 +201,6 @@ extern "C"
             __VA_ARGS__;                                                                            \
         }
 
-        // 用到下面这些情况很少,会创建一个临时缓冲区
-    #define log_format_ex(text, lv, fmt, ...)                                                      \
-        do                                                                                         \
-        {                                                                                          \
-            if (FC_LOG_OBJ->active && FC_LOG_OBJ->level >= lv)                                     \
-            {                                                                                      \
-                extern int fc_snprintf(char*, size_t, const char*, ...);                           \
-                char       buff[FC_LOG_LINE_SIZE];                                                 \
-                int        len = fc_snprintf(buff, FC_LOG_LINE_SIZE, text, FC_LOG_PREFIX_CONTENT); \
-                len += fc_snprintf(buff + len, FC_LOG_LINE_SIZE - len, fmt, ##__VA_ARGS__);        \
-                fc_log_write(FC_LOG_OBJ, lv, buff, len);                                           \
-            }                                                                                      \
-        } while (0)
-
-    #define log_error_ex(fmt, ...) \
-        log_format_ex(ERROR_TEXT, FC_LOG_ERROR, fmt, ##__VA_ARGS__)
-
-    #define log_warning_ex(fmt, ...) \
-        log_format_ex(WARNING_TEXT, FC_LOG_WRANING, fmt, ##__VA_ARGS__)
-
-    #define log_info_ex(fmt, ...) \
-        log_format_ex(INFO_TEXT, FC_LOG_INFO, fmt, ##__VA_ARGS__)
-
-    #define log_debug_ex(fmt, ...) \
-        log_format_ex(DEBUG_TEXT, FC_LOG_DEBUG, fmt, ##__VA_ARGS__)
-
-    #define log_verbose_ex(fmt, ...) \
-        log_format_ex(VERBOSE_TEXT, FC_LOG_VERBOSE, fmt, ##__VA_ARGS__)
-
-    #define log_assert_ex(expr, ...)                                                                   \
-        if (!(expr))                                                                                   \
-        {                                                                                              \
-            log_error_ex("\"" #expr "\" assert failed at file: %s, line: %d\r\n", __FILE__, __LINE__); \
-            __VA_ARGS__;                                                                               \
-        }
-
 #else
 
     #define log_format(text, level, fmt, ...) (void)(0)
@@ -250,13 +210,6 @@ extern "C"
     #define log_debug(fmt, ...) (void)(0)
     #define log_verbose(fmt, ...) (void)(0)
     #define log_assert(expr, ...) (void)(0)
-
-    #define log_error_ex(fmt, ...) (void)(0)
-    #define log_warning_ex(fmt, ...) (void)(0)
-    #define log_info_ex(fmt, ...) (void)(0)
-    #define log_debug_ex(fmt, ...) (void)(0)
-    #define log_verbose_ex(fmt, ...) (void)(0)
-    #define log_assert_ex(expr, ...) (void)(0)
 
 #endif
 
