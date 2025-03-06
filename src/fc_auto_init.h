@@ -70,19 +70,43 @@ extern "C"
     #error not supported tool chain
 #endif /* __ARMCC_VERSION */
 
-//+********************************* 建议使用宏 **********************************/
+    //+********************************* 默认的初始化类型 **********************************/
+    // 用于导出带优先级的元素到指定段中
+    typedef void (*fc_auto_init_func_t)(void);
+    typedef struct
+    {
+        fc_auto_init_func_t func;   // 函数指针
+        size_t              order;  // 优先级
+    } fc_auto_init_elem_t;
 
-// 这个宏用于声明一个段的起始和结束地址,用于遍历段中的元素,当需要使用fc_foreach宏时,需要先使用这个宏
+#define FC_INIT_EXPORT(section_name, func, order)                                           \
+    static fc_auto_init_elem_t CONNECT(section_name, _, func, _, __LINE__) = {func, order}; \
+    ELEM_EXPORT(section_name, CONNECT(section_name, _, func, _, __LINE__))
+
+    // clang-format off
+#define INIT_EXPORT_3(num, func, order) FC_INIT_EXPORT(fc_section_##num, func, order)
+
+    // 导出到指定段中,目前只有0~3段,默认优先级为1000,优先级越低越先执行,对应段的优先级也应该越低越先执行
+#define _INIT_EXPORT_ENV_1(func)            INIT_EXPORT_3(0, func, 1000)
+#define _INIT_EXPORT_ENV_2(func, order)     INIT_EXPORT_3(0, func, order)
+
+#define _INIT_EXPORT_CLOCK_1(func)          INIT_EXPORT_3(1, func, 1000)
+#define _INIT_EXPORT_CLOCK_2(func, order)   INIT_EXPORT_3(1, func, order)
+
+#define _INIT_EXPORT_DEVICE_1(func)         INIT_EXPORT_3(2, func, 1000)
+#define _INIT_EXPORT_DEVICE_2(func, order)  INIT_EXPORT_3(2, func, order)
+
+#define _INIT_EXPORT_APP_1(func)            INIT_EXPORT_3(3, func, 1000)
+#define _INIT_EXPORT_APP_2(func, order)     INIT_EXPORT_3(3, func, order)
+    // clang-format on
+
+    //+********************************* 自定义的四个初始段 **********************************/
+
+    // 这个宏用于声明一个段的起始和结束地址,用于遍历段中的元素,当需要使用fc_foreach宏时,需要先使用这个宏
 #define FC_EXTERN(section_name) SECTION_EXTERN(section_name)
-
-// 这个宏用于导出一个元素到指定段中, 这个宏会自动将元素的地址导出到指定段中
-//! 注意一个段中只能包含一类元素,不同类型的元素需要放到不同的段中,编译器本身无法保证段中元素的类型一致,需要用户自己保证
-#define FC_EXPORT(section_name, elem) ELEM_EXPORT(section_name, elem)
 
 // 这个宏用于遍历指定段中的元素,需要先使用SECTION_EXTERN宏声明段的起始和结束地址
 #define fc_foreach(section_name, type_ptr) section_foreach(section_name, type_ptr)
-
-    //+********************************* 自定义的四个初始段 **********************************/
 
     /**
      * @brief 自动初始化的函数类型为无参无返类型
@@ -95,23 +119,29 @@ extern "C"
      *
      * 在描述的位置调用指定函数
      */
-    extern void fc_section0_init_func(void);
-    extern void fc_section1_init_func(void);
-    extern void fc_section2_init_func(void);
-    extern void fc_section3_init_func(void);
+    extern void fc_section_init_env(void);  //\ __attribute__((constructor)); 无需显式调用
+    extern void fc_section_init_clock(void);
+    extern void fc_section_init_device(void);
+    extern void fc_section_init_app(void);
 
-    typedef void (*fc_auto_init_func_t)(void);
+    /**
+     * @brief 最多允许两个参数,第一个参数为需要导出的函数名,第二个参数为优先级
+     * 可以缺省优先级,默认为1000,数字越小优先级越高
+     *
+     *
+     * @example
+     * void func(void){};          // 需要导出的函数
+     * INIT_EXPORT_ENV(func);      // 默认优先级1000
+     * INIT_EXPORT_ENV(func, 100); // 优先级100
+     */
 
-    // 导出到指定段中,目前只有0~3段
-#define INIT_EXPORT(num, func) ELEM_EXPORT(CONNECT(fc_auto_init_, num), func)
+#define INIT_EXPORT_ENV(...) CONNECT(_INIT_EXPORT_ENV_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
-#define INIT_EXPORT_ENV(func) INIT_EXPORT(0, func)
+#define INIT_EXPORT_CLOCK(...) CONNECT(_INIT_EXPORT_CLOCK_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
-#define INIT_EXPORT_CLOCK(func) INIT_EXPORT(1, func)
+#define INIT_EXPORT_DEVICE(...) CONNECT(_INIT_EXPORT_DEVICE_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
-#define INIT_EXPORT_DEVICE(func) INIT_EXPORT(2, func)
-
-#define INIT_EXPORT_APP(func) INIT_EXPORT(3, func)
+#define INIT_EXPORT_APP(...) CONNECT(_INIT_EXPORT_APP_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
 #ifdef __cplusplus
 }
