@@ -31,11 +31,15 @@ extern "C"
         extern const size_t CONNECT(section_name, $$Limit)
 
     #define ELEM_EXPORT(section_name, elem) \
-        static fc_typeof(&elem) const fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = &elem
+        static const fc_typeof(elem) fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = elem
 
-    #define section_foreach(section_name, type_ptr) \
-        SECTION_EXTERN(section_name);               \
-        for (type_ptr = (fc_typeof(type_ptr))(&CONNECT(section_name, $$Base)); (size_t)type_ptr < (size_t)(&CONNECT(section_name, $$Limit)); type_ptr++)
+    #define ELEM_EXPORT_PTR(section_name, elem) \
+        static const fc_typeof(&elem) fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = &elem
+
+    #define section_info(section_name, type_ptr, count)                   \
+        SECTION_EXTERN(section_name);                                     \
+        type_ptr = (fc_typeof(type_ptr))(&CONNECT(section_name, $$Base)); \
+        count = ((size_t)&CONNECT(section_name, $$Limit) - (size_t)&CONNECT(section_name, $$Base)) / sizeof(fc_typeof(*type_ptr))
 
 #elif defined(__IAR_SYSTEMS_ICC__) || defined(__ICCARM__) || defined(__ICCRX__) /* for IAR Compiler */
 
@@ -45,11 +49,15 @@ extern "C"
         PRAGMA(section = FC_STRINGFY(section_name))
 
     #define ELEM_EXPORT(section_name, elem) \
-        SECTION_EXTERN(section_name);       \
-        static const fc_used fc_section(FC_STRINGFY(section_name)) fc_typeof(&elem) CONNECT(section_name, _, elem, _, __LINE__) = &elem
+        static const fc_typeof(elem) fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = elem
 
-    #define section_foreach(section_name, type_ptr) \
-        for (type_ptr = (fc_typeof(type_ptr))(&CONNECT(section_name, _start)); (size_t)type_ptr < (size_t)(&CONNECT(section_name, _end)); type_ptr++)
+    #define ELEM_EXPORT_PTR(section_name, elem) \
+        static const fc_typeof(&elem) fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = &elem
+
+    #define section_info(section_name, type_ptr, count)                   \
+        SECTION_EXTERN(section_name);                                     \
+        type_ptr = (fc_typeof(type_ptr))(&CONNECT(section_name, $$Base)); \
+        count = ((size_t)&CONNECT(section_name, $$Limit) - (size_t)&CONNECT(section_name, $$Base)) / sizeof(fc_typeof(*type_ptr))
 
 #elif defined(__GNUC__) /* GNU GCC Compiler */
 
@@ -60,11 +68,15 @@ extern "C"
         extern const size_t CONNECT(__stop_, section_name)
 
     #define ELEM_EXPORT(section_name, elem) \
-        static const fc_used fc_section(FC_STRINGFY(section_name)) fc_typeof(&elem) CONNECT(section_name, _, elem, _, __LINE__) = &elem
+        static const fc_typeof(elem) fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = elem
 
-    #define section_foreach(section_name, type_ptr) \
-        SECTION_EXTERN(section_name);               \
-        for (type_ptr = (fc_typeof(type_ptr))(&CONNECT(__start_, section_name)); (size_t)type_ptr < (size_t)(&CONNECT(__stop_, section_name)); type_ptr++)
+    #define ELEM_EXPORT_PTR(section_name, elem) \
+        static const fc_typeof(&elem) fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = &elem
+
+    #define section_info(section_name, type_ptr, count)                   \
+        SECTION_EXTERN(section_name);                                     \
+        type_ptr = (fc_typeof(type_ptr))(&CONNECT(section_name, $$Base)); \
+        count = ((size_t)&CONNECT(section_name, $$Limit) - (size_t)&CONNECT(section_name, $$Base)) / sizeof(fc_typeof(*type_ptr))
 
 #else /* Unkown Compiler */
     #error not supported tool chain
@@ -79,9 +91,9 @@ extern "C"
         size_t              order;  // 优先级
     } fc_auto_init_elem_t;
 
-#define FC_INIT_EXPORT(section_name, func, order)                                           \
-    static fc_auto_init_elem_t CONNECT(section_name, _, func, _, __LINE__) = {func, order}; \
-    ELEM_EXPORT(section_name, CONNECT(section_name, _, func, _, __LINE__))
+    // 参考上面ELEM_EXPORT宏的写法
+#define FC_INIT_EXPORT(section_name, func, order) \
+    static const fc_auto_init_elem_t fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = {&func, order}
 
     // clang-format off
 #define INIT_EXPORT_3(num, func, order) FC_INIT_EXPORT(fc_section_##num, func, order)
@@ -102,11 +114,8 @@ extern "C"
 
     //+********************************* 自定义的四个初始段 **********************************/
 
-    // 这个宏用于声明一个段的起始和结束地址,用于遍历段中的元素,当需要使用fc_foreach宏时,需要先使用这个宏
+    // 这个宏用于声明一个段的起始和结束地址,用于遍历段中的元素
 #define FC_EXTERN(section_name) SECTION_EXTERN(section_name)
-
-// 这个宏用于遍历指定段中的元素,需要先使用SECTION_EXTERN宏声明段的起始和结束地址
-#define fc_foreach(section_name, type_ptr) section_foreach(section_name, type_ptr)
 
     /**
      * @brief 自动初始化的函数类型为无参无返类型
