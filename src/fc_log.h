@@ -46,15 +46,14 @@
 
 //! 格式需要转义的数量和格式内容的数量/类型必须匹配
 #ifndef FC_LOG_PREFIX_FMT
-    #define FC_LOG_PREFIX_FMT "(%d)%s" /**< 默认输出时间和当前函数名 */
+    #define FC_LOG_PREFIX_FMT "(%d)%s:" /**< 默认输出时间和当前函数名 */
 #endif
 
 #ifndef FC_LOG_PREFIX_CONTENT
-    #define FC_LOG_PREFIX_CONTENT __MACRO_EXPANDING(HAL_GetTick(), __FUNCTION__)
-#endif
+    #define FC_LOG_PREFIX_CONTENT __MACRO_EXPANDING(666, __FUNCTION__)
 
-#ifndef FC_LOG_FMT_END
-    #define FC_LOG_FMT_END ":"
+// extern uint32_t HAL_GetTick(void);
+//     #define FC_LOG_PREFIX_CONTENT __MACRO_EXPANDING(HAL_GetTick(), __FUNCTION__)
 #endif
 
 // clang-format off
