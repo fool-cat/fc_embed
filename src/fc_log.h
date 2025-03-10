@@ -56,6 +56,11 @@
 //     #define FC_LOG_PREFIX_CONTENT __MACRO_EXPANDING(HAL_GetTick(), __FUNCTION__)
 #endif
 
+#ifndef FC_LOG_END
+    #define FC_LOG_END ""
+    // #define FC_LOG_END "\r\n"  // 每句log自带换行
+#endif
+
 // clang-format off
 
 /**
@@ -135,16 +140,16 @@ extern "C"
     extern void fc_log_set_active(fc_log_t* log, bool active);
     extern void fc_log_set_level(fc_log_t* log, fc_log_level_t level);
     extern void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...);
-    extern void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, size_t len);
+    // extern void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, size_t len);  // 未使用
 
     //+********************************* 实例化 **********************************/
 
     extern fc_log_t default_log;  // 默认log对象
 
-#define fc_log_write_catch(write_func) \
-    do                                 \
-    {                                  \
-        default_log.write = write_func \
+#define fc_log_write_catch(write_func)  \
+    do                                  \
+    {                                   \
+        default_log.write = write_func; \
     } while (0)
 
 #ifndef FC_LOG_OBJ
@@ -171,10 +176,10 @@ extern "C"
 
 #if FC_LOG_ENABLE
 
-    #define log_format(text, level, fmt, ...)                                                    \
-        do                                                                                       \
-        {                                                                                        \
-            fc_log_printf(FC_LOG_OBJ, level, text "" fmt, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+    #define log_format(text, level, fmt, ...)                                                                  \
+        do                                                                                                     \
+        {                                                                                                      \
+            fc_log_printf(FC_LOG_OBJ, level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
         } while (0)
 
     //+********************************* 期望使用 **********************************/
