@@ -63,7 +63,7 @@ fc_weak size_t fc_port_lose_hook(fc_port_t* port, const void* buf, size_t len)
  *
  * @param port
  * @param ch
- * @return int
+ * @return int 成功返回ch,失败返回EOF
  */
 int fc_port_putc(fc_port_t* port, int ch)
 {
@@ -102,7 +102,7 @@ int fc_port_puts(fc_port_t* port, const char* str)
     fc_stdio_assert(port->rb != NULL);
 
     size_t len = strlen(str);
-    size_t write_size = 0;
+    size_t write_size = EOF;
 
     FC_STDIO_ATOMIC
     {
@@ -126,14 +126,14 @@ int fc_port_puts(fc_port_t* port, const char* str)
  * @param port
  * @param buf
  * @param len
- * @return size_t
+ * @return int
  */
-size_t fc_port_write(fc_port_t* port, const void* buf, size_t len)
+int fc_port_write(fc_port_t* port, const void* buf, size_t len)
 {
     fc_stdio_assert(port != NULL);
     fc_stdio_assert(port->rb != NULL);
 
-    size_t write_size = 0;
+    int write_size = EOF;
 
     FC_STDIO_ATOMIC
     {
@@ -164,7 +164,7 @@ int fc_port_printf(fc_port_t* port, const char* fmt, ...)
     fc_stdio_assert(port != NULL);
     fc_stdio_assert(port->rb != NULL);
 
-    int ret = 0;
+    int ret = EOF;
 
     va_list arp;
     va_start(arp, fmt);
@@ -232,14 +232,24 @@ char* fc_port_gets(fc_port_t* port, char* buf, size_t n)
  * @param port
  * @param buf
  * @param len
- * @return size_t
+ * @return int
  */
-size_t fc_port_read(fc_port_t* port, void* buf, size_t len)
+int fc_port_read(fc_port_t* port, void* buf, size_t len)
 {
-    size_t read_size = 0;
+    int read_size = 0;
     FC_STDIO_ATOMIC
     {
         read_size = fc_fifo_read(port->rb, buf, len);
+    }
+    return read_size;
+}
+
+int fc_port_peek(fc_port_t* port, void* buf, size_t len)
+{
+    int read_size = 0;
+    FC_STDIO_ATOMIC
+    {
+        read_size = fc_fifo_peek(port->rb, buf, len);
     }
     return read_size;
 }
@@ -379,7 +389,7 @@ fc_port_t fc_stdout = {0};
  * @brief
  *
  */
-void fc_port_init(void)
+void fc_stdio_init(void)
 {
     static bool init = false;
     if (init)
@@ -399,6 +409,10 @@ void fc_port_init(void)
 #endif
 
     {
+        static const char str[] = "FC_OUT_RTT_MARK";  // "FC_OUT_RTT_MARK"
+        memset(fc_stdout.id, 0, sizeof(fc_stdout.id));
+        strncpy(fc_stdout.id, str, sizeof(fc_stdout.id) - 1);
+
         fc_stdout.single_max_shift = STDOUT_TX_SINGLE_MAX_SHIFT;
         fc_stdout.dir = FC_PORT_DIR_OUT;
         fc_stdout.trigger_serial = PHY_SERIAL_TX_ENABLE ? true : false;
@@ -408,6 +422,10 @@ void fc_port_init(void)
     }
 
     {
+        static const char str[] = "FC_IN_RTT_MARK";  // "FC_IN_RTT_MARK"
+        memset(fc_stdin.id, 0, sizeof(fc_stdin.id));
+        strncpy(fc_stdin.id, str, sizeof(fc_stdin.id) - 1);
+
         fc_stdin.single_max_shift = STDIN_RX_SINGLE_MAX_SHIFT;
         fc_stdin.dir = FC_PORT_DIR_IN;
         fc_stdin.trigger_serial = PHY_SERIAL_RX_ENABLE ? true : false;
@@ -433,9 +451,9 @@ int fc_puts(const char* str)
  *
  * @param buf
  * @param len
- * @return size_t
+ * @return int
  */
-size_t fc_write(const void* buf, size_t len)
+int fc_write(const void* buf, size_t len)
 {
     return fc_port_write(&fc_stdout, buf, len);
 }
@@ -490,7 +508,7 @@ int fc_printf(const char* fmt, ...)
  * @param len
  * @return size_t
  */
-size_t fc_read(void* buf, size_t len)
+int fc_read(void* buf, size_t len)
 {
     return fc_port_read(&fc_stdin, buf, len);
 }
@@ -581,7 +599,7 @@ void fc_out_end(int size)
  *
  * @return size_t
  */
-size_t fc_out_available(void)
+int fc_out_available(void)
 {
     return fc_port_available(&fc_stdout);
 }

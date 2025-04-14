@@ -1,7 +1,7 @@
 /**
  * @file fc_log.h
  * @author fool-cat (2696652257@qq.com)
- * @brief 参考letter_shell的log组件,log组件核心为行缓冲
+ * @brief 参考letter_shell的log组件,log组件核心为行缓冲,[ulog](https://github.com/rdpoor/ulog)
  * @version 1.0
  * @date 2025-01-31
  *
@@ -15,7 +15,17 @@
 
 // overlay的方式覆盖默认配置
 #ifdef FC_CONFIG_HEADER
-    #include FC_CONFIG_HEADER
+    #if defined(FC_USE_STRINGFY)
+        #define FC_HEADER_STRINGFY(x) #x
+        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
+        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
+    #elif defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
+        #define FC_HEADER_STRINGFY(x) #x
+        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
+        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
+    #else
+        #include FC_CONFIG_HEADER
+    #endif
 #endif
 
 #include <stddef.h>
