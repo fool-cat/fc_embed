@@ -133,7 +133,7 @@ extern "C"
 
 #ifndef STDOUT_TX_SINGLE_MAX_SHIFT
     // 单次发送最大字节数为缓冲区的1/(2^n),多段发送可以尽快空出部分缓冲区
-    #define STDOUT_TX_SINGLE_MAX_SHIFT 0
+    #define STDOUT_TX_SINGLE_MAX_SHIFT 2
 #endif
 
 // 连续发送
@@ -149,7 +149,7 @@ extern "C"
 
 #ifndef STDIN_RX_SINGLE_MAX_SHIFT
     // 单次接收最大字节数为缓冲区的1/(2^n),多段接收可以防止连续接收满了之后来不及处理
-    #define STDIN_RX_SINGLE_MAX_SHIFT 1
+    #define STDIN_RX_SINGLE_MAX_SHIFT 2
 #endif
 
 // 连续接收

@@ -273,8 +273,8 @@
 #define FC_UNUSED(x) (void)(x)
 
 /* stringfy */
-#define __FC_STRINGIFY(x...) #x
-#define FC_STRINGFY(x...) __FC_STRINGIFY(x)
+#define __FC_STRINGFY(x) #x
+#define FC_STRINGFY(x) __FC_STRINGFY(x)
 
 /* compile time assertion */
 #ifndef FC_STATIC_ASSERT

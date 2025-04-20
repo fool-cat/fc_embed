@@ -51,17 +51,17 @@
     #define FC_LOG_USING_COLOR 1 /**< 是否使用颜色 */
 #endif
 
-#undef __MACRO_EXPANDING
-#define __MACRO_EXPANDING(...) __VA_ARGS__
-
 //! 格式需要转义的数量和格式内容的数量/类型必须匹配
 #ifndef FC_LOG_PREFIX_FMT
     #define FC_LOG_PREFIX_FMT "(%d)%s:" /**< 默认输出时间和当前函数名 */
 #endif
 
 #ifndef FC_LOG_PREFIX_CONTENT
+    #undef __MACRO_EXPANDING
+    #define __MACRO_EXPANDING(...) __VA_ARGS__
     #define FC_LOG_PREFIX_CONTENT __MACRO_EXPANDING(666, __FUNCTION__)
 
+// #include <stdint.h>
 // extern uint32_t HAL_GetTick(void);
 //     #define FC_LOG_PREFIX_CONTENT __MACRO_EXPANDING(HAL_GetTick(), __FUNCTION__)
 #endif
@@ -223,7 +223,11 @@ extern "C"
     #define log_info(fmt, ...) (void)(0)
     #define log_debug(fmt, ...) (void)(0)
     #define log_verbose(fmt, ...) (void)(0)
-    #define log_assert(expr, ...) (void)(0)
+    #define log_assert(expr, ...) \
+        if (!(expr))              \
+        {                         \
+            (void)0;              \
+        }
 
 #endif
 
