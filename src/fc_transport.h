@@ -33,6 +33,10 @@
     #endif
 #endif
 
+#ifndef USE_FC_SNPRINTF
+    #define USE_FC_SNPRINTF 1 /**< 是否使用fc_snprintf进行格式化 */
+#endif
+
 // > C/C++兼容性宏定义
 #ifdef __cplusplus
 extern "C"
@@ -41,10 +45,11 @@ extern "C"
 
     //+********************************* receiver **********************************/
 
-    typedef size_t (*fc_receiver_out_t)(size_t index, const void* buf, size_t len);  // 返回值仅做保留
+    typedef struct _fc_receiver_t fc_receiver_t;  // 前置声明
+
+    typedef size_t (*fc_receiver_out_t)(size_t index, const char* buf, size_t len);  // 返回值仅做保留
     typedef bool (*fc_receiver_end_t)(fc_receiver_t* receiver);                      // 接收结束回调函数,返回true表示结束,返回false表示继续接收
 
-    typedef struct _fc_receiver_t fc_receiver_t;
     struct _fc_receiver_t
     {
         fc_port_t*        port;   // 物理port
@@ -76,6 +81,13 @@ extern "C"
     extern int fc_sender_puts(fc_sender_t* sender, size_t index, const char* str);
     extern int fc_sender_write(fc_sender_t* sender, size_t index, const void* buf, size_t len);
     extern int fc_sender_printf(fc_sender_t* sender, size_t index, const char* fmt, ...);
+
+    //+********************************* 默认实例化对象 **********************************/
+    extern fc_receiver_t fc_receiver;  // 接收器对象
+    extern fc_sender_t   fc_sender;    // 发送器对象
+
+#define fc_receiver_out_catch(func) (fc_receiver.out = func)
+#define fc_receiver_end_catch(func) (fc_receiver.end = func)
 
 #ifdef __cplusplus
 }

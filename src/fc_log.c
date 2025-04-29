@@ -15,7 +15,7 @@
 
 #include "fc_port.h"
 
-#if LOG_USE_VSNPRINTF
+#if USE_FC_VSNPRINTF
 extern int fc_vsnprintf(char* s, size_t n, const char* fmt, va_list ap);
     #define LOG_VSNPRINTF fc_vsnprintf
 #else
@@ -23,42 +23,29 @@ extern int fc_vsnprintf(char* s, size_t n, const char* fmt, va_list ap);
     #define LOG_VSNPRINTF vsnprintf
 #endif  //\ LOG_USE_VSNPRINTF
 
-#ifndef LOG_ASSERT
-    #define LOG_ASSERT(x) ((void)0)
-#endif  //\ LOG_ASSERT
+#ifndef FC_LOG_ASSERT
+    #define FC_LOG_ASSERT(x) ((void)0)
+#endif  //\ FC_LOG_ASSERT
 
-static size_t _log_buff_write(fc_log_t* log, const void* buff, size_t len)
-{
-    LOG_ASSERT(log != NULL);
-
-    return fc_write(buff, len);
-}
-
-fc_log_t default_log = {
-    .level = FC_LOG_ALL,
-    .active = true,
-    .buff = {0},
-    .user = NULL,
-    .write = _log_buff_write,
-};
+//+*********************************  **********************************/
 
 void fc_log_set_active(fc_log_t* log, bool active)
 {
-    LOG_ASSERT(log != NULL);
+    FC_LOG_ASSERT(log != NULL);
 
     log->active = active;
 }
 
 void fc_log_set_level(fc_log_t* log, fc_log_level_t level)
 {
-    LOG_ASSERT(log != NULL);
+    FC_LOG_ASSERT(log != NULL);
 
     log->level = level;
 }
 
 void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...)
 {
-    LOG_ASSERT(log != NULL);
+    FC_LOG_ASSERT(log != NULL);
 
     if (log->active && log->level >= level)
     {
@@ -70,7 +57,7 @@ void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...)
             log->buff_busy = true;
 
             int len = LOG_VSNPRINTF(log->buff, FC_LOG_LINE_SIZE, fmt, vargs);
-            len -= log->write(log, log->buff, len);
+            len -= log->write(log->buff, len);
             FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
 
             log->buff_busy = false;
@@ -79,7 +66,7 @@ void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...)
         {
             char buff[FC_LOG_STACK_LINE_SIZE];
             int  len = LOG_VSNPRINTF(buff, FC_LOG_STACK_LINE_SIZE, fmt, vargs);
-            len -= log->write(log, buff, len);
+            len -= log->write(buff, len);
             FC_LOG_LOSE_HOOK(0 == len, log, buff, len);
         }
 
@@ -89,16 +76,48 @@ void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...)
 
 void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, size_t len)
 {
-    LOG_ASSERT(log != NULL);
+    FC_LOG_ASSERT(log != NULL);
 
     if (log->active && log->level >= level)
     {
-        len -= log->write(log, buff, len);
+        len -= log->write(buff, len);
         FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
     }
 }
 
+//+********************************* 提供一份默认对象 **********************************/
+/**
+ * @brief 默认log对象的write函数
+ *
+ * @param log
+ * @param buff
+ * @param len
+ * @return size_t
+ */
+static size_t default_log_write(const char* buf, size_t len)
+{
+    return fc_write(buf, len);
+}
+
+fc_log_t default_log = {
+    .level = FC_LOG_ALL,
+    .active = true,
+    .buff = {0},
+    // .user = NULL,
+    .write = default_log_write,
+};
+
+//+*********************************  **********************************/
+
 #include "fc_compiler.h"
+/**
+ * @brief log写入丢失钩子,弱函数,定义了自己的fc_log对象可以重写
+ *  记得在宏FC_LOG_LOSE_HOOK里面去开启,默认是关闭了的
+ * @param log
+ * @param buff
+ * @param len
+ * @return fc_weak
+ */
 fc_weak size_t fc_log_write_lose_hook(fc_log_t* log, const void* buff, size_t len)
 {
     (void)log;
@@ -115,7 +134,7 @@ fc_weak size_t fc_log_write_lose_hook(fc_log_t* log, const void* buff, size_t le
     }
     else
     {
-        LOG_ASSERT(log != NULL);
+        FC_LOG_ASSERT(log != NULL);
     }
 
     return count;

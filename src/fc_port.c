@@ -603,3 +603,13 @@ int fc_out_available(void)
 {
     return fc_port_available(&fc_stdout);
 }
+
+//+********************************* 自动注册初始化 **********************************/
+#if USE_FC_AUTO_INIT
+    #include "fc_auto_init.h"
+static void _fc_port_auto_init(void)
+{
+    fc_stdio_init();  // 纯内存结构初始化,可以放在constructor的时候就初始化
+}
+INIT_EXPORT_ENV(_fc_port_auto_init, 100);  // 等级比默认的1000优先级更高,纯数据结构无外部依赖
+#endif

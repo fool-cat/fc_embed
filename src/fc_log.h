@@ -34,6 +34,10 @@
 
 #include "fc_helper.h"
 
+#ifndef USE_FC_VSNPRINTF
+    #define USE_FC_VSNPRINTF 1 /**< 是否使用fc_vsnprintf进行格式化 */
+#endif
+
 #ifndef FC_LOG_ENABLE
     #define FC_LOG_ENABLE 1 /**< 使能log */
 #endif
@@ -142,9 +146,9 @@ extern "C"
         char           buff[FC_LOG_LINE_SIZE];  // 行缓冲,每个log独立拥有自己的行缓冲
         // 每个log拥有自己独立的行缓冲是为了提高性能,避免频繁栈内存创建和销毁
 
-        void* user;  // 预留用户个人数据
+        // void* user;  // 预留用户个人数据
 
-        size_t (*write)(fc_log_t* log, const void* buff, size_t len);  // 写入数据
+        size_t (*write)(const char* buf, size_t len);  // 写入数据
     };
 
     extern void fc_log_set_active(fc_log_t* log, bool active);
@@ -154,17 +158,23 @@ extern "C"
 
     //+********************************* 实例化 **********************************/
 
-    extern fc_log_t default_log;  // 默认log对象
-
-#define fc_log_write_catch(write_func)  \
-    do                                  \
-    {                                   \
-        default_log.write = write_func; \
-    } while (0)
-
 #ifndef FC_LOG_OBJ
-    #define FC_LOG_OBJ ((fc_log_t*)&default_log)
+    extern fc_log_t default_log;  // 默认log对象
+    #undef FC_LOG_OBJ
+    #define FC_LOG_OBJ (&default_log)
 #endif
+
+/**
+ * @brief 这个宏用于快速定义一个fc_log_t对象,禁止在头文件中使用,否则会导致多重定义
+ *
+ */
+#define FC_LOG_IMPL(obj_name, _level, write_func) \
+    fc_log_t obj_name = {                         \
+        .level = _level, /* 日志级别 */           \
+        .active = true,  /* 是否使能 */           \
+        .buff = {0},                              \
+        .write = write_func, /* 写入函数 */       \
+    };
 
 #ifndef FC_LOG_LOSE_HOOK
     extern size_t fc_log_write_lose_hook(fc_log_t* log, const void* buff, size_t len);

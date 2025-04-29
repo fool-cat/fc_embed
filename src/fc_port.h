@@ -43,6 +43,10 @@ extern "C"
 {
 #endif
 
+#ifndef USE_FC_AUTO_INIT
+    #define USE_FC_AUTO_INIT 1
+#endif
+
 #ifndef REPLACE_GLOABAL_STDIO
     #define REPLACE_GLOABAL_STDIO 0
 #endif
