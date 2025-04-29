@@ -16,8 +16,19 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+// overlay的方式覆盖默认配置
 #ifdef FC_CONFIG_HEADER
-    #include FC_CONFIG_HEADER
+    #if defined(FC_HEADER_WRAP)
+        #define FC_HEADER_STRINGFY(x) #x
+        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
+        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
+    #elif defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
+        #define FC_HEADER_STRINGFY(x) #x
+        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
+        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
+    #else
+        #include FC_CONFIG_HEADER
+    #endif
 #endif
 
 // > C/C++兼容性宏定义
@@ -78,6 +89,7 @@ extern "C"
     extern int fc_snprintf(char* buf, size_t size, const char* fmt, ...);
     extern int fc_vsprintf(char* buf, const char* fmt, va_list arp);
     extern int fc_vsnprintf(char* buf, size_t size, const char* fmt, va_list arp);
+    extern int fc_fprintf(FC_FILE* pf, const char* fmt, ...);
     extern int fc_vfprintf(FC_FILE* pf, const char* fmt, va_list arp);  // 字符串格式化核心函数
 
     extern int fc_sscanf(const char* res, const char* fmt, ...);

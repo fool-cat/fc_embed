@@ -1,9 +1,9 @@
 /**
- * @file fc_sscanf.c
+ * @file fc_fscanf.c
  * @author fool_cat (2696652257@qq.com)
  * @brief
  * @version 1.0
- * @date 2025-02-20
+ * @date 2025-02-28
  *
  * @copyright Copyright (c) 2025
  *
@@ -12,12 +12,12 @@
 #include <stdarg.h>
 #include "fc_stdio.h"
 
-int fc_sscanf(const char* s, const char* fmt, ...)
+int fc_fscanf(FC_FILE* f, const char* fmt, ...)
 {
     int     ret;
     va_list ap;
     va_start(ap, fmt);
-    ret = fc_vsscanf(s, fmt, ap);
+    ret = fc_vfscanf(f, fmt, ap);
     va_end(ap);
     return ret;
 }
