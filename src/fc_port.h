@@ -123,9 +123,9 @@ extern "C"
     extern int   fc_port_scanf(fc_port_t* port, const char* fmt, ...);
     extern int   fc_port_vscanf(fc_port_t* port, const char* fmt, va_list arp);  // fc_port_scanf核心实现
 
-    extern void   fc_port_trigger(fc_port_t* port);        // 触发慢速IO
-    extern void   fc_port_end(fc_port_t* port, int size);  // 慢速IO完成回调
-    extern size_t fc_port_available(fc_port_t* port);      // 缓冲区可用字节数
+    extern void fc_port_trigger(fc_port_t* port);        // 触发慢速IO
+    extern void fc_port_end(fc_port_t* port, int size);  // 慢速IO完成回调
+    extern int  fc_port_available(fc_port_t* port);      // 缓冲区可用字节数
 
     //+********************************* 默认实例化对象 **********************************/
 
@@ -213,9 +213,9 @@ extern "C"
     extern int   fc_read(void* buf, size_t len);
     extern int   fc_scanf(const char* fmt, ...);
 
-    extern void   fc_in_trigger(void);    // 触发接收
-    extern void   fc_in_end(int size);    // 接收完成处理
-    extern size_t fc_in_available(void);  // 缓冲区可用字节数
+    extern void fc_in_trigger(void);    // 触发接收
+    extern void fc_in_end(int size);    // 接收完成处理
+    extern int  fc_in_available(void);  // 缓冲区可用字节数
 
 #ifdef __cplusplus
 }

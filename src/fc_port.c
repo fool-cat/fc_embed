@@ -363,20 +363,20 @@ void fc_port_end(fc_port_t* port, int size)
  * @brief
  *
  * @param port
- * @return size_t
+ * @return int
  */
-size_t fc_port_available(fc_port_t* port)
+int fc_port_available(fc_port_t* port)
 {
     fc_stdio_assert(port != NULL);
     fc_stdio_assert(port->rb != NULL);
 
     if (port->dir == FC_PORT_DIR_OUT)
     {
-        return fc_fifo_get_used(port->rb);
+        return (int)fc_fifo_get_used(port->rb);
     }
     else
     {
-        return fc_fifo_get_free(port->rb);
+        return (int)fc_fifo_get_free(port->rb);
     }
 }
 
@@ -568,11 +568,11 @@ void fc_in_end(int size)
 /**
  * @brief
  *
- * @return size_t
+ * @return int
  */
-size_t fc_in_available(void)
+int fc_in_available(void)
 {
-    return fc_port_available(&fc_stdin);
+    return (int)fc_port_available(&fc_stdin);
 }
 
 /**
@@ -597,11 +597,11 @@ void fc_out_end(int size)
 /**
  * @brief
  *
- * @return size_t
+ * @return int
  */
 int fc_out_available(void)
 {
-    return fc_port_available(&fc_stdout);
+    return (int)fc_port_available(&fc_stdout);
 }
 
 //+********************************* 自动注册初始化 **********************************/
