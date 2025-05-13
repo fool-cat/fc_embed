@@ -241,8 +241,7 @@ static bool _write_ch(FC_FILE* f, char ch)
     }
     else if (f->write)
     {
-        char _temp = (char)ch;
-        if (1 != f->write(f, &_temp, 1))
+        if (1 != f->write(f, &ch, 1))
         {
             return false;
         }
@@ -257,15 +256,16 @@ static bool _write_ch(FC_FILE* f, char ch)
 }
 
 // 不使用do{}while(0)的结构节省一条指令的性能开销
-#undef __fputc
-#define __fputc(f, ch)         \
-    {                          \
-        if (!_write_ch(f, ch)) \
-            goto _exit;        \
+#undef __fc_fputc
+#define __fc_fputc(f, ch)            \
+    {                                \
+        if (!_write_ch(f, (char)ch)) \
+            goto _exit;              \
     }
 
 // 退出的后处理
-#define _exit_handle(f)           \
+#undef __fc_exit_handle
+#define __fc_exit_handle(f)       \
     if (f->write)                 \
     {                             \
         f->write(f, f->p_now, 0); \
@@ -295,7 +295,7 @@ int fc_vfprintf(
             break; /* End of format? */
         if (c != '%')
         { /* Pass it through if not a % sequense */
-            __fputc(pf, c);
+            __fc_fputc(pf, c);
             continue;
         }
         f = w = 0; /* Clear parms */
@@ -384,7 +384,7 @@ int fc_vfprintf(
             break;
         case 'c': /* A character */
         {
-            __fputc(pf, (char)va_arg(arp, int));
+            __fc_fputc(pf, (char)va_arg(arp, int));
             continue;
         }
         case 's':                   /* String */
@@ -396,15 +396,15 @@ int fc_vfprintf(
                 j = prec; /* Limited length of string body */
             for (; !(f & 2) && j < w; j++)
             {
-                __fputc(pf, pad); /* Left pads */
+                __fc_fputc(pf, pad); /* Left pads */
             }
             while (*p && prec--)
             {
-                __fputc(pf, *p++); /* String body */
+                __fc_fputc(pf, *p++); /* String body */
             }
             while (j++ < w)
             {
-                __fputc(pf, ' '); /* Right pads */
+                __fc_fputc(pf, ' '); /* Right pads */
             }
             continue;
 #if XF_USE_FP
@@ -414,21 +414,21 @@ int fc_vfprintf(
             ftoa(p = str, va_arg(arp, double), prec, c); /* Make fp string */
             for (j = strlen(p); !(f & 2) && j < w; j++)
             {
-                __fputc(pf, pad); /* Left pads */
+                __fc_fputc(pf, pad); /* Left pads */
             }
             while (*p)
             {
-                __fputc(pf, *p++); /* Value */
+                __fc_fputc(pf, *p++); /* Value */
             }
             while (j++ < w)
             {
-                __fputc(pf, ' '); /* Right pads */
+                __fc_fputc(pf, ' '); /* Right pads */
             }
             continue;
 #endif
         default: /* Unknown type (passthrough) */
         {
-            __fputc(pf, c);
+            __fc_fputc(pf, c);
             continue;
         }
         }
@@ -479,20 +479,20 @@ int fc_vfprintf(
             str[i++] = '-'; /* Sign */
         for (j = i; !(f & 2) && j < w; j++)
         {
-            __fputc(pf, pad); /* Left pads */
+            __fc_fputc(pf, pad); /* Left pads */
         }
         do
         {
-            __fputc(pf, str[--i]);
+            __fc_fputc(pf, str[--i]);
         } while (i != 0); /* Value */
         while (j++ < w)
         {
-            __fputc(pf, ' '); /* Right pads */
+            __fc_fputc(pf, ' '); /* Right pads */
         }
     }
 
 _exit:
-    _exit_handle(pf);
+    __fc_exit_handle(pf);
 
     return pf->n;
 }

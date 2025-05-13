@@ -47,21 +47,22 @@ extern "C"
 #endif
 
 // 断言只在PC验证的时候用,验证完成后应关闭断言,这个fifo实现追求性能为主
-#ifndef FC_FIFO_ASSERT
-    #define FC_FIFO_ASSERT(x) ((void)0)
-#endif  //\ FC_FIFO_ASSERT
+#ifndef fc_fifo_assert
+    #define fc_fifo_assert(x) ((void)0)
+#endif  //\ fc_fifo_assert
 
-// 高优化的时候memcpy可能会出现内存对齐问题,所以这里提供一份单字节拷贝的版本
-// #define FC_FIFO_MEMCPY(dst, src, size) memcpy(dst, src, size)
-#ifndef FC_FIFO_MEMCPY
-    #define FC_FIFO_MEMCPY(dst, src, size)                 \
+// 高优化等级的时候memcpy可能会出现内存对齐问题,所以这里提供一份单字节拷贝的版本
+// #include <string.h>
+// #define fc_fifo_memcpy(dst, src, size) memcpy(dst, src, size)
+#ifndef fc_fifo_memcpy
+    #define fc_fifo_memcpy(dst, src, size)                 \
         {                                                  \
             for (size_t _i = 0; _i < size; _i++)           \
             {                                              \
                 ((uint8_t*)dst)[_i] = ((uint8_t*)src)[_i]; \
             }                                              \
         }
-#endif  //\ FC_FIFO_MEMCPY
+#endif  //\ fc_fifo_memcpy
 
     typedef struct _fc_fifo_t fc_fifo_t;
     struct _fc_fifo_t
@@ -124,8 +125,8 @@ extern "C"
 #define fc_fifo_static_new_at(ptr, log2_size)                                                      \
     do                                                                                             \
     {                                                                                              \
-        FC_FIFO_ASSERT(ptr == NULL);                                                               \
-        FC_FIFO_ASSERT(log2_size > 0);                                                             \
+        fc_fifo_assert(ptr == NULL);                                                               \
+        fc_fifo_assert(log2_size > 0);                                                             \
         static size_t    __pool[((1 << log2_size) + (sizeof(size_t) - 1)) / sizeof(size_t)] = {0}; \
         static fc_fifo_t __fifo = {0};                                                             \
         ptr = &__fifo;                                                                             \
@@ -133,7 +134,7 @@ extern "C"
         {                                                                                          \
             ptr = NULL;                                                                            \
         }                                                                                          \
-        FC_FIFO_ASSERT(ptr != NULL);                                                               \
+        fc_fifo_assert(ptr != NULL);                                                               \
     } while (0)
 
     //+********************************* 函数实现 **********************************/
@@ -147,10 +148,10 @@ extern "C"
      */
     fc_always_inline int fc_fifo_init(fc_fifo_t* rb, void* pool, size_t size)
     {
-        FC_FIFO_ASSERT(rb != NULL);
-        FC_FIFO_ASSERT(pool != NULL);
-        FC_FIFO_ASSERT(size >= 2);
-        FC_FIFO_ASSERT((size & (size - 1)) == 0);
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(pool != NULL);
+        fc_fifo_assert(size >= 2);
+        fc_fifo_assert((size & (size - 1)) == 0);
 
         if (rb == NULL || pool == NULL || size < 2 || (size & (size - 1)) != 0)
             return -1;
@@ -171,7 +172,7 @@ extern "C"
      */
     fc_always_inline void fc_fifo_reset(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
         rb->in = rb->out = 0;
         rb->linear_size_read = rb->linear_size_write = 0;
     }
@@ -182,7 +183,7 @@ extern "C"
      */
     fc_always_inline void fc_fifo_reset_read(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
         rb->out = rb->in;
         rb->linear_size_read = 0;
     }
@@ -193,7 +194,7 @@ extern "C"
      */
     inline void fc_fifo_reset_write(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
         rb->in = rb->out;
         rb->linear_size_write = 0;
     }
@@ -205,7 +206,7 @@ extern "C"
      */
     fc_always_inline size_t fc_fifo_get_size(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
         return rb->size;
     }
 
@@ -216,7 +217,7 @@ extern "C"
      */
     fc_always_inline size_t fc_fifo_get_used(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
         return rb->in - rb->out;
     }
 
@@ -227,7 +228,7 @@ extern "C"
      */
     fc_always_inline size_t fc_fifo_get_free(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
         return rb->size - (rb->in - rb->out);
     }
 
@@ -238,7 +239,7 @@ extern "C"
      */
     fc_always_inline bool fc_fifo_check_full(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
         return rb->in - rb->out == rb->size;
     }
 
@@ -249,7 +250,7 @@ extern "C"
      */
     fc_always_inline bool fc_fifo_check_empty(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
         return rb->in == rb->out;
     }
 
@@ -261,7 +262,7 @@ extern "C"
      */
     fc_always_inline bool fc_fifo_write_byte(fc_fifo_t* rb, uint8_t byte)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
 
         if (fc_fifo_check_full(rb))
             return false;
@@ -279,7 +280,7 @@ extern "C"
      */
     fc_always_inline bool fc_fifo_overwrite_byte(fc_fifo_t* rb, uint8_t byte)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
 
         if (fc_fifo_check_full(rb))
             rb->out++;
@@ -297,8 +298,8 @@ extern "C"
      */
     fc_always_inline bool fc_fifo_peek_byte(fc_fifo_t* rb, uint8_t* byte)
     {
-        FC_FIFO_ASSERT(rb != NULL);
-        FC_FIFO_ASSERT(byte != NULL);
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(byte != NULL);
 
         if (fc_fifo_check_empty(rb))
             return false;
@@ -315,8 +316,8 @@ extern "C"
      */
     fc_always_inline bool fc_fifo_read_byte(fc_fifo_t* rb, uint8_t* byte)
     {
-        FC_FIFO_ASSERT(rb != NULL);
-        FC_FIFO_ASSERT(byte != NULL);
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(byte != NULL);
 
         bool ret;
         ret = fc_fifo_peek_byte(rb, byte);
@@ -331,7 +332,7 @@ extern "C"
      */
     fc_always_inline bool fc_fifo_drop_byte(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
 
         if (fc_fifo_check_empty(rb))
             return false;
@@ -349,8 +350,8 @@ extern "C"
      */
     fc_always_inline size_t fc_fifo_write(fc_fifo_t* rb, void* data, size_t size)
     {
-        FC_FIFO_ASSERT(rb != NULL);
-        FC_FIFO_ASSERT(data != NULL);
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(data != NULL);
 
         size_t unused;
         size_t offset;
@@ -368,8 +369,8 @@ extern "C"
         remain = rb->size - offset;
         remain = remain > size ? size : remain;
 
-        FC_FIFO_MEMCPY(((uint8_t*)(rb->pool)) + offset, data, remain);
-        FC_FIFO_MEMCPY(rb->pool, (uint8_t*)data + remain, size - remain);
+        fc_fifo_memcpy(((uint8_t*)(rb->pool)) + offset, data, remain);
+        fc_fifo_memcpy(rb->pool, (uint8_t*)data + remain, size - remain);
 
         rb->in += size;
 
@@ -385,8 +386,8 @@ extern "C"
      */
     fc_always_inline size_t fc_fifo_overwrite(fc_fifo_t* rb, void* data, size_t size)
     {
-        FC_FIFO_ASSERT(rb != NULL);
-        FC_FIFO_ASSERT(data != NULL);
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(data != NULL);
 
         size_t unused;
         size_t offset;
@@ -409,8 +410,8 @@ extern "C"
         remain = rb->size - offset;
         remain = remain > size ? size : remain;
 
-        FC_FIFO_MEMCPY(((uint8_t*)(rb->pool)) + offset, data, remain);
-        FC_FIFO_MEMCPY(rb->pool, (uint8_t*)data + remain, size - remain);
+        fc_fifo_memcpy(((uint8_t*)(rb->pool)) + offset, data, remain);
+        fc_fifo_memcpy(rb->pool, (uint8_t*)data + remain, size - remain);
 
         rb->in += size;
 
@@ -426,8 +427,8 @@ extern "C"
      */
     fc_always_inline size_t fc_fifo_peek(fc_fifo_t* rb, void* data, size_t size)
     {
-        FC_FIFO_ASSERT(rb != NULL);
-        FC_FIFO_ASSERT(data != NULL);
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(data != NULL);
 
         size_t used;
         size_t offset;
@@ -444,8 +445,8 @@ extern "C"
         remain = rb->size - offset;
         remain = remain > size ? size : remain;
 
-        FC_FIFO_MEMCPY(data, ((uint8_t*)(rb->pool)) + offset, remain);
-        FC_FIFO_MEMCPY((uint8_t*)data + remain, rb->pool, size - remain);
+        fc_fifo_memcpy(data, ((uint8_t*)(rb->pool)) + offset, remain);
+        fc_fifo_memcpy((uint8_t*)data + remain, rb->pool, size - remain);
 
         return size;
     }
@@ -459,8 +460,8 @@ extern "C"
      */
     fc_always_inline size_t fc_fifo_read(fc_fifo_t* rb, void* data, size_t size)
     {
-        FC_FIFO_ASSERT(rb != NULL);
-        FC_FIFO_ASSERT(data != NULL);
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(data != NULL);
 
         size = fc_fifo_peek(rb, data, size);
         rb->out += size;
@@ -476,7 +477,7 @@ extern "C"
      */
     fc_always_inline size_t fc_fifo_drop(fc_fifo_t* rb, size_t size)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
 
         size_t used;
         used = rb->in - rb->out;
@@ -497,8 +498,8 @@ extern "C"
      */
     fc_always_inline void* fc_fifo_linear_write_setup(fc_fifo_t* rb, size_t* size)
     {
-        FC_FIFO_ASSERT(rb != NULL);
-        FC_FIFO_ASSERT(size != NULL);
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(size != NULL);
 
         size_t free = fc_fifo_get_free(rb);
         size_t linear_size = rb->size - (rb->in & rb->mask);
@@ -516,8 +517,8 @@ extern "C"
      */
     fc_always_inline void* fc_fifo_linear_read_setup(fc_fifo_t* rb, size_t* size)
     {
-        FC_FIFO_ASSERT(rb != NULL);
-        FC_FIFO_ASSERT(size != NULL);
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(size != NULL);
 
         size_t used = fc_fifo_get_used(rb);
         size_t linear_size = rb->size - (rb->out & rb->mask);
@@ -535,7 +536,7 @@ extern "C"
      */
     fc_always_inline size_t fc_fifo_linear_write_done(fc_fifo_t* rb, size_t size)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
 
         rb->in += size;
         rb->linear_size_write = 0;  // 此次连续写入完成,重置为0清除忙状态
@@ -550,7 +551,7 @@ extern "C"
      */
     fc_always_inline size_t fc_fifo_linear_read_done(fc_fifo_t* rb, size_t size)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
 
         rb->out += size;
         rb->linear_size_read = 0;  // 此次连续读取完成,重置为0清除忙状态
@@ -567,9 +568,9 @@ extern "C"
      */
     inline void* fc_fifo_linear_write_setup_limit(fc_fifo_t* rb, size_t* size, size_t shift_n)
     {
-        FC_FIFO_ASSERT(rb != NULL);
-        FC_FIFO_ASSERT(size != NULL);
-        FC_FIFO_ASSERT((rb->size >> shift_n) > 0);
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(size != NULL);
+        fc_fifo_assert((rb->size >> shift_n) > 0);
 
         size_t free = fc_fifo_get_free(rb);
         size_t linear_size = rb->size - (rb->in & rb->mask);
@@ -590,9 +591,9 @@ extern "C"
      */
     inline void* fc_fifo_linear_read_setup_limit(fc_fifo_t* rb, size_t* size, size_t shift_n)
     {
-        FC_FIFO_ASSERT(rb != NULL);
-        FC_FIFO_ASSERT(size != NULL);
-        FC_FIFO_ASSERT((rb->size >> shift_n) > 0);
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(size != NULL);
+        fc_fifo_assert((rb->size >> shift_n) > 0);
 
         size_t used = fc_fifo_get_used(rb);
         size_t linear_size = rb->size - (rb->out & rb->mask);
@@ -610,7 +611,7 @@ extern "C"
      */
     inline size_t fc_fifo_linear_write_get_size(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
         return rb->linear_size_write;
     }
 
@@ -621,7 +622,7 @@ extern "C"
      */
     inline size_t fc_fifo_linear_read_get_size(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
         return rb->linear_size_read;
     }
 
@@ -632,7 +633,7 @@ extern "C"
      */
     inline bool fc_fifo_linear_write_busy(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
         return rb->linear_size_write ? true : false;
     }
 
@@ -643,7 +644,7 @@ extern "C"
      */
     inline bool fc_fifo_linear_read_busy(fc_fifo_t* rb)
     {
-        FC_FIFO_ASSERT(rb != NULL);
+        fc_fifo_assert(rb != NULL);
         return rb->linear_size_read ? true : false;
     }
 

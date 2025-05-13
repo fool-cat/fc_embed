@@ -83,20 +83,27 @@ extern "C"
     typedef int (*fc_file_write_t)(FC_FILE* f, const void* buf, int len);
     typedef int (*fc_file_read_t)(FC_FILE* f, void* buf, int len);
 
-    //+********************************* 格式化函数 **********************************/
+    //+********************************* 格式化API **********************************/
 
     extern int fc_sprintf(char* buf, const char* fmt, ...);
     extern int fc_snprintf(char* buf, size_t size, const char* fmt, ...);
     extern int fc_vsprintf(char* buf, const char* fmt, va_list arp);
     extern int fc_vsnprintf(char* buf, size_t size, const char* fmt, va_list arp);
     extern int fc_fprintf(FC_FILE* pf, const char* fmt, ...);
-    extern int fc_vfprintf(FC_FILE* pf, const char* fmt, va_list arp);  // 字符串格式化核心函数
+    extern int fc_vfprintf(FC_FILE* pf, const char* fmt, va_list arp);  // 格式化核心函数
+
+    //+********************************* 格式化解析API **********************************/
 
     extern int fc_sscanf(const char* res, const char* fmt, ...);
     extern int fc_vscanf(const char* fmt, va_list arp);
     extern int fc_vsscanf(const char* res, const char* fmt, va_list arp);
-    extern int fc_vfscanf(FC_FILE* f, const char* fmt, va_list arp);
     extern int fc_fscanf(FC_FILE* f, const char* fmt, ...);
+    extern int fc_vfscanf(FC_FILE* f, const char* fmt, va_list arp);  // 格式化解析核心函数
+
+    //+********************************* port对接API **********************************/
+    // 由外层fc_port.h声明
+    // extern int fc_port_vprintf(fc_port_t* port, const char* fmt, va_list arp);  // 字符串格式化核心函数
+    // extern int fc_port_vscanf(fc_port_t* port, const char* fmt, va_list arp);   // 字符串解析核心函数
 
 #ifdef __cplusplus
 }

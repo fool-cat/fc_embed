@@ -178,7 +178,7 @@ extern "C"
 
 #ifndef FC_LOG_LOSE_HOOK
     extern size_t fc_log_write_lose_hook(fc_log_t* log, const void* buff, size_t len);
-    #if 0
+    #if 1
         #define FC_LOG_LOSE_HOOK(exp, log, buf, len)       \
             if (!(exp))                                    \
             {                                              \

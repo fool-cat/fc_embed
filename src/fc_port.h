@@ -116,8 +116,8 @@ extern "C"
     extern int fc_port_printf(fc_port_t* port, const char* fmt, ...);
     extern int fc_port_vprintf(fc_port_t* port, const char* fmt, va_list arp);  // fc_port_printf核心实现
 
-    extern int   fc_port_getc(fc_port_t* port);  // 阻塞式API,非线程安全
-    extern char* fc_port_gets(fc_port_t* port, char* buf, size_t n);
+    extern int   fc_port_getc(fc_port_t* port);                       // 阻塞式API,非线程安全
+    extern char* fc_port_gets(fc_port_t* port, char* buf, size_t n);  // 不建议使用
     extern int   fc_port_read(fc_port_t* port, void* buf, size_t len);
     extern int   fc_port_peek(fc_port_t* port, void* buf, size_t len);  // 读取数据但不删除
     extern int   fc_port_scanf(fc_port_t* port, const char* fmt, ...);
@@ -207,9 +207,9 @@ extern "C"
     */
 
     // stdin
-    extern int   fc_getchar(void);  // 阻塞式API,非线程安全
-    extern int   fc_getc(void);     // 阻塞式API,非线程安全
-    extern char* fc_gets(char* buf, size_t n);
+    extern int   fc_getchar(void);              // 阻塞式API,非线程安全
+    extern int   fc_getc(void);                 // 阻塞式API,非线程安全
+    extern char* fc_gets(char* buf, size_t n);  // 不建议使用
     extern int   fc_read(void* buf, size_t len);
     extern int   fc_scanf(const char* fmt, ...);
 

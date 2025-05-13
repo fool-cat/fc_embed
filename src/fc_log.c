@@ -23,29 +23,29 @@ extern int fc_vsnprintf(char* s, size_t n, const char* fmt, va_list ap);
     #define LOG_VSNPRINTF vsnprintf
 #endif  //\ LOG_USE_VSNPRINTF
 
-#ifndef FC_LOG_ASSERT
-    #define FC_LOG_ASSERT(x) ((void)0)
-#endif  //\ FC_LOG_ASSERT
+#ifndef fc_log_assert
+    #define fc_log_assert(x) ((void)0)
+#endif  //\ fc_log_assert
 
 //+*********************************  **********************************/
 
 void fc_log_set_active(fc_log_t* log, bool active)
 {
-    FC_LOG_ASSERT(log != NULL);
+    fc_log_assert(log != NULL);
 
     log->active = active;
 }
 
 void fc_log_set_level(fc_log_t* log, fc_log_level_t level)
 {
-    FC_LOG_ASSERT(log != NULL);
+    fc_log_assert(log != NULL);
 
     log->level = level;
 }
 
 void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...)
 {
-    FC_LOG_ASSERT(log != NULL);
+    fc_log_assert(log != NULL);
 
     if (log->active && log->level >= level)
     {
@@ -76,7 +76,7 @@ void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...)
 
 void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, size_t len)
 {
-    FC_LOG_ASSERT(log != NULL);
+    fc_log_assert(log != NULL);
 
     if (log->active && log->level >= level)
     {
@@ -134,7 +134,7 @@ fc_weak size_t fc_log_write_lose_hook(fc_log_t* log, const void* buff, size_t le
     }
     else
     {
-        FC_LOG_ASSERT(log != NULL);
+        fc_log_assert(log != NULL);
     }
 
     return count;

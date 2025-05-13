@@ -153,7 +153,7 @@ void fc_receiver_monitor(fc_receiver_t* receiver)
 
                 fc_fifo_drop(rb, p_end - p_start + (sizeof(FC_DIVISION_TAIL) - 1));  // 不论分页码信息解析是否成功,都要弹出帧尾(包含)之前的数据
             }
-            else if (!p_end && len < (FC_DIVISION_MAX_LEN - 1))  // 可能数据不完整导致的未找到分页信息尾部
+            else if (len < (FC_DIVISION_MAX_LEN - 1))  // 可能数据不完整导致的未找到分页信息尾部
             {
                 if (receiver->end)
                 {
