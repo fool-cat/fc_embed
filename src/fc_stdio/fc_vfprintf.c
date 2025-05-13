@@ -227,7 +227,7 @@ static bool _write_ch(FC_FILE* f, char ch)
             f->p_now = NULL;
             if (f->write)
             {
-                int _size = (int)(f->p_now - f->p_start);
+                int _size = (int)(f->p_end - f->p_start);
                 if (_size != f->write(f, f->p_start, _size))
                 {
                     return false;
