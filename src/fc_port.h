@@ -123,6 +123,7 @@ extern "C"
     extern int   fc_port_scanf(fc_port_t* port, const char* fmt, ...);
     extern int   fc_port_vscanf(fc_port_t* port, const char* fmt, va_list arp);  // fc_port_scanf核心实现
 
+    // 这三个API的行为取决于fc_port_t的方向(fc_port_dir_t)
     extern void fc_port_trigger(fc_port_t* port);        // 触发慢速IO
     extern void fc_port_end(fc_port_t* port, int size);  // 慢速IO完成回调
     extern int  fc_port_available(fc_port_t* port);      // 缓冲区可用字节数

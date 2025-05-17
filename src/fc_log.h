@@ -13,6 +13,10 @@
 #ifndef __FC_LOG_H__
 #define __FC_LOG_H__
 
+#include <stddef.h>
+#include <stdbool.h>
+#include <stdint.h>
+
 // overlay的方式覆盖默认配置
 #ifdef FC_CONFIG_HEADER
     #if defined(FC_USE_STRINGFY)
@@ -28,26 +32,23 @@
     #endif
 #endif
 
-#include <stddef.h>
-#include <stdbool.h>
-#include <stdint.h>
-
 #include "fc_helper.h"
-
-#ifndef USE_FC_VSNPRINTF
-    #define USE_FC_VSNPRINTF 1 /**< 是否使用fc_vsnprintf进行格式化 */
-#endif
 
 #ifndef FC_LOG_ENABLE
     #define FC_LOG_ENABLE 1 /**< 使能log */
 #endif
 
+#ifndef USE_FC_VSNPRINTF
+    #define USE_FC_VSNPRINTF 1 /**< 是否使用fc_vsnprintf进行格式化 */
+#endif
+
 #ifndef FC_LOG_LINE_SIZE
-    #define FC_LOG_LINE_SIZE 256 /**< log输出缓冲大小 */
+    #define FC_LOG_LINE_SIZE 128 /**< log行缓冲大小 */
 #endif
 
 #ifndef FC_LOG_STACK_LINE_SIZE
-    #define FC_LOG_STACK_LINE_SIZE (FC_LOG_LINE_SIZE) /**< log自身缓存被占用时在栈上使用的缓冲大小 */
+    // 如果小于等于0表示不使用栈上缓冲区
+    #define FC_LOG_STACK_LINE_SIZE (0) /**< log自身缓存被占用时在栈上使用的缓冲大小 */
 #endif
 
 #ifndef FC_LOG_USING_COLOR
@@ -141,56 +142,90 @@ extern "C"
     struct _fc_log_t
     {
         fc_log_level_t level;
-        bool           active;
-        bool           buff_busy;               // 自身的缓冲区是否被占用
-        char           buff[FC_LOG_LINE_SIZE];  // 行缓冲,每个log独立拥有自己的行缓冲
+        bool           busy_buff;  // 自身的缓冲区是否被占用
+
+        int buff_size;  // 行缓冲区大小
         // 每个log拥有自己独立的行缓冲是为了提高性能,避免频繁栈内存创建和销毁
+        char* buff;                              // 行缓冲区
+        int (*write)(const char* buf, int len);  // 写入数据
 
         // void* user;  // 预留用户个人数据
-
-        size_t (*write)(const char* buf, size_t len);  // 写入数据
     };
 
-    extern void fc_log_set_active(fc_log_t* log, bool active);
     extern void fc_log_set_level(fc_log_t* log, fc_log_level_t level);
     extern void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...);
     // extern void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, size_t len);  // 未使用
 
+    // 提供一份默认的弱函数log写丢失数据钩子,可以在外面重写
+    extern int fc_log_write_lose_hook(fc_log_t* log, const void* buff, int len);
+
+    // 提供两个默认的write函数,一个是输出到fc_stdout,一个是输出到fc_transport的0端口
+    extern int log_write_stdout(const char* buf, int len);
+    extern int log_write_transport(const char* buf, int len);
+
     //+********************************* 实例化 **********************************/
+    extern fc_log_t default_log;  // 默认log对象
 
 #ifndef FC_LOG_OBJ
-    extern fc_log_t default_log;  // 默认log对象
-    #undef FC_LOG_OBJ
     #define FC_LOG_OBJ (&default_log)
 #endif
 
+#ifndef FC_LOG_DEFAULT_WRITE
+    #define FC_LOG_DEFAULT_WRITE log_write_stdout
+#endif
+
+#define FC_LOG_IMPL_FULL(obj_name, _func, _level, _size)             \
+    static char SAFE_NAME(buff)[_size]; /* 缓冲区内存 */             \
+    fc_log_t    obj_name = {                                         \
+           .level = _level,                 /* 日志级别 */           \
+           .busy_buff = false,              /* 行缓冲区是否被占用 */ \
+           .buff_size = _size,              /* 行缓冲区大小 */       \
+           .buff = (char*)&SAFE_NAME(buff), /* 行缓冲区 */           \
+           .write = _func,                  /* 写入函数 */           \
+    }
+
+#define _FC_LOG_IMPL_FULL_1(obj_name) \
+    FC_LOG_IMPL_FULL(obj_name, FC_LOG_DEFAULT_WRITE, FC_LOG_ALL, FC_LOG_LINE_SIZE)
+
+#define _FC_LOG_IMPL_FULL_2(obj_name, _func) \
+    FC_LOG_IMPL_FULL(obj_name, _func, FC_LOG_ALL, FC_LOG_LINE_SIZE)
+
+#define _FC_LOG_IMPL_FULL_3(obj_name, _func, _level) \
+    FC_LOG_IMPL_FULL(obj_name, _func, _level, FC_LOG_LINE_SIZE)
+
+#define _FC_LOG_IMPL_FULL_4(obj_name, _func, _level, _size) \
+    FC_LOG_IMPL_FULL(obj_name, _func, _level, _size)
+
 /**
- * @brief 这个宏用于快速定义一个fc_log_t对象,禁止在头文件中使用,否则会导致多重定义
- *
+ * 这个宏用于快速定义一个fc_log_t对象,禁止在头文件中使用,否则会导致多重定义
+ * @brief 实例化log对象,至少一个参数,最大支持4个参数
+ *参数必须按照指定顺序给出,允许缺省(从后面开始缺省)
+ *<1>对象名称
+ *<2>写入函数
+ *<3>日志级别
+ *<4>行缓冲区大小
  */
-#define FC_LOG_IMPL(obj_name, _level, write_func) \
-    fc_log_t obj_name = {                         \
-        .level = _level, /* 日志级别 */           \
-        .active = true,  /* 是否使能 */           \
-        .buff = {0},                              \
-        .write = write_func, /* 写入函数 */       \
-    };
+#define FC_LOG_IMPL(...) \
+    CONNECT2(_FC_LOG_IMPL_FULL_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
 #ifndef FC_LOG_LOSE_HOOK
-    extern size_t fc_log_write_lose_hook(fc_log_t* log, const void* buff, size_t len);
     #if 1
-        #define FC_LOG_LOSE_HOOK(exp, log, buf, len)       \
-            if (!(exp))                                    \
-            {                                              \
-                do                                         \
-                {                                          \
-                    fc_log_write_lose_hook(log, buf, len); \
-                } while (0);                               \
+        #define FC_LOG_LOSE_HOOK(exp, log, buf, len)   \
+            if (!(exp))                                \
+            {                                          \
+                fc_log_write_lose_hook(log, buf, len); \
             }
     #else
         #define FC_LOG_LOSE_HOOK(exp, log, buf, len) (void)(0)
     #endif
 #endif
+
+// 切换log等级,使用宏API,无需显示指定对象名称
+#define fc_log_level(_level)                  \
+    do                                        \
+    {                                         \
+        fc_log_set_level(FC_LOG_OBJ, _level); \
+    } while (0)
 
     //+********************************* 宏API **********************************/
 
@@ -218,26 +253,36 @@ extern "C"
     #define log_verbose(fmt, ...) \
         log_format(VERBOSE_TEXT, FC_LOG_VERBOSE, fmt, ##__VA_ARGS__)
 
-    #define log_assert(expr, ...)                                                                   \
-        if (!(expr))                                                                                \
-        {                                                                                           \
-            log_error("\"" #expr "\" assert failed at file: %s, line: %d\r\n", __FILE__, __LINE__); \
-            __VA_ARGS__;                                                                            \
-        }
+    #ifndef log_assert
+        #define log_assert(expr, ...)                                                                   \
+            if (!(expr))                                                                                \
+            {                                                                                           \
+                log_error("\"" #expr "\" assert failed at file: %s, line: %d\r\n", __FILE__, __LINE__); \
+                __VA_ARGS__;                                                                            \
+            }
+    #endif
 
 #else
 
-    #define log_format(text, level, fmt, ...) (void)(0)
-    #define log_error(fmt, ...) (void)(0)
-    #define log_warning(fmt, ...) (void)(0)
-    #define log_info(fmt, ...) (void)(0)
-    #define log_debug(fmt, ...) (void)(0)
-    #define log_verbose(fmt, ...) (void)(0)
-    #define log_assert(expr, ...) \
-        if (!(expr))              \
-        {                         \
-            (void)0;              \
-        }
+    // clang-format off
+
+    #define log_format(text, level, fmt, ...) do {} while(0)
+    #define log_error(fmt, ...) do {} while(0)
+    #define log_warning(fmt, ...) do {} while(0)
+    #define log_info(fmt, ...) do {} while(0)
+    #define log_debug(fmt, ...) do {} while(0)
+    #define log_verbose(fmt, ...) do {} while(0)
+
+    // clang-format on
+
+    #ifndef log_assert
+        #define log_assert(expr, ...) \
+            if (!(expr))              \
+            {                         \
+                (void)0;              \
+                __VA_ARGS__;          \
+            }
+    #endif
 
 #endif
 

@@ -10,13 +10,14 @@
  */
 
 #include <stdarg.h>
+#include <string.h>
 
 #include "fc_log.h"
 
 #include "fc_port.h"
 
 #if USE_FC_VSNPRINTF
-extern int fc_vsnprintf(char* s, size_t n, const char* fmt, va_list ap);
+    #include "./fc_stdio/fc_stdio.h"
     #define LOG_VSNPRINTF fc_vsnprintf
 #else
     #include <stdio.h>
@@ -29,13 +30,6 @@ extern int fc_vsnprintf(char* s, size_t n, const char* fmt, va_list ap);
 
 //+*********************************  **********************************/
 
-void fc_log_set_active(fc_log_t* log, bool active)
-{
-    fc_log_assert(log != NULL);
-
-    log->active = active;
-}
-
 void fc_log_set_level(fc_log_t* log, fc_log_level_t level)
 {
     fc_log_assert(log != NULL);
@@ -47,67 +41,49 @@ void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...)
 {
     fc_log_assert(log != NULL);
 
-    if (log->active && log->level >= level)
+    if (log->level >= level)
     {
         va_list vargs;
         va_start(vargs, fmt);
 
-        if (log->buff_busy)
+        if (log->busy_buff)
         {
-            log->buff_busy = true;
+            log->busy_buff = true;
 
-            int len = LOG_VSNPRINTF(log->buff, FC_LOG_LINE_SIZE, fmt, vargs);
+            int len = LOG_VSNPRINTF(log->buff, log->buff_size, fmt, vargs);
             len -= log->write(log->buff, len);
             FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
 
-            log->buff_busy = false;
+            log->busy_buff = false;
         }
         else
         {
+#if FC_LOG_STACK_LINE_SIZE > 0
             char buff[FC_LOG_STACK_LINE_SIZE];
             int  len = LOG_VSNPRINTF(buff, FC_LOG_STACK_LINE_SIZE, fmt, vargs);
             len -= log->write(buff, len);
             FC_LOG_LOSE_HOOK(0 == len, log, buff, len);
+#else
+            FC_LOG_LOSE_HOOK(false, log, (const void*)fmt, strlen(fmt));
+#endif
         }
 
         va_end(vargs);
     }
 }
 
-void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, size_t len)
+void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, int len)
 {
     fc_log_assert(log != NULL);
 
-    if (log->active && log->level >= level)
+    if (log->level >= level)
     {
         len -= log->write(buff, len);
         FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
     }
 }
 
-//+********************************* 提供一份默认对象 **********************************/
-/**
- * @brief 默认log对象的write函数
- *
- * @param log
- * @param buff
- * @param len
- * @return size_t
- */
-static size_t default_log_write(const char* buf, size_t len)
-{
-    return fc_write(buf, len);
-}
-
-fc_log_t default_log = {
-    .level = FC_LOG_ALL,
-    .active = true,
-    .buff = {0},
-    // .user = NULL,
-    .write = default_log_write,
-};
-
-//+*********************************  **********************************/
+//+********************************* 写入丢失记录 **********************************/
 
 #include "fc_compiler.h"
 /**
@@ -116,19 +92,19 @@ fc_log_t default_log = {
  * @param log
  * @param buff
  * @param len
- * @return fc_weak
+ * @return int 弱函数,可以在外面重写
  */
-fc_weak size_t fc_log_write_lose_hook(fc_log_t* log, const void* buff, size_t len)
+fc_weak int fc_log_write_lose_hook(fc_log_t* log, const void* buff, int len)
 {
     (void)log;
     (void)buff;
     (void)len;
 
-    size_t count = 0;
+    int count = 0;
 
     if (log == &default_log)
     {
-        static volatile size_t lose_count = 0;
+        static volatile int lose_count = 0;
         lose_count += len;
         count = lose_count;
     }
@@ -139,3 +115,34 @@ fc_weak size_t fc_log_write_lose_hook(fc_log_t* log, const void* buff, size_t le
 
     return count;
 }
+
+//+********************************* 提供一份默认log对象 **********************************/
+#include "fc_port.h"
+/**
+ * @brief 默认log对象的write函数,写入到fc_stdout
+ *
+ * @param log
+ * @param buff
+ * @param len
+ * @return int
+ */
+int log_write_stdout(const char* buf, int len)
+{
+    return fc_port_write(&fc_stdout, buf, len);
+}
+
+#include "fc_transport.h"
+/**
+ * @brief 默认log对象的write函数,写入到fc_transport的0端口
+ *
+ * @param buf
+ * @param len
+ * @return int
+ */
+int log_write_transport(const char* buf, int len)
+{
+    return fc_sender_write(&fc_sender, 0, buf, len);
+}
+
+// 默认实例化对象
+FC_LOG_IMPL(default_log);
