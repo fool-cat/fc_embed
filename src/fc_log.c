@@ -45,28 +45,52 @@ void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...)
     {
         va_list vargs;
         va_start(vargs, fmt);
+        int len = 0;
 
-        if (log->busy_buff)
+        if (log->buff)
         {
-            log->busy_buff = true;
-
-            int len = LOG_VSNPRINTF(log->buff, log->buff_size, fmt, vargs);
-            len -= log->write(log->buff, len);
+            FC_LOG_ATOMIC
+            {
+                len = LOG_VSNPRINTF(log->buff, log->buff_size, fmt, vargs);
+                len -= log->write(log->buff, len);
+            }
             FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
-
-            log->busy_buff = false;
         }
         else
         {
 #if FC_LOG_STACK_LINE_SIZE > 0
             char buff[FC_LOG_STACK_LINE_SIZE];
-            int  len = LOG_VSNPRINTF(buff, FC_LOG_STACK_LINE_SIZE, fmt, vargs);
-            len -= log->write(buff, len);
+            FC_LOG_ATOMIC
+            {
+                len = LOG_VSNPRINTF(buff, FC_LOG_STACK_LINE_SIZE, fmt, vargs);
+                len -= log->write(buff, len);
+            }
             FC_LOG_LOSE_HOOK(0 == len, log, buff, len);
 #else
             FC_LOG_LOSE_HOOK(false, log, (const void*)fmt, strlen(fmt));
 #endif
         }
+        va_end(vargs);
+    }
+}
+
+void fc_log_printf_ex(fc_log_t* log, fc_log_level_t level, char* stack_buf, int stack_size, const char* fmt, ...)
+{
+    fc_log_assert(log != NULL);
+    fc_log_assert(stack_buf != NULL);
+
+    if (log->level >= level)
+    {
+        va_list vargs;
+        va_start(vargs, fmt);
+        int len = 0;
+
+        len = LOG_VSNPRINTF(stack_buf, stack_size, fmt, vargs);
+        FC_LOG_ATOMIC
+        {
+            len -= log->write(log->buff, len);
+        }
+        FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
 
         va_end(vargs);
     }
@@ -78,7 +102,10 @@ void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, int len
 
     if (log->level >= level)
     {
-        len -= log->write(buff, len);
+        FC_LOG_ATOMIC
+        {
+            len -= log->write(buff, len);
+        }
         FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
     }
 }

@@ -38,6 +38,15 @@
     #define FC_LOG_ENABLE 1 /**< 使能log */
 #endif
 
+// 需要支持嵌套
+#ifndef FC_LOG_ATOMIC
+    #define FC_LOG_ATOMIC
+#endif
+
+#ifndef FC_LOG_STACK_BUFF
+    #define FC_LOG_STACK_BUFF 0 /**< 是否使用栈上缓冲区,如果配置了原子宏,这个选项意义不大 */
+#endif
+
 #ifndef USE_FC_VSNPRINTF
     #define USE_FC_VSNPRINTF 1 /**< 是否使用fc_vsnprintf进行格式化 */
 #endif
@@ -47,8 +56,7 @@
 #endif
 
 #ifndef FC_LOG_STACK_LINE_SIZE
-    // 如果小于等于0表示不使用栈上缓冲区
-    #define FC_LOG_STACK_LINE_SIZE (0) /**< log自身缓存被占用时在栈上使用的缓冲大小 */
+    #define FC_LOG_STACK_LINE_SIZE (FC_LOG_LINE_SIZE) /**< log使用栈时在栈上使用的缓冲大小 */
 #endif
 
 #ifndef FC_LOG_USING_COLOR
@@ -142,7 +150,6 @@ extern "C"
     struct _fc_log_t
     {
         fc_log_level_t level;
-        bool           busy_buff;  // 自身的缓冲区是否被占用
 
         int buff_size;  // 行缓冲区大小
         // 每个log拥有自己独立的行缓冲是为了提高性能,避免频繁栈内存创建和销毁
@@ -154,7 +161,8 @@ extern "C"
 
     extern void fc_log_set_level(fc_log_t* log, fc_log_level_t level);
     extern void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...);
-    // extern void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, size_t len);  // 未使用
+    extern void fc_log_printf_ex(fc_log_t* log, fc_log_level_t level, char* stack_buf, int stack_size, const char* fmt, ...);
+    extern void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, int len);  // 未使用
 
     // 提供一份默认的弱函数log写丢失数据钩子,可以在外面重写
     extern int fc_log_write_lose_hook(fc_log_t* log, const void* buff, int len);
@@ -174,14 +182,13 @@ extern "C"
     #define FC_LOG_DEFAULT_WRITE log_write_stdout
 #endif
 
-#define FC_LOG_IMPL_FULL(obj_name, _func, _level, _size)             \
-    static char SAFE_NAME(buff)[_size]; /* 缓冲区内存 */             \
-    fc_log_t    obj_name = {                                         \
-           .level = _level,                 /* 日志级别 */           \
-           .busy_buff = false,              /* 行缓冲区是否被占用 */ \
-           .buff_size = _size,              /* 行缓冲区大小 */       \
-           .buff = (char*)&SAFE_NAME(buff), /* 行缓冲区 */           \
-           .write = _func,                  /* 写入函数 */           \
+#define FC_LOG_IMPL_FULL(obj_name, _func, _level, _size)       \
+    static char SAFE_NAME(buff)[_size]; /* 缓冲区内存 */       \
+    fc_log_t    obj_name = {                                   \
+           .level = _level,                 /* 日志级别 */     \
+           .buff_size = _size,              /* 行缓冲区大小 */ \
+           .buff = (char*)&SAFE_NAME(buff), /* 行缓冲区 */     \
+           .write = _func,                  /* 写入函数 */     \
     }
 
 #define _FC_LOG_IMPL_FULL_1(obj_name) \
@@ -231,11 +238,25 @@ extern "C"
 
 #if FC_LOG_ENABLE
 
-    #define log_format(text, level, fmt, ...)                                                                  \
-        do                                                                                                     \
-        {                                                                                                      \
-            fc_log_printf(FC_LOG_OBJ, level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
-        } while (0)
+    #if (FC_LOG_STACK_BUFF && FC_LOG_STACK_LINE_SIZE > 0)
+
+            /*fc_log_printf_ex参数略多,效率偏低,fc_log_printf同样能够实现类型的效果*/
+        #define log_format(text, level, fmt, ...)                                                                                                              \
+            do                                                                                                                                                 \
+            {                                                                                                                                                  \
+                char SAFE_NAME(buff)[FC_LOG_STACK_LINE_SIZE]; /* 使用栈内存 */                                                                                 \
+                fc_log_printf_ex(FC_LOG_OBJ, level, SAFE_NAME(buff), FC_LOG_STACK_LINE_SIZE, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+            } while (0)
+
+    #else
+
+        #define log_format(text, level, fmt, ...)                                                                  \
+            do                                                                                                     \
+            {                                                                                                      \
+                fc_log_printf(FC_LOG_OBJ, level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+            } while (0)
+
+    #endif
 
     //+********************************* 期望使用 **********************************/
     #define log_error(fmt, ...) \
@@ -262,6 +283,13 @@ extern "C"
             }
     #endif
 
+    // 切换log等级,使用宏API,无需显示指定对象名称
+    #define log_switch(_level)                    \
+        do                                        \
+        {                                         \
+            fc_log_set_level(FC_LOG_OBJ, _level); \
+        } while (0)
+
 #else
 
     // clang-format off
@@ -273,6 +301,7 @@ extern "C"
     #define log_debug(fmt, ...) do {} while(0)
     #define log_verbose(fmt, ...) do {} while(0)
 
+    #define log_switch(_level) do {} while(0)
     // clang-format on
 
     #ifndef log_assert
