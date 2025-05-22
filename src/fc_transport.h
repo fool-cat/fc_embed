@@ -47,12 +47,12 @@ extern "C"
 
     typedef struct _fc_receiver_t fc_receiver_t;  // 前置声明
 
-    typedef size_t (*fc_receiver_out_t)(size_t index, const char* buf, size_t len);  // 返回值仅做保留
-    typedef bool (*fc_receiver_end_t)(fc_receiver_t* receiver);                      // 接收结束回调函数,返回true表示结束,返回false表示继续接收
+    typedef size_t (*fc_receiver_out_t)(size_t index, const char *buf, size_t len);  // 返回值仅做保留
+    typedef bool (*fc_receiver_end_t)(fc_receiver_t *receiver);                      // 接收结束回调函数,返回true表示结束,返回false表示继续接收
 
     struct _fc_receiver_t
     {
-        fc_port_t*        port;   // 物理port
+        fc_port_t        *port;   // 物理port
         size_t            index;  // 当前窗口索引
         fc_receiver_out_t out;    // 数据分发处理函数
         fc_receiver_end_t end;    // 如果出现不完整的分页符,根据此函数返回值决定是否将不完整的分页符当数据处理
@@ -60,27 +60,27 @@ extern "C"
         // void*            user;          // 预留用户个人数据
     };
 
-    extern void fc_receiver_init(fc_receiver_t* receiver, fc_port_t* port, fc_receiver_out_t out, fc_receiver_end_t end);
-    extern void fc_receiver_monitor(fc_receiver_t* receiver);  // 需要保证线程安全
+    extern void fc_receiver_init(fc_receiver_t *receiver, fc_port_t *port, fc_receiver_out_t out, fc_receiver_end_t end);
+    extern void fc_receiver_monitor(fc_receiver_t *receiver);  // 需要保证线程安全
 
     //+********************************* sender **********************************/
 
     typedef struct _fc_sender_t fc_sender_t;
     struct _fc_sender_t
     {
-        fc_port_t* port;   // 物理port
+        fc_port_t *port;   // 物理port
         size_t     index;  // 当前窗口索引
 
         // void* user;  // 预留用户个人数据
     };
 
-    extern void fc_sender_init(fc_sender_t* sender, fc_port_t* port);
-    extern bool fc_sender_switch(fc_sender_t* sender, size_t index);  // 切换窗口
+    extern void fc_sender_init(fc_sender_t *sender, fc_port_t *port);
+    extern bool fc_sender_switch(fc_sender_t *sender, size_t index);  // 切换窗口
 
-    extern int fc_sender_putc(fc_sender_t* sender, size_t index, int ch);
-    extern int fc_sender_puts(fc_sender_t* sender, size_t index, const char* str);
-    extern int fc_sender_write(fc_sender_t* sender, size_t index, const void* buf, size_t len);
-    extern int fc_sender_printf(fc_sender_t* sender, size_t index, const char* fmt, ...);
+    extern int fc_sender_putc(fc_sender_t *sender, size_t index, int ch);
+    extern int fc_sender_puts(fc_sender_t *sender, size_t index, const char *str);
+    extern int fc_sender_write(fc_sender_t *sender, size_t index, const void *buf, size_t len);
+    extern int fc_sender_printf(fc_sender_t *sender, size_t index, const char *fmt, ...);
 
     //+********************************* 默认实例化对象 **********************************/
     extern fc_receiver_t fc_receiver;  // 接收器对象

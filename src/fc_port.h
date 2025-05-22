@@ -87,13 +87,13 @@ extern "C"
         FC_PORT_DIR_OUT = 1,  // 高速IO(通常是内核)->环形缓冲->慢速IO(通常是物理层)
     } fc_port_dir_t;
 
-    typedef size_t (*fc_phy_io_t)(void* buf, size_t len);  // 返回值仅做保留
+    typedef size_t (*fc_phy_io_t)(void *buf, size_t len);  // 返回值仅做保留
 
     typedef struct _fc_port_t fc_port_t;
     struct _fc_port_t
     {
         char        id[16];  // 端口ID,用于调试输出
-        fc_fifo_t*  rb;      // 环形缓冲
+        fc_fifo_t  *rb;      // 环形缓冲
         fc_phy_io_t phy;     // 物理IO接口
 
         // void* user;  // 预留
@@ -105,28 +105,28 @@ extern "C"
 
     // 端口写数据丢失处理
 #ifndef FC_PORT_LOSE_HOOK
-    extern size_t fc_port_lose_hook(fc_port_t* port, const void* buf, size_t len);
+    extern size_t fc_port_lose_hook(fc_port_t *port, const void *buf, size_t len);
     #define FC_PORT_LOSE_HOOK(p_port, buf, len) fc_port_lose_hook(p_port, buf, len)
 #endif
 
     //+********************************* 面向对象 **********************************/
-    extern int fc_port_putc(fc_port_t* port, int ch);
-    extern int fc_port_puts(fc_port_t* port, const char* str);
-    extern int fc_port_write(fc_port_t* port, const void* buf, size_t len);
-    extern int fc_port_printf(fc_port_t* port, const char* fmt, ...);
-    extern int fc_port_vprintf(fc_port_t* port, const char* fmt, va_list arp);  // fc_port_printf核心实现
+    extern int fc_port_putc(fc_port_t *port, int ch);
+    extern int fc_port_puts(fc_port_t *port, const char *str);
+    extern int fc_port_write(fc_port_t *port, const void *buf, size_t len);
+    extern int fc_port_printf(fc_port_t *port, const char *fmt, ...);
+    extern int fc_port_vprintf(fc_port_t *port, const char *fmt, va_list arp);  // fc_port_printf核心实现
 
-    extern int   fc_port_getc(fc_port_t* port);                       // 阻塞式API,非线程安全
-    extern char* fc_port_gets(fc_port_t* port, char* buf, size_t n);  // 不建议使用
-    extern int   fc_port_read(fc_port_t* port, void* buf, size_t len);
-    extern int   fc_port_peek(fc_port_t* port, void* buf, size_t len);  // 读取数据但不删除
-    extern int   fc_port_scanf(fc_port_t* port, const char* fmt, ...);
-    extern int   fc_port_vscanf(fc_port_t* port, const char* fmt, va_list arp);  // fc_port_scanf核心实现
+    extern int   fc_port_getc(fc_port_t *port);                       // 阻塞式API,非线程安全
+    extern char *fc_port_gets(fc_port_t *port, char *buf, size_t n);  // 不建议使用
+    extern int   fc_port_read(fc_port_t *port, void *buf, size_t len);
+    extern int   fc_port_peek(fc_port_t *port, void *buf, size_t len);  // 读取数据但不删除
+    extern int   fc_port_scanf(fc_port_t *port, const char *fmt, ...);
+    extern int   fc_port_vscanf(fc_port_t *port, const char *fmt, va_list arp);  // fc_port_scanf核心实现
 
     // 这三个API的行为取决于fc_port_t的方向(fc_port_dir_t)
-    extern void fc_port_trigger(fc_port_t* port);        // 触发慢速IO
-    extern void fc_port_end(fc_port_t* port, int size);  // 慢速IO完成回调
-    extern int  fc_port_available(fc_port_t* port);      // 缓冲区可用字节数
+    extern void fc_port_trigger(fc_port_t *port);        // 触发慢速IO
+    extern void fc_port_end(fc_port_t *port, int size);  // 慢速IO完成回调
+    extern int  fc_port_available(fc_port_t *port);      // 缓冲区可用字节数
 
     //+********************************* 默认实例化对象 **********************************/
 
@@ -174,9 +174,9 @@ extern "C"
     // 输出到fc_stdout
     extern int fc_putchar(int ch);
     extern int fc_putc(int ch);
-    extern int fc_puts(const char* str);
-    extern int fc_write(const void* buf, size_t len);  // 要么全部写入,要么返回0
-    extern int fc_printf(const char* fmt, ...);
+    extern int fc_puts(const char *str);
+    extern int fc_write(const void *buf, size_t len);  // 要么全部写入,要么返回0
+    extern int fc_printf(const char *fmt, ...);
 
     extern void fc_out_trigger(void);    // 触发发送
     extern void fc_out_end(int size);    // 发送完成处理
@@ -210,9 +210,9 @@ extern "C"
     // stdin
     extern int   fc_getchar(void);              // 阻塞式API,非线程安全
     extern int   fc_getc(void);                 // 阻塞式API,非线程安全
-    extern char* fc_gets(char* buf, size_t n);  // 不建议使用
-    extern int   fc_read(void* buf, size_t len);
-    extern int   fc_scanf(const char* fmt, ...);
+    extern char *fc_gets(char *buf, size_t n);  // 不建议使用
+    extern int   fc_read(void *buf, size_t len);
+    extern int   fc_scanf(const char *fmt, ...);
 
     extern void fc_in_trigger(void);    // 触发接收
     extern void fc_in_end(int size);    // 接收完成处理

@@ -38,7 +38,7 @@
 #define ORDER_SECTION_RUN(section_name)                                    \
     do                                                                     \
     {                                                                      \
-        fc_auto_init_elem_t* ptr = NULL;                                   \
+        fc_auto_init_elem_t *ptr = NULL;                                   \
         size_t               elem_count = 0;                               \
         section_info(section_name, ptr, elem_count);                       \
         size_t order_min = 0;                                              \

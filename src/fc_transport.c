@@ -34,7 +34,7 @@
 #endif
 
 // 判断字符数组是否全为数字
-static bool is_all_digits(const char* arr, int length)
+static bool is_all_digits(const char *arr, int length)
 {
     if (length <= 0)
     {
@@ -61,7 +61,7 @@ static bool is_all_digits(const char* arr, int length)
  * @param out 分发函数
  * @param end 结束函数,返回true表示本次结束,返回false表示还在接收
  */
-void fc_receiver_init(fc_receiver_t* receiver, fc_port_t* port, fc_receiver_out_t out, fc_receiver_end_t end)
+void fc_receiver_init(fc_receiver_t *receiver, fc_port_t *port, fc_receiver_out_t out, fc_receiver_end_t end)
 {
     fc_stdio_assert(NULL != receiver);
     fc_stdio_assert(NULL != port);
@@ -78,12 +78,12 @@ void fc_receiver_init(fc_receiver_t* receiver, fc_port_t* port, fc_receiver_out_
  *
  * @param receiver
  */
-void fc_receiver_monitor(fc_receiver_t* receiver)
+void fc_receiver_monitor(fc_receiver_t *receiver)
 {
     fc_stdio_assert(NULL != receiver->port);
     fc_stdio_assert(NULL != receiver->out);  // 先绑定了分发函数才能调用
 
-    fc_fifo_t* rb = receiver->port->rb;  // 环形缓冲区
+    fc_fifo_t *rb = receiver->port->rb;  // 环形缓冲区
     size_t     len_total = fc_fifo_get_used(rb);
     if (len_total <= 0)
     {
@@ -91,14 +91,14 @@ void fc_receiver_monitor(fc_receiver_t* receiver)
     }
 
     size_t      len = 0;
-    char*       p_start = NULL;
-    char*       p_end = NULL;
-    const char* head = FC_DIVISION_HEAD;  // 分页信息头部
+    char       *p_start = NULL;
+    char       *p_end = NULL;
+    const char *head = FC_DIVISION_HEAD;  // 分页信息头部
 
     do
     {
         len_total = fc_fifo_get_used(rb);  // 更新现存数据量
-        p_start = (char*)fc_fifo_linear_read_setup(rb, &len);
+        p_start = (char *)fc_fifo_linear_read_setup(rb, &len);
         p_end = memchr(p_start, head[0], len);  // 查找是否可能存在分页信息
 
         if (NULL == p_end)  // 不存在分页信息
@@ -192,7 +192,7 @@ void fc_receiver_monitor(fc_receiver_t* receiver)
  * @param sender
  * @param port // 一般建议是输出方向的port,不做强制
  */
-void fc_sender_init(fc_sender_t* sender, fc_port_t* port)
+void fc_sender_init(fc_sender_t *sender, fc_port_t *port)
 {
     fc_stdio_assert(NULL != sender);
     fc_stdio_assert(NULL != port);
@@ -212,7 +212,7 @@ void fc_sender_init(fc_sender_t* sender, fc_port_t* port)
  * @return true
  * @return false
  */
-bool fc_sender_switch(fc_sender_t* sender, size_t index)
+bool fc_sender_switch(fc_sender_t *sender, size_t index)
 {
     fc_stdio_assert(NULL != sender);
     fc_stdio_assert(NULL != sender->port);
@@ -247,7 +247,7 @@ bool fc_sender_switch(fc_sender_t* sender, size_t index)
  * @param ch
  * @return int 发送成功返回ch,失败返回负值
  */
-int fc_sender_putc(fc_sender_t* sender, size_t index, int ch)
+int fc_sender_putc(fc_sender_t *sender, size_t index, int ch)
 {
     int ret = EOF;
     if (fc_sender_switch(sender, index))
@@ -265,7 +265,7 @@ int fc_sender_putc(fc_sender_t* sender, size_t index, int ch)
  * @param str
  * @return int 发送成功返回发送的字节数,失败返回负值
  */
-int fc_sender_puts(fc_sender_t* sender, size_t index, const char* str)
+int fc_sender_puts(fc_sender_t *sender, size_t index, const char *str)
 {
     int ret = EOF;
     if (fc_sender_switch(sender, index))
@@ -284,7 +284,7 @@ int fc_sender_puts(fc_sender_t* sender, size_t index, const char* str)
  * @param len
  * @return size_t 发送成功返回发送的字节数,失败返回负值
  */
-int fc_sender_write(fc_sender_t* sender, size_t index, const void* buf, size_t len)
+int fc_sender_write(fc_sender_t *sender, size_t index, const void *buf, size_t len)
 {
     int write_size = EOF;
     if (fc_sender_switch(sender, index))
@@ -303,7 +303,7 @@ int fc_sender_write(fc_sender_t* sender, size_t index, const void* buf, size_t l
  * @param ...
  * @return int 发送成功返回发送的字节数,失败返回负值
  */
-int fc_sender_printf(fc_sender_t* sender, size_t index, const char* fmt, ...)
+int fc_sender_printf(fc_sender_t *sender, size_t index, const char *fmt, ...)
 {
     int ret = EOF;
     if (fc_sender_switch(sender, index))

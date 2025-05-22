@@ -30,14 +30,14 @@
 
 //+*********************************  **********************************/
 
-void fc_log_set_level(fc_log_t* log, fc_log_level_t level)
+void fc_log_set_level(fc_log_t *log, fc_log_level_t level)
 {
     fc_log_assert(log != NULL);
 
     log->level = level;
 }
 
-void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...)
+void fc_log_printf(fc_log_t *log, fc_log_level_t level, const char *fmt, ...)
 {
     fc_log_assert(log != NULL);
 
@@ -67,14 +67,14 @@ void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...)
             }
             FC_LOG_LOSE_HOOK(0 == len, log, buff, len);
 #else
-            FC_LOG_LOSE_HOOK(false, log, (const void*)fmt, strlen(fmt));
+            FC_LOG_LOSE_HOOK(false, log, (const void *)fmt, strlen(fmt));
 #endif
         }
         va_end(vargs);
     }
 }
 
-void fc_log_printf_ex(fc_log_t* log, fc_log_level_t level, char* stack_buf, int stack_size, const char* fmt, ...)
+void fc_log_printf_ex(fc_log_t *log, fc_log_level_t level, char *stack_buf, int stack_size, const char *fmt, ...)
 {
     fc_log_assert(log != NULL);
     fc_log_assert(stack_buf != NULL);
@@ -96,7 +96,7 @@ void fc_log_printf_ex(fc_log_t* log, fc_log_level_t level, char* stack_buf, int 
     }
 }
 
-void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, int len)
+void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len)
 {
     fc_log_assert(log != NULL);
 
@@ -121,7 +121,7 @@ void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, int len
  * @param len
  * @return int 弱函数,可以在外面重写
  */
-fc_weak int fc_log_write_lose_hook(fc_log_t* log, const void* buff, int len)
+fc_weak int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len)
 {
     (void)log;
     (void)buff;
@@ -153,7 +153,7 @@ fc_weak int fc_log_write_lose_hook(fc_log_t* log, const void* buff, int len)
  * @param len
  * @return int
  */
-int log_write_stdout(const char* buf, int len)
+int log_write_stdout(const char *buf, int len)
 {
     return fc_port_write(&fc_stdout, buf, len);
 }
@@ -166,7 +166,7 @@ int log_write_stdout(const char* buf, int len)
  * @param len
  * @return int
  */
-int log_write_transport(const char* buf, int len)
+int log_write_transport(const char *buf, int len)
 {
     return fc_sender_write(&fc_sender, 0, buf, len);
 }

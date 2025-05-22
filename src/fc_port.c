@@ -30,7 +30,7 @@
  * @param len
  * @return 后面的长度设为0可以获取丢失的长度
  */
-fc_weak size_t fc_port_lose_hook(fc_port_t* port, const void* buf, size_t len)
+fc_weak size_t fc_port_lose_hook(fc_port_t *port, const void *buf, size_t len)
 {
     (void)port;
     (void)buf;
@@ -65,7 +65,7 @@ fc_weak size_t fc_port_lose_hook(fc_port_t* port, const void* buf, size_t len)
  * @param ch
  * @return int 成功返回ch,失败返回EOF
  */
-int fc_port_putc(fc_port_t* port, int ch)
+int fc_port_putc(fc_port_t *port, int ch)
 {
     fc_stdio_assert(port != NULL);
     fc_stdio_assert(port->rb != NULL);
@@ -74,7 +74,7 @@ int fc_port_putc(fc_port_t* port, int ch)
 
     FC_STDIO_ATOMIC
     {
-        if (1 != fc_fifo_write(port->rb, (void*)&ch, 1))
+        if (1 != fc_fifo_write(port->rb, (void *)&ch, 1))
         {
             ch = EOF;
         }
@@ -83,7 +83,7 @@ int fc_port_putc(fc_port_t* port, int ch)
     if (EOF == ch)
     {
         (void)ret;  // 防止未使用警告
-        FC_PORT_LOSE_HOOK(port, (void*)&ret, 1);
+        FC_PORT_LOSE_HOOK(port, (void *)&ret, 1);
     }
 
     return ch;
@@ -96,7 +96,7 @@ int fc_port_putc(fc_port_t* port, int ch)
  * @param str
  * @return int
  */
-int fc_port_puts(fc_port_t* port, const char* str)
+int fc_port_puts(fc_port_t *port, const char *str)
 {
     fc_stdio_assert(port != NULL);
     fc_stdio_assert(port->rb != NULL);
@@ -108,13 +108,13 @@ int fc_port_puts(fc_port_t* port, const char* str)
     {
         if (fc_fifo_get_free(port->rb) >= len)
         {
-            write_size = fc_fifo_write(port->rb, (void*)str, len);
+            write_size = fc_fifo_write(port->rb, (void *)str, len);
         }
     }
 
     if (write_size < len)
     {
-        FC_PORT_LOSE_HOOK(port, (void*)str, len);
+        FC_PORT_LOSE_HOOK(port, (void *)str, len);
     }
 
     return (int)write_size;
@@ -128,7 +128,7 @@ int fc_port_puts(fc_port_t* port, const char* str)
  * @param len
  * @return int
  */
-int fc_port_write(fc_port_t* port, const void* buf, size_t len)
+int fc_port_write(fc_port_t *port, const void *buf, size_t len)
 {
     fc_stdio_assert(port != NULL);
     fc_stdio_assert(port->rb != NULL);
@@ -139,13 +139,13 @@ int fc_port_write(fc_port_t* port, const void* buf, size_t len)
     {
         if (fc_fifo_get_free(port->rb) >= len)
         {
-            write_size = fc_fifo_write(port->rb, (void*)buf, len);
+            write_size = fc_fifo_write(port->rb, (void *)buf, len);
         }
     }
 
     if (write_size < len)
     {
-        FC_PORT_LOSE_HOOK(port, (void*)buf, len);
+        FC_PORT_LOSE_HOOK(port, (void *)buf, len);
     }
 
     return write_size;
@@ -159,7 +159,7 @@ int fc_port_write(fc_port_t* port, const void* buf, size_t len)
  * @param ...
  * @return int
  */
-int fc_port_printf(fc_port_t* port, const char* fmt, ...)
+int fc_port_printf(fc_port_t *port, const char *fmt, ...)
 {
     fc_stdio_assert(port != NULL);
     fc_stdio_assert(port->rb != NULL);
@@ -182,10 +182,10 @@ int fc_port_printf(fc_port_t* port, const char* fmt, ...)
  * @param port
  * @return int
  */
-int fc_port_getc(fc_port_t* port)
+int fc_port_getc(fc_port_t *port)
 {
     int ch;
-    while (1 != fc_fifo_read(port->rb, (void*)&ch, 1))
+    while (1 != fc_fifo_read(port->rb, (void *)&ch, 1))
     {
         FC_WAIT_MOMENT();
     }
@@ -200,7 +200,7 @@ int fc_port_getc(fc_port_t* port)
  * @param n
  * @return char*
  */
-char* fc_port_gets(fc_port_t* port, char* buf, size_t n)
+char *fc_port_gets(fc_port_t *port, char *buf, size_t n)
 {
     int c;
     int i = 0;
@@ -234,7 +234,7 @@ char* fc_port_gets(fc_port_t* port, char* buf, size_t n)
  * @param len
  * @return int
  */
-int fc_port_read(fc_port_t* port, void* buf, size_t len)
+int fc_port_read(fc_port_t *port, void *buf, size_t len)
 {
     int read_size = 0;
     FC_STDIO_ATOMIC
@@ -244,7 +244,7 @@ int fc_port_read(fc_port_t* port, void* buf, size_t len)
     return read_size;
 }
 
-int fc_port_peek(fc_port_t* port, void* buf, size_t len)
+int fc_port_peek(fc_port_t *port, void *buf, size_t len)
 {
     int read_size = 0;
     FC_STDIO_ATOMIC
@@ -260,14 +260,14 @@ int fc_port_peek(fc_port_t* port, void* buf, size_t len)
  *
  * @param port
  */
-void fc_port_trigger(fc_port_t* port)
+void fc_port_trigger(fc_port_t *port)
 {
     fc_stdio_assert(port != NULL);
     fc_stdio_assert(port->rb != NULL);
 
     bool   busy;
     size_t size;
-    void*  buf;
+    void  *buf;
 
     FC_PORT_ATOMIC
     {
@@ -322,7 +322,7 @@ void fc_port_trigger(fc_port_t* port)
  * @param port
  * @param size
  */
-void fc_port_end(fc_port_t* port, int size)
+void fc_port_end(fc_port_t *port, int size)
 {
     fc_stdio_assert(port != NULL);
     fc_stdio_assert(port->rb != NULL);
@@ -365,7 +365,7 @@ void fc_port_end(fc_port_t* port, int size)
  * @param port
  * @return int
  */
-int fc_port_available(fc_port_t* port)
+int fc_port_available(fc_port_t *port)
 {
     fc_stdio_assert(port != NULL);
     fc_stdio_assert(port->rb != NULL);
@@ -441,7 +441,7 @@ void fc_stdio_init(void)
  * @param str
  * @return int
  */
-int fc_puts(const char* str)
+int fc_puts(const char *str)
 {
     return fc_port_puts(&fc_stdout, str);
 }
@@ -453,7 +453,7 @@ int fc_puts(const char* str)
  * @param len
  * @return int
  */
-int fc_write(const void* buf, size_t len)
+int fc_write(const void *buf, size_t len)
 {
     return fc_port_write(&fc_stdout, buf, len);
 }
@@ -487,7 +487,7 @@ int fc_putc(int ch)
  * @param ...
  * @return int
  */
-int fc_printf(const char* fmt, ...)
+int fc_printf(const char *fmt, ...)
 {
     int ret = 0;
 
@@ -508,7 +508,7 @@ int fc_printf(const char* fmt, ...)
  * @param len
  * @return size_t
  */
-int fc_read(void* buf, size_t len)
+int fc_read(void *buf, size_t len)
 {
     return fc_port_read(&fc_stdin, buf, len);
 }
@@ -530,7 +530,7 @@ int fc_getc(void)
  * @param n
  * @return char*
  */
-char* fc_gets(char* buf, size_t n)
+char *fc_gets(char *buf, size_t n)
 {
     return fc_port_gets(&fc_stdin, buf, n);
 }

@@ -153,23 +153,23 @@ extern "C"
 
         int buff_size;  // 行缓冲区大小
         // 每个log拥有自己独立的行缓冲是为了提高性能,避免频繁栈内存创建和销毁
-        char* buff;                              // 行缓冲区
-        int (*write)(const char* buf, int len);  // 写入数据
+        char *buff;                              // 行缓冲区
+        int (*write)(const char *buf, int len);  // 写入数据
 
         // void* user;  // 预留用户个人数据
     };
 
-    extern void fc_log_set_level(fc_log_t* log, fc_log_level_t level);
-    extern void fc_log_printf(fc_log_t* log, fc_log_level_t level, const char* fmt, ...);
-    extern void fc_log_printf_ex(fc_log_t* log, fc_log_level_t level, char* stack_buf, int stack_size, const char* fmt, ...);
-    extern void fc_log_write(fc_log_t* log, fc_log_level_t level, const void* buff, int len);  // 未使用
+    extern void fc_log_set_level(fc_log_t *log, fc_log_level_t level);
+    extern void fc_log_printf(fc_log_t *log, fc_log_level_t level, const char *fmt, ...);
+    extern void fc_log_printf_ex(fc_log_t *log, fc_log_level_t level, char *stack_buf, int stack_size, const char *fmt, ...);
+    extern void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len);  // 未使用
 
     // 提供一份默认的弱函数log写丢失数据钩子,可以在外面重写
-    extern int fc_log_write_lose_hook(fc_log_t* log, const void* buff, int len);
+    extern int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len);
 
     // 提供两个默认的write函数,一个是输出到fc_stdout,一个是输出到fc_transport的0端口
-    extern int log_write_stdout(const char* buf, int len);
-    extern int log_write_transport(const char* buf, int len);
+    extern int log_write_stdout(const char *buf, int len);
+    extern int log_write_transport(const char *buf, int len);
 
     //+********************************* 实例化 **********************************/
     extern fc_log_t default_log;  // 默认log对象
@@ -182,13 +182,13 @@ extern "C"
     #define FC_LOG_DEFAULT_WRITE log_write_stdout
 #endif
 
-#define FC_LOG_IMPL_FULL(obj_name, _func, _level, _size)       \
-    static char SAFE_NAME(buff)[_size]; /* 缓冲区内存 */       \
-    fc_log_t    obj_name = {                                   \
-           .level = _level,                 /* 日志级别 */     \
-           .buff_size = _size,              /* 行缓冲区大小 */ \
-           .buff = (char*)&SAFE_NAME(buff), /* 行缓冲区 */     \
-           .write = _func,                  /* 写入函数 */     \
+#define FC_LOG_IMPL_FULL(obj_name, _func, _level, _size)        \
+    static char SAFE_NAME(buff)[_size]; /* 缓冲区内存 */        \
+    fc_log_t    obj_name = {                                    \
+           .level = _level,                  /* 日志级别 */     \
+           .buff_size = _size,               /* 行缓冲区大小 */ \
+           .buff = (char *)&SAFE_NAME(buff), /* 行缓冲区 */     \
+           .write = _func,                   /* 写入函数 */     \
     }
 
 #define _FC_LOG_IMPL_FULL_1(obj_name) \

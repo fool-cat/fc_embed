@@ -28,7 +28,7 @@ ConstructorInitializerIndentWidth: "4"
 
 NamespaceIndentation: All
 IndentPPDirectives: BeforeHash
-PointerAlignment: Left
+PointerAlignment: Right
 ColumnLimit: "0"
 ContinuationIndentWidth: "4"
 UseTab: Never
