@@ -12,3 +12,4 @@ arch/
 components/
 device/
 cppcheck/
+example/

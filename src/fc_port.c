@@ -409,6 +409,10 @@ void fc_stdio_init(void)
 #endif
 
     {
+        // 允许其在执行初始化之前绑定绑定物理IO指针
+        fc_phy_io_t phy = fc_stdout.phy;  // 物理IO函数指针
+        fc_stdout.phy = phy;              // 物理IO函数指针
+
         static const char str[] = "FC_OUT_RTT_MARK";  // "FC_OUT_RTT_MARK"
         memset(fc_stdout.id, 0, sizeof(fc_stdout.id));
         strncpy(fc_stdout.id, str, sizeof(fc_stdout.id) - 1);
@@ -422,6 +426,9 @@ void fc_stdio_init(void)
     }
 
     {
+        fc_phy_io_t phy = fc_stdin.phy;  // 物理IO函数指针
+        fc_stdin.phy = phy;              // 物理IO函数指针
+
         static const char str[] = "FC_IN_RTT_MARK";  // "FC_IN_RTT_MARK"
         memset(fc_stdin.id, 0, sizeof(fc_stdin.id));
         strncpy(fc_stdin.id, str, sizeof(fc_stdin.id) - 1);
@@ -434,6 +441,8 @@ void fc_stdio_init(void)
         fc_fifo_static_new_at(fc_stdin.rb, FIFO_RX_LOG2_SIZE);
     }
 }
+
+#if (0 == FC_STDIO_DEFINE_API)
 
 /**
  * @brief
@@ -603,6 +612,8 @@ int fc_out_available(void)
 {
     return (int)fc_port_available(&fc_stdout);
 }
+
+#endif  // FC_STDIO_DEFINE_API
 
 //+********************************* 自动注册初始化 **********************************/
 #if USE_FC_AUTO_INIT

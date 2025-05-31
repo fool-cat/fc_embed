@@ -16,6 +16,10 @@
 
 #include "fc_port.h"
 
+#ifndef USE_FC_VSNPRINTF
+    #define USE_FC_VSNPRINTF 1 /**< 是否使用fc_vsnprintf进行格式化 */
+#endif
+
 #if USE_FC_VSNPRINTF
     #include "./fc_stdio/fc_stdio.h"
     #define LOG_VSNPRINTF fc_vsnprintf
@@ -25,7 +29,7 @@
 #endif  //\ LOG_USE_VSNPRINTF
 
 #ifndef fc_log_assert
-    #define fc_log_assert(x) ((void)0)
+    #define fc_log_assert(x) fc_assert(x)
 #endif  //\ fc_log_assert
 
 //+*********************************  **********************************/
@@ -40,6 +44,7 @@ void fc_log_set_level(fc_log_t *log, fc_log_level_t level)
 void fc_log_printf(fc_log_t *log, fc_log_level_t level, const char *fmt, ...)
 {
     fc_log_assert(log != NULL);
+    fc_log_assert(log->buff != NULL);
 
     if (log->level >= level)
     {
@@ -47,34 +52,28 @@ void fc_log_printf(fc_log_t *log, fc_log_level_t level, const char *fmt, ...)
         va_start(vargs, fmt);
         int len = 0;
 
-        if (log->buff)
+        FC_LOG_ATOMIC
         {
-            FC_LOG_ATOMIC
-            {
-                len = LOG_VSNPRINTF(log->buff, log->buff_size, fmt, vargs);
-                len -= log->write(log->buff, len);
-            }
-            FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
+            len = LOG_VSNPRINTF(log->buff, log->buff_size, fmt, vargs);
+            len -= log->write(log->buff, len);
         }
-        else
-        {
-#if FC_LOG_STACK_LINE_SIZE > 0
-            char buff[FC_LOG_STACK_LINE_SIZE];
-            FC_LOG_ATOMIC
-            {
-                len = LOG_VSNPRINTF(buff, FC_LOG_STACK_LINE_SIZE, fmt, vargs);
-                len -= log->write(buff, len);
-            }
-            FC_LOG_LOSE_HOOK(0 == len, log, buff, len);
-#else
-            FC_LOG_LOSE_HOOK(false, log, (const void *)fmt, strlen(fmt));
-#endif
-        }
+        FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
+
         va_end(vargs);
     }
 }
 
-void fc_log_printf_ex(fc_log_t *log, fc_log_level_t level, char *stack_buf, int stack_size, const char *fmt, ...)
+/**
+ * @brief 使用者自己去保证write的线程安全性
+ *
+ * @param log
+ * @param level
+ * @param stack_buf
+ * @param stack_size
+ * @param fmt
+ * @param ...
+ */
+void fc_log_printf_stack(fc_log_t *log, fc_log_level_t level, char *stack_buf, int stack_size, const char *fmt, ...)
 {
     fc_log_assert(log != NULL);
     fc_log_assert(stack_buf != NULL);
@@ -86,10 +85,8 @@ void fc_log_printf_ex(fc_log_t *log, fc_log_level_t level, char *stack_buf, int 
         int len = 0;
 
         len = LOG_VSNPRINTF(stack_buf, stack_size, fmt, vargs);
-        FC_LOG_ATOMIC
-        {
-            len -= log->write(log->buff, len);
-        }
+        len -= log->write(log->buff, len);
+
         FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
 
         va_end(vargs);
@@ -171,5 +168,9 @@ int log_write_transport(const char *buf, int len)
     return fc_sender_write(&fc_sender, 0, buf, len);
 }
 
+#if FC_LOG_DEFAULT_CREATE
+
 // 默认实例化对象
 FC_LOG_IMPL(default_log);
+
+#endif

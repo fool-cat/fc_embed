@@ -171,6 +171,12 @@ extern "C"
     // 为了提升效率单独实现IO触发与回调
     extern void fc_stdio_init(void);  // 初始化标准输入输出
 
+#ifndef FC_STDIO_DEFINE_API
+    #define FC_STDIO_DEFINE_API 0
+#endif
+
+#if (0 == FC_STDIO_DEFINE_API)
+
     // 输出到fc_stdout
     extern int fc_putchar(int ch);
     extern int fc_putc(int ch);
@@ -217,6 +223,69 @@ extern "C"
     extern void fc_in_trigger(void);    // 触发接收
     extern void fc_in_end(int size);    // 接收完成处理
     extern int  fc_in_available(void);  // 缓冲区可用字节数
+
+#else
+
+    #ifndef FC_STDOUT_OBJ
+        #define FC_STDOUT_OBJ (&fc_stdout)
+    #endif
+
+    #ifndef FC_STDIN_OBJ
+        #define FC_STDIN_OBJ (&fc_stdin)
+    #endif
+
+    // clang-format off
+
+    // 输出到fc_stdout
+    #define fc_putchar(ch)      fc_port_putc(FC_STDOUT_OBJ, ch)
+    #define fc_putc(ch)         fc_port_putc(FC_STDOUT_OBJ, ch)
+    #define fc_puts(str)        fc_port_puts(FC_STDOUT_OBJ, str)
+    #define fc_write(buf, len)  fc_port_write(FC_STDOUT_OBJ, buf, len)  // 要么全部写入,要么返回0
+    #define fc_printf(fmt, ...) fc_port_printf(FC_STDOUT_OBJ, fmt, ##__VA_ARGS__)
+
+    #define fc_out_trigger()    fc_port_trigger(FC_STDOUT_OBJ)      // 触发发送
+    #define fc_out_end(size)    fc_port_end(FC_STDOUT_OBJ, size)    // 发送完成处理
+    #define fc_out_available()  fc_port_available(FC_STDOUT_OBJ)    // 缓冲区可用字节数
+
+    /*----------------------------------------------*/
+    /* Formatted string output                      */
+    /*----------------------------------------------*/
+    /*  fc_printf("%d",         1234);			"1234"
+        fc_printf("%6d,%3d%%",  -200, 5);	    "  -200,  5%"
+        fc_printf("%-6u",       100);			"100   "
+        fc_printf("%ld",        12345678);		"12345678"
+        fc_printf("%llu",       0x100000000);	"4294967296"    <XF_USE_LLI>
+        fc_printf("%lld",       -1LL);			"-1"			<XF_USE_LLI>
+        fc_printf("%04x",       0xA3);			"00a3"
+        fc_printf("%08lX",      0x123ABC);		"00123ABC"
+        fc_printf("%016b",      0x550F);	    "0101010100001111"
+        fc_printf("%*d",        6, 100);		"   100"
+        fc_printf("%s",         "String");		"String"
+        fc_printf("%5s",        "abc");			"  abc"
+        fc_printf("%-5s",       "abc");			"abc  "
+        fc_printf("%-5s",       "abcdefg");		"abcdefg"
+        fc_printf("%-5.5s",     "abcdefg");	    "abcde"
+        fc_printf("%-.5s",      "abcdefg");	    "abcde"
+        fc_printf("%-5.5s",     "abc");		    "abc  "
+        fc_printf("%c",         'a');			"a"
+        fc_printf("%12f",       10.0);			"   10.000000"	<XF_USE_FP>
+        fc_printf("%.4E",       123.45678);		"1.2346E+02"	<XF_USE_FP>
+    */
+
+    // stdin
+    #define fc_getchar()        fc_port_getc(FC_STDIN_OBJ)              // 阻塞式API,非线程安全
+    #define fc_getc()           fc_port_getc(FC_STDIN_OBJ)              // 阻塞式API,非线程安全
+    #define fc_gets(buf, n)     fc_port_gets(FC_STDIN_OBJ, buf, n)      // 不建议使用
+    #define fc_read(buf, len)   fc_port_read(FC_STDIN_OBJ, buf, len)    // 阻塞式API,非线程安全
+    #define fc_scanf(fmt, ...)  fc_port_scanf(FC_STDIN_OBJ, fmt, ##__VA_ARGS__)
+
+    #define fc_in_trigger()     fc_port_trigger(FC_STDIN_OBJ)       // 触发接收
+    #define fc_in_end(size)     fc_port_end(FC_STDIN_OBJ, size)     // 接收完成处理
+    #define fc_in_available()   fc_port_available(FC_STDIN_OBJ)     // 缓冲区可用字节数
+
+    // clang-format on
+
+#endif  // FC_STDIO_DEFINE_API
 
 #ifdef __cplusplus
 }
