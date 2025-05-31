@@ -17,7 +17,7 @@
     #define INT_MAX 0x7fffffff
 #endif
 
-int fc_vsprintf(char* s, const char* fmt, va_list ap)
+int fc_vsprintf(char *s, const char *fmt, va_list ap)
 {
     return fc_vsnprintf(s, INT_MAX, fmt, ap);
 }

@@ -12,13 +12,13 @@
 #include <stdarg.h>
 #include "fc_stdio.h"
 
-int fc_vsscanf(const char* s, const char* fmt, va_list ap)
+int fc_vsscanf(const char *s, const char *fmt, va_list ap)
 {
     int     ret;
     FC_FILE f;
-    f.p_start = (char*)s;
-    f.p_now = (char*)s;
-    f.p_end = (char*)s + strlen(s);
+    f.p_start = (char *)s;
+    f.p_now = (char *)s;
+    f.p_end = (char *)s + strlen(s);
     ret = fc_vfscanf(&f, fmt, ap);
     return ret;
 }

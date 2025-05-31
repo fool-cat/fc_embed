@@ -110,7 +110,7 @@ static double i10x(int n) /* Calculate 10^n */
 }
 
 static void ftoa(
-    char*  buf,  /* Buffer to output the generated string */
+    char  *buf,  /* Buffer to output the generated string */
     double val,  /* Real number to output */
     int    prec, /* Number of fractinal digits */
     char   fmt   /* Notation */
@@ -120,7 +120,7 @@ static void ftoa(
     int         e = 0, m = 0;
     char        sign = 0;
     double      w;
-    const char* er = 0;
+    const char *er = 0;
 
     if (isnan(val))
     { /* Not a number? */
@@ -216,7 +216,7 @@ static void ftoa(
 #endif /* XF_USE_FLOAT */
 
 //+********************************* vfprintf **********************************/
-static bool _write_ch(FC_FILE* f, char ch)
+static bool _write_ch(FC_FILE *f, char ch)
 {
     if (f->p_now)
     {
@@ -225,10 +225,10 @@ static bool _write_ch(FC_FILE* f, char ch)
         if ((size_t)f->p_now >= (size_t)f->p_end)
         {
             f->p_now = NULL;
-            if (f->write)
+            if (f->io.write)
             {
                 int _size = (int)(f->p_end - f->p_start);
-                if (_size != f->write(f, f->p_start, _size))
+                if (_size != f->io.write(f, f->p_start, _size))
                 {
                     return false;
                 }
@@ -239,9 +239,9 @@ static bool _write_ch(FC_FILE* f, char ch)
             }
         }
     }
-    else if (f->write)
+    else if (f->io.write)
     {
-        if (1 != f->write(f, &ch, 1))
+        if (1 != f->io.write(f, &ch, 1))
         {
             return false;
         }
@@ -265,15 +265,15 @@ static bool _write_ch(FC_FILE* f, char ch)
 
 // 退出的后处理
 #undef __fc_exit_handle
-#define __fc_exit_handle(f)       \
-    if (f->write)                 \
-    {                             \
-        f->write(f, f->p_now, 0); \
+#define __fc_exit_handle(f)          \
+    if (f->io.write)                 \
+    {                                \
+        f->io.write(f, f->p_now, 0); \
     }
 
 int fc_vfprintf(
-    FC_FILE*    pf,  /* Pointer to the file object */
-    const char* fmt, /* Pointer to the format string */
+    FC_FILE    *pf,  /* Pointer to the file object */
+    const char *fmt, /* Pointer to the format string */
     va_list     arp  /* Pointer to arguments */
 )
 {
@@ -387,10 +387,10 @@ int fc_vfprintf(
             __fc_fputc(pf, (char)va_arg(arp, int));
             continue;
         }
-        case 's':                   /* String */
-            p = va_arg(arp, char*); /* Get a pointer argument */
+        case 's':                    /* String */
+            p = va_arg(arp, char *); /* Get a pointer argument */
             if (!p)
-                p = (char*)""; /* Null ptr generates a null string */
+                p = (char *)""; /* Null ptr generates a null string */
             j = strlen(p);
             if (prec >= 0 && j > (unsigned int)prec)
                 j = prec; /* Limited length of string body */

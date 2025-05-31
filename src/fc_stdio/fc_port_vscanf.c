@@ -15,16 +15,16 @@
 
 #include "fc_port.h"
 
-static int __fc_port_vscanf_read(FC_FILE* f, void* buf, int len)
+static int __fc_port_vscanf_read(FC_FILE *f, void *buf, int len)
 {
     if (len > 0)
     {
-        len = fc_fifo_write(((fc_port_t*)(f->user))->rb, (void*)(buf), len);
+        len = fc_fifo_write(((fc_port_t *)(f->user))->rb, (void *)(buf), len);
     }
     return len;
 }
 
-int fc_port_vscanf(fc_port_t* port, const char* fmt, va_list arp)
+int fc_port_vscanf(fc_port_t *port, const char *fmt, va_list arp)
 {
     FC_FILE f = {0};
 

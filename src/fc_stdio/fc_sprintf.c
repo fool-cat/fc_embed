@@ -13,7 +13,7 @@
 
 #include "fc_stdio.h"
 
-int fc_sprintf(char* s, const char* fmt, ...)
+int fc_sprintf(char *s, const char *fmt, ...)
 {
     int n;
 

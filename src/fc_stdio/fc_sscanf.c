@@ -12,7 +12,7 @@
 #include <stdarg.h>
 #include "fc_stdio.h"
 
-int fc_sscanf(const char* s, const char* fmt, ...)
+int fc_sscanf(const char *s, const char *fmt, ...)
 {
     int     ret;
     va_list ap;

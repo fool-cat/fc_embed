@@ -33,7 +33,7 @@
 #include "fc_stdio.h"
 
 int xgets(            /* 0:End of stream, 1:A line arrived */
-          char* buff, /* Pointer to the buffer */
+          char *buff, /* Pointer to the buffer */
           int   len   /* Buffer length */
 )
 {
@@ -74,8 +74,8 @@ int xgets(            /* 0:End of stream, 1:A line arrived */
 */
 
 int xatoi(            /* 0:Failed, 1:Successful */
-          char** str, /* Pointer to pointer to the string */
-          long*  res  /* Pointer to the valiable to store the value */
+          char **str, /* Pointer to pointer to the string */
+          long  *res  /* Pointer to the valiable to store the value */
 )
 {
     unsigned long val;
@@ -152,8 +152,8 @@ int xatoi(            /* 0:Failed, 1:Successful */
  */
 
 int xatof(             /* 0:Failed, 1:Successful */
-          char**  str, /* Pointer to pointer to the string */
-          double* res  /* Pointer to the valiable to store the value */
+          char  **str, /* Pointer to pointer to the string */
+          double *res  /* Pointer to the valiable to store the value */
 )
 {
     double        val;

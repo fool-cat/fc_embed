@@ -13,7 +13,7 @@
 
 #include "fc_stdio.h"
 
-int fc_snprintf(char* s, size_t n, const char* fmt, ...)
+int fc_snprintf(char *s, size_t n, const char *fmt, ...)
 {
     int     ret;
     va_list ap;
