@@ -75,7 +75,7 @@ extern "C"
     };
 
     extern void fc_sender_init(fc_sender_t *sender, fc_port_t *port);
-    extern bool fc_sender_switch(fc_sender_t *sender, size_t index);  // 切换窗口
+    extern bool fc_sender_switch(fc_sender_t *sender, size_t index);  // 切换窗口,"0~9"端口非常高效
 
     extern int fc_sender_putc(fc_sender_t *sender, size_t index, int ch);
     extern int fc_sender_puts(fc_sender_t *sender, size_t index, const char *str);

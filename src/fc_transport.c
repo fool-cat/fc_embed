@@ -14,23 +14,23 @@
 #include "fc_transport.h"
 
 // 自定义的分页信息
+#ifndef FC_DIVISION_NUM_MAX_LEN
+    #define FC_DIVISION_NUM_MAX_LEN 4  // 分页信息中端口号的最大长度("9999")
+#endif
+
+#ifndef FC_DIVISION_NUM_MAX
+    #define FC_DIVISION_NUM_MAX (9999)  // 分页信息中端口号的最大值,即4位数字的最大值
+#endif
+
 #define FC_DIVISION_HEAD "\033[?;"
 #define FC_DIVISION_TAIL "m"
-#define FC_DIVISION_DEFAULT "\033[?;0m"                        // 默认窗口0
-#define FC_DIVISION_POSITION (sizeof(FC_DIVISION_HEAD) - 1)    // 分页信息的索引位置
-#define FC_DIVISION_MIN_LEN (sizeof(FC_DIVISION_DEFAULT) - 1)  // 分页信息最小长度,包括前缀和后缀个一个字节的端口号
-#define FC_DIVISION_MAX_LEN (sizeof(FC_DIVISION_DEFAULT) + 3)  // 最短分页情况下额外加3个字符,即4位数字的长度最大端口号9999
+#define FC_DIVISION_DEFAULT "\033[?;0m"                                                    // 默认窗口0
+#define FC_DIVISION_POSITION (sizeof(FC_DIVISION_HEAD) - 1)                                // 分页信息的索引位置
+#define FC_DIVISION_MIN_BUF_LEN (sizeof(FC_DIVISION_DEFAULT))                              // 分页信息最小长度,包括前缀和后缀个一个字节的端口号
+#define FC_DIVISION_MAX_BUF_LEN (FC_DIVISION_MIN_BUF_LEN + (FC_DIVISION_NUM_MAX_LEN - 1))  // 包含'\0'的分页信息最大长度,即"\033[?;9999m"的长度,方便使用字符串API
 
 #ifndef EOF
     #define EOF (-1)
-#endif
-
-#if USE_FC_SNPRINTF
-    #include "./fc_stdio/fc_stdio.h"
-    #define TRANSPORT_SNPRINTF fc_snprintf
-#else
-    #include <stdio.h>
-    #define TRANSPORT_SNPRINTF snprintf
 #endif
 
 // 判断字符数组是否全为数字
@@ -116,9 +116,9 @@ void fc_receiver_monitor(fc_receiver_t *receiver)
             }
             fc_fifo_linear_read_done(rb, p_end - p_start);
 
-            len_total = fc_fifo_get_used(rb);  // 更新现存数据量
-            char buff[FC_DIVISION_MAX_LEN] = {0};
-            len = fc_fifo_peek(rb, buff, sizeof(buff) > len_total ? len_total : sizeof(buff));
+            len_total = fc_fifo_get_used(rb);          // 更新现存数据量
+            char buff[FC_DIVISION_MAX_BUF_LEN] = {0};  // 多一个'\0'字符,方便字符串处理
+            len = fc_fifo_peek(rb, buff, (sizeof(buff) - 1) > len_total ? len_total : (sizeof(buff) - 1));
 
             p_start = &buff[0];                                    // 分页信息开始位置
             if (0 != memcmp(p_start, head, FC_DIVISION_POSITION))  // 分页信息头部
@@ -153,7 +153,7 @@ void fc_receiver_monitor(fc_receiver_t *receiver)
 
                 fc_fifo_drop(rb, p_end - p_start + (sizeof(FC_DIVISION_TAIL) - 1));  // 不论分页码信息解析是否成功,都要弹出帧尾(包含)之前的数据
             }
-            else if (len < (FC_DIVISION_MAX_LEN - 1))  // 可能数据不完整导致的未找到分页信息尾部
+            else if (len < (FC_DIVISION_MAX_BUF_LEN - 1))  // 可能数据不完整导致的未找到分页信息尾部
             {
                 if (receiver->end)
                 {
@@ -216,24 +216,69 @@ bool fc_sender_switch(fc_sender_t *sender, size_t index)
 {
     fc_stdio_assert(NULL != sender);
     fc_stdio_assert(NULL != sender->port);
-
-    fc_stdio_assert(index <= 9999);  // 窗口号范围0 ~ 9999
+    fc_stdio_assert(index <= FC_DIVISION_NUM_MAX);  // 确保索引在范围内
 
     if (sender->index != index)
     {
         sender->index = index;
-        char buff[FC_DIVISION_MAX_LEN] = {0};
-        strcpy(buff, FC_DIVISION_HEAD);  // 分页信息前缀
+        size_t num = index;
+        char   buff[FC_DIVISION_MAX_BUF_LEN] = {0};
+        int    pos = FC_DIVISION_POSITION;
 
-        // 分页信息
-        int len = TRANSPORT_SNPRINTF(buff + FC_DIVISION_POSITION,
-                                     FC_DIVISION_MAX_LEN - FC_DIVISION_POSITION - (sizeof(FC_DIVISION_TAIL) - 1),
-                                     "%d", (int)index);
+        // 1. 拷贝前缀
+        for (int i = 0; i < FC_DIVISION_POSITION; i++)
+        {
+            buff[i] = FC_DIVISION_HEAD[i];
+        }
 
-        strcat(buff, FC_DIVISION_TAIL);  // 分页信息后缀
-        len = strlen(buff);
+        // 2. 计算数字位数并写入数字部分
+        if (num < 10)
+        {
+            buff[pos++] = '0' + num;  // 只有一位数字
+        }
+        else
+        {
+            // 从最高位开始计算，避免前导零
+            size_t divisor = 10;
+            // 计算最大除数
+            for (size_t i = 0; i < (FC_DIVISION_NUM_MAX_LEN - 1); i++)
+            {
+                // if (num >= divisor && num < (divisor * 10))
+                if (num < (divisor * 10))  // 优化条件
+                {
+                    break;
+                }
+                divisor *= 10;
+            }
 
-        return (fc_port_write(sender->port, buff, len) == len);  // 写入分页信息
+            int digit = 0;
+            // 逐位写入数字
+            do
+            {
+                digit = (size_t)num / (size_t)divisor;  // 整数除法,丢掉余数部分
+                buff[pos++] = '0' + digit;
+                num -= digit * divisor;
+                if (num < 10)
+                {
+                    while (divisor > 10)
+                    {
+                        divisor /= 10;      // 除数逐渐减小,直到只剩下个位
+                        buff[pos++] = '0';  // 写入中间0
+                    }
+                    buff[pos++] = '0' + num;  // 写入最后一位数字
+                    break;
+                }
+                divisor /= 10;
+            } while (divisor > 0);
+        }
+
+        // 3. 拷贝后缀
+        for (int i = 0; i < (sizeof(FC_DIVISION_TAIL) - 1); i++)
+        {
+            buff[pos++] = FC_DIVISION_TAIL[i];
+        }
+
+        return (fc_port_write(sender->port, buff, pos) == pos);
     }
 
     return true;
