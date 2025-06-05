@@ -60,8 +60,9 @@ extern "C"
         // void*            user;          // 预留用户个人数据
     };
 
-    extern void fc_receiver_init(fc_receiver_t *receiver, fc_port_t *port, fc_receiver_out_t out, fc_receiver_end_t end);
-    extern void fc_receiver_monitor(fc_receiver_t *receiver);  // 需要保证线程安全
+    extern void fc_receiver_init(fc_receiver_t *receiver, fc_port_t *port);
+    extern void fc_receiver_catch(fc_receiver_t *receiver, fc_receiver_out_t out, fc_receiver_end_t end);  // 设置数据分发和结束函数
+    extern void fc_receiver_monitor(fc_receiver_t *receiver);                                              // 需要保证线程安全
 
     //+********************************* sender **********************************/
 
@@ -83,11 +84,8 @@ extern "C"
     extern int fc_sender_printf(fc_sender_t *sender, size_t index, const char *fmt, ...);
 
     //+********************************* 默认实例化对象 **********************************/
-    extern fc_receiver_t fc_receiver;  // 接收器对象
-    extern fc_sender_t   fc_sender;    // 发送器对象
-
-#define fc_receiver_out_catch(func) (fc_receiver.out = func)
-#define fc_receiver_end_catch(func) (fc_receiver.end = func)
+    extern fc_receiver_t fc_receiver;  // 接收器对象,绑定fc_stdin
+    extern fc_sender_t   fc_sender;    // 发送器对象,绑定fc_stdout
 
 #ifdef __cplusplus
 }

@@ -616,8 +616,8 @@ int fc_out_available(void)
 #endif  // FC_STDIO_DEFINE_API
 
 //+********************************* 自动注册初始化 **********************************/
+#include "fc_auto_init.h"
 #if USE_FC_AUTO_INIT
-    #include "fc_auto_init.h"
 static void _fc_port_auto_init(void)
 {
     fc_stdio_init();  // 纯内存结构初始化,可以放在constructor的时候就初始化

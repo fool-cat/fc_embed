@@ -32,7 +32,7 @@
     init = true;
 
 /**
- * @brief 根据优先级顺序执行
+ * @brief 根据优先级顺序执行(从小到大)
  *
  */
 #define ORDER_SECTION_RUN(section_name)                                    \
@@ -96,12 +96,16 @@
         }                                                                  \
     } while (0)
 
-// 可以无需显式调用
 /**
  * @brief main 函数之前自动初始化
  *
  */
+#if USE_FC_AUTO_INIT
+// 可以无需显式调用
 __attribute__((constructor)) fc_used void fc_section_init_env(void)
+#else
+void fc_section_init_env(void)
+#endif
 {
     ONCE_RUNNING();
 

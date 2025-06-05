@@ -25,6 +25,11 @@ extern "C"
 #include "fc_compiler.h"
 #include "fc_helper.h"
 
+// fc_section_init_env 是否自动调用
+#ifndef USE_FC_AUTO_INIT
+    #define USE_FC_AUTO_INIT 1
+#endif
+
 #if defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
     #define SECTION_EXTERN(section_name)                   \
         extern const size_t CONNECT(section_name, $$Base); \
@@ -128,7 +133,7 @@ extern "C"
      *
      * 在描述的位置调用指定函数
      */
-    extern void fc_section_init_env(void);  //\ __attribute__((constructor)); 无需显式调用
+    extern void fc_section_init_env(void);  // 配置USE_FC_AUTO_INIT为1后 __attribute__((constructor)); 无需显式调用
     extern void fc_section_init_clock(void);
     extern void fc_section_init_device(void);
     extern void fc_section_init_app(void);

@@ -278,11 +278,11 @@ extern "C"
             #error "FC_LOG_STACK_LINE_SIZE 必须大于0"
         #endif
 
-        #define log_format(text, level, fmt, ...)                                                                                                                 \
-            do                                                                                                                                                    \
-            {                                                                                                                                                     \
-                char SAFE_NAME(buff)[FC_LOG_STACK_LINE_SIZE]; /* 使用栈内存 */                                                                                    \
-                fc_log_printf_stack(FC_LOG_OBJ, level, SAFE_NAME(buff), FC_LOG_STACK_LINE_SIZE, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+        #define log_format(text, level, fmt, ...)                                                                                                                            \
+            do                                                                                                                                                               \
+            {                                                                                                                                                                \
+                char SAFE_NAME(buff)[FC_LOG_STACK_LINE_SIZE]; /* 使用栈内存 */                                                                                               \
+                fc_log_printf_stack(FC_LOG_OBJ, level, (char *)&(SAFE_NAME(buff)), FC_LOG_STACK_LINE_SIZE, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
             } while (0)
 
     #elif (FC_LOG_MEM_TYPE == FC_LOG_MEM_SELF)

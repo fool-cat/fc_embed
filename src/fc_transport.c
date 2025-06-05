@@ -58,10 +58,8 @@ static bool is_all_digits(const char *arr, int length)
  *
  * @param receiver  接收器对象
  * @param port      一般建议是输入方向的port,不做强制
- * @param out 分发函数
- * @param end 结束函数,返回true表示本次结束,返回false表示还在接收
  */
-void fc_receiver_init(fc_receiver_t *receiver, fc_port_t *port, fc_receiver_out_t out, fc_receiver_end_t end)
+void fc_receiver_init(fc_receiver_t *receiver, fc_port_t *port)
 {
     fc_stdio_assert(NULL != receiver);
     fc_stdio_assert(NULL != port);
@@ -69,8 +67,22 @@ void fc_receiver_init(fc_receiver_t *receiver, fc_port_t *port, fc_receiver_out_
     memset(receiver, 0, sizeof(fc_receiver_t));
     receiver->port = port;
     receiver->index = 0;  // 默认窗口0
-    receiver->out = out;
-    receiver->end = end;
+}
+
+/**
+ * @brief 绑定接收器的分发函数和结束函数
+ *
+ * @param receiver 接收器对象
+ * @param out 分发函数
+ * @param end 结束函数,返回true表示本次结束,返回false表示还在接收
+ */
+void fc_receiver_catch(fc_receiver_t *receiver, fc_receiver_out_t out, fc_receiver_end_t end)
+{
+    fc_stdio_assert(NULL != receiver);
+    fc_stdio_assert(NULL != out);  // 必须绑定分发函数
+
+    receiver->out = out;  // 分发函数
+    receiver->end = end;  // 结束函数,可以为NULL
 }
 
 /**
@@ -370,12 +382,12 @@ fc_receiver_t fc_receiver;  // 接收器对象
 fc_sender_t   fc_sender;    // 发送器对象
 
 //+********************************* 自动注册初始化 **********************************/
+#include "fc_auto_init.h"
 #if USE_FC_AUTO_INIT
-    #include "fc_auto_init.h"
 static void _fc_transport_auto_init(void)
 {
-    fc_receiver_init(&fc_receiver, &fc_stdin, NULL, NULL);  // 初始化接收器
-    fc_sender_init(&fc_sender, &fc_stdout);                 // 初始化发送器
+    fc_receiver_init(&fc_receiver, &fc_stdin);  // 初始化接收器
+    fc_sender_init(&fc_sender, &fc_stdout);     // 初始化发送器
 }
 INIT_EXPORT_ENV(_fc_transport_auto_init, 110);  // 等级比默认的1000优先级更高,但是低于fc_stdio_init,纯数据结构无外部依赖
 #endif
