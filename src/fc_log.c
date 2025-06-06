@@ -45,6 +45,7 @@ void fc_log_printf(fc_log_t *log, fc_log_level_t level, const char *fmt, ...)
 {
     fc_log_assert(log != NULL);
     fc_log_assert(log->buff != NULL);
+    fc_log_assert(log->buff_size > 0);
 
     if (log->level >= level)
     {
@@ -77,6 +78,7 @@ void fc_log_printf_stack(fc_log_t *log, fc_log_level_t level, char *stack_buf, i
 {
     fc_log_assert(log != NULL);
     fc_log_assert(stack_buf != NULL);
+    fc_log_assert(stack_size > 0);
 
     if (log->level >= level)
     {

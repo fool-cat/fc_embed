@@ -83,6 +83,7 @@
 
     #define FC_LOG_MEM_SELF 0   // 使用自身的行缓冲区,线程不安全
     #define FC_LOG_MEM_STACK 1  // 使用栈缓冲区,线程安全-适用于中断等场景
+    #define FC_LOG_MEM_NONE 2   // 不使用行缓冲区,直接直接借助自定义printf输出
 
     #ifndef FC_LOG_MEM_TYPE
         #define FC_LOG_MEM_TYPE FC_LOG_MEM_SELF /**< log缓冲区类型,默认是自己分配内存 */
@@ -211,12 +212,12 @@ extern "C"
         FC_LOG_IMPL_FULL(obj_name, _level, _func, _size)
 
     /**
-     * 这个宏用于快速定义一个fc_log_t对象,禁止在头文件中使用,否则会导致多重定义
+     * 这个宏用于快速定义一个`fc_log_t`对象,禁止在头文件中使用,否则会导致多重定义
      * @brief 实例化log对象,至少一个参数,最大支持4个参数
      *参数必须按照指定顺序给出,允许缺省(从后面开始缺省)
      *<1>对象名称
-     *<2>写入函数
-     *<3>日志级别
+     *<2>日志级别
+     *<3>写入函数
      *<4>行缓冲区大小
      */
     #define FC_LOG_IMPL(...) \
@@ -233,6 +234,35 @@ extern "C"
             #define FC_LOG_LOSE_HOOK(exp, log, buf, len) (void)(0)
         #endif
     #endif
+
+    #define FC_LOG_IMPL_EMPTY_FULL(obj_name, _level, _func) \
+        fc_log_t obj_name = {                               \
+            .level = _level, /* 日志级别 */                 \
+            .buff_size = 0,  /* 行缓冲区大小 */             \
+            .buff = NULL,    /* 行缓冲区 */                 \
+            .write = _func,  /* 写入函数 */                 \
+        }
+
+    #define FC_LOG_IMPL_EMPTY_1(obj_name) \
+        FC_LOG_IMPL_EMPTY_FULL(obj_name, FC_LOG_ALL, FC_LOG_DEFAULT_WRITE)
+
+    #define FC_LOG_IMPL_EMPTY_2(obj_name, _level) \
+        FC_LOG_IMPL_EMPTY_FULL(obj_name, _level, FC_LOG_DEFAULT_WRITE)
+
+    #define FC_LOG_IMPL_EMPTY_3(obj_name, _level, _func) \
+        FC_LOG_IMPL_EMPTY_FULL(obj_name, _level, _func)
+
+    /**
+     * 这个宏用于快速定义一个没有自身缓冲区的`fc_log_t`对象,禁止在头文件中使用,否则会导致多重定义
+     * 通过此宏创建的对象由于没有自身缓冲区,无法使用`FC_LOG_MEM_SELF`模式进行输出
+     * @brief 实例化log对象,至少一个参数,最大支持3个参数
+     *参数必须按照指定顺序给出,允许缺省(从后面开始缺省)
+     *<1>对象名称
+     *<2>日志级别
+     *<3>写入函数
+     */
+    #define FC_LOG_IMPL_EMPTY(...) \
+        CONNECT2(FC_LOG_IMPL_EMPTY_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
     #ifdef __cplusplus
 }
@@ -291,6 +321,22 @@ extern "C"
             do                                                                                                     \
             {                                                                                                      \
                 fc_log_printf(FC_LOG_OBJ, level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+            } while (0)
+
+    #elif (FC_LOG_MEM_TYPE == FC_LOG_MEM_NONE)
+
+        #ifndef FC_LOG_PRINTF
+extern int fc_printf(const char *fmt, ...);
+            #define FC_LOG_PRINTF fc_printf
+        #endif
+
+        #define log_format(text, _level, fmt, ...)                                                  \
+            do                                                                                      \
+            {                                                                                       \
+                if (((FC_LOG_OBJ)->level) >= _level)                                                \
+                {                                                                                   \
+                    FC_LOG_PRINTF(text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+                }                                                                                   \
             } while (0)
 
     #else
