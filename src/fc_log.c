@@ -34,6 +34,15 @@
 
 //+*********************************  **********************************/
 
+#if FC_LOG_USE_LOCK
+void fc_log_catch_lock(fc_log_t *log, void (*lock)(fc_log_t *log), void (*unlock)(fc_log_t *log))
+{
+    fc_log_assert(log != NULL);
+    log->lock = lock;
+    log->unlock = unlock;
+}
+#endif
+
 void fc_log_set_level(fc_log_t *log, fc_log_level_t level)
 {
     fc_log_assert(log != NULL);
@@ -53,11 +62,26 @@ void fc_log_printf(fc_log_t *log, fc_log_level_t level, const char *fmt, ...)
         va_start(vargs, fmt);
         int len = 0;
 
+#if FC_LOG_USE_LOCK
+        if (log->lock)
+        {
+            log->lock(log);
+        }
+#endif
+
         FC_LOG_ATOMIC
         {
             len = LOG_VSNPRINTF(log->buff, log->buff_size, fmt, vargs);
             len -= log->write(log->buff, len);
         }
+
+#if FC_LOG_USE_LOCK
+        if (log->unlock)
+        {
+            log->unlock(log);
+        }
+#endif
+
         FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
 
         va_end(vargs);
@@ -101,10 +125,7 @@ void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len
 
     if (log->level >= level)
     {
-        FC_LOG_ATOMIC
-        {
-            len -= log->write(buff, len);
-        }
+        len -= log->write(buff, len);
         FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
     }
 }

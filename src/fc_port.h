@@ -43,17 +43,12 @@ extern "C"
 {
 #endif
 
-#ifndef REPLACE_GLOABAL_STDIO
-    #define REPLACE_GLOABAL_STDIO 0
+#ifndef FC_PORT_USE_LOCK
+    #define FC_PORT_USE_LOCK 0 /**< 添加lock,unlock指针 */
 #endif
 
-#if REPLACE_GLOABAL_STDIO
-    #define putchar(ch) fc_putchar(ch)
-    #define puts(str) fc_puts(str)
-    #define printf(...) fc_printf(__VA_ARGS__)
-        // #define sprintf(...) fc_sprintf(__VA_ARGS__)
-
-    #define getchar() fc_getchar()
+#ifndef FC_PORT_USER_DATA
+    #define FC_PORT_USER_DATA 0 /**< 添加user指针 */
 #endif
 
 // 建议支持嵌套
@@ -92,7 +87,14 @@ extern "C"
         fc_fifo_t  *rb;      // 环形缓冲
         fc_phy_io_t phy;     // 物理IO接口
 
-        // void* user;  // 预留
+#if FC_PORT_USE_LOCK
+        void (*lock)(fc_port_t *port);    // 加锁,必须使用递归锁
+        void (*unlock)(fc_port_t *port);  // 解锁
+#endif
+
+#if FC_PORT_USER_DATA
+        void *user;  // 自定义数据
+#endif
 
         uint8_t       single_max_shift;  // 单次读写限制(针对慢速IO而言),限制大小为缓冲区空间的1/(2^n)
         fc_port_dir_t dir;               // 方向
@@ -115,8 +117,8 @@ extern "C"
     extern int   fc_port_getc(fc_port_t *port);                       // 阻塞式API,非线程安全
     extern char *fc_port_gets(fc_port_t *port, char *buf, size_t n);  // 不建议使用
     extern int   fc_port_read(fc_port_t *port, void *buf, size_t len);
-    extern int   fc_port_peek(fc_port_t *port, void *buf, size_t len);  // 读取数据但不删除
-    extern int   fc_port_scanf(fc_port_t *port, const char *fmt, ...);
+    extern int   fc_port_peek(fc_port_t *port, void *buf, size_t len);           // 读取数据但不删除
+    extern int   fc_port_scanf(fc_port_t *port, const char *fmt, ...);           // TODO:待实现
     extern int   fc_port_vscanf(fc_port_t *port, const char *fmt, va_list arp);  // fc_port_scanf核心实现
 
     // 这三个API的行为取决于fc_port_t的方向(fc_port_dir_t)

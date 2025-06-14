@@ -166,6 +166,13 @@ int fc_port_printf(fc_port_t *port, const char *fmt, ...)
 
     int ret = EOF;
 
+#if FC_PORT_USE_LOCK
+    if (log->lock)
+    {
+        log->lock(port);
+    }
+#endif
+
     va_list arp;
     va_start(arp, fmt);
     FC_STDIO_ATOMIC
@@ -173,6 +180,14 @@ int fc_port_printf(fc_port_t *port, const char *fmt, ...)
         ret = fc_port_vprintf(port, fmt, arp);
     }
     va_end(arp);
+
+#if FC_PORT_USE_LOCK
+    if (log->unlock)
+    {
+        log->unlock(port);
+    }
+#endif
+
     return ret;
 }
 
