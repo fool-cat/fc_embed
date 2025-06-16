@@ -192,8 +192,8 @@ extern "C"
     extern int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len);
 
     // 提供两个默认的write函数,一个是输出到fc_stdout,一个是输出到fc_transport的0端口
-    extern int log_write_stdout(const char *buf, int len);
-    extern int log_write_transport(const char *buf, int len);
+    extern int log_write_stdout(const char *buf, int len);     // 放在fc_port.c中实现
+    extern int log_write_transport(const char *buf, int len);  // 放在fc_transport.c中实现
 
     //+********************************* 实例化 **********************************/
 

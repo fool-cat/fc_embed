@@ -376,10 +376,34 @@ int fc_sender_printf(fc_sender_t *sender, size_t index, const char *fmt, ...)
     return ret;
 }
 
-//+*********************************  **********************************/
+//+********************************* 默认对象 **********************************/
 
 fc_receiver_t fc_receiver;  // 接收器对象
 fc_sender_t   fc_sender;    // 发送器对象
+
+//+********************************* log组件提供一份对接到transport的写API **********************************/
+
+// > C/C++兼容性宏定义
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+    /**
+     * @brief 默认log对象的write函数,写入到fc_transport的0端口
+     *
+     * @param buf
+     * @param len
+     * @return int
+     */
+    int log_write_transport(const char *buf, int len)
+    {
+        return fc_sender_write(&fc_sender, 0, buf, len);
+    }
+
+#ifdef __cplusplus
+}
+#endif  //\ __cplusplus
 
 //+********************************* 自动注册初始化 **********************************/
 #include "fc_auto_init.h"

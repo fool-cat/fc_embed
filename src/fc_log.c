@@ -164,33 +164,6 @@ fc_weak int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len)
 }
 
 //+********************************* 提供一份默认log对象 **********************************/
-#include "fc_port.h"
-/**
- * @brief 默认log对象的write函数,写入到fc_stdout
- *
- * @param log
- * @param buff
- * @param len
- * @return int
- */
-int log_write_stdout(const char *buf, int len)
-{
-    return fc_port_write(&fc_stdout, buf, len);
-}
-
-#include "fc_transport.h"
-/**
- * @brief 默认log对象的write函数,写入到fc_transport的0端口
- *
- * @param buf
- * @param len
- * @return int
- */
-int log_write_transport(const char *buf, int len)
-{
-    return fc_sender_write(&fc_sender, 0, buf, len);
-}
-
 #if FC_LOG_DEFAULT_CREATE
 
 // 默认实例化对象

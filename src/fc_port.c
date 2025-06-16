@@ -630,6 +630,31 @@ int fc_out_available(void)
 
 #endif  // FC_STDIO_DEFINE_API
 
+//+********************************* log组件write函数 **********************************/
+
+// > C/C++兼容性宏定义
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+    /**
+     * @brief 默认log对象的write函数,写入到fc_stdout
+     *
+     * @param log
+     * @param buff
+     * @param len
+     * @return int
+     */
+    int log_write_stdout(const char *buf, int len)
+    {
+        return fc_port_write(&fc_stdout, buf, len);
+    }
+
+#ifdef __cplusplus
+}
+#endif  //\ __cplusplus
+
 //+********************************* 自动注册初始化 **********************************/
 #include "fc_auto_init.h"
 #if USE_FC_AUTO_INIT
