@@ -69,11 +69,8 @@ void fc_log_printf(fc_log_t *log, fc_log_level_t level, const char *fmt, ...)
         }
 #endif
 
-        FC_LOG_ATOMIC
-        {
-            len = LOG_VSNPRINTF(log->buff, log->buff_size, fmt, vargs);
-            len -= log->write(log->buff, len);
-        }
+        len = LOG_VSNPRINTF(log->buff, log->buff_size, fmt, vargs);
+        len -= log->write(log->buff, len);
 
 #if FC_LOG_USE_LOCK
         if (log->unlock)
@@ -125,7 +122,21 @@ void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len
 
     if (log->level >= level)
     {
+#if FC_LOG_USE_LOCK
+        if (log->lock)
+        {
+            log->lock(log);
+        }
+#endif
+
         len -= log->write(buff, len);
+
+#if FC_LOG_USE_LOCK
+        if (log->unlock)
+        {
+            log->unlock(log);
+        }
+#endif
         FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
     }
 }

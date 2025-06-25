@@ -51,11 +51,6 @@
         #define FC_LOG_USER_DATA 0 /**< 添加user指针 */
     #endif
 
-    // 建议支持嵌套
-    #ifndef FC_LOG_ATOMIC
-        #define FC_LOG_ATOMIC
-    #endif
-
     #ifndef FC_LOG_LINE_SIZE
         #define FC_LOG_LINE_SIZE 128 /**< log行缓冲大小 */
     #endif
@@ -186,7 +181,7 @@ extern "C"
     extern void fc_log_set_level(fc_log_t *log, fc_log_level_t level);
     extern void fc_log_printf(fc_log_t *log, fc_log_level_t level, const char *fmt, ...);
     extern void fc_log_printf_stack(fc_log_t *log, fc_log_level_t level, char *stack_buf, int stack_size, const char *fmt, ...);
-    extern void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len);  // 未使用
+    extern void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len);
 
     // 提供一份默认的弱函数log写丢失数据钩子,可以在外面重写
     extern int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len);
@@ -324,6 +319,8 @@ extern "C"
 #undef log_verbose
 #undef log_assert
 
+#undef log_wrtie
+
 #undef fc_log_level
 #undef fc_log_switch
 
@@ -408,14 +405,33 @@ extern int fc_printf(const char *fmt, ...);
             #define FC_LOG_PRINTF fc_printf
         #endif
 
-        #define log_format(text, _level, fmt, ...)                                                  \
-            do                                                                                      \
-            {                                                                                       \
-                if (((FC_LOG_OBJ)->level) >= _level)                                                \
-                {                                                                                   \
-                    FC_LOG_PRINTF(text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
-                }                                                                                   \
-            } while (0)
+        #if FC_LOG_USE_LOCK
+            #define log_format(text, _level, fmt, ...)                                                  \
+                do                                                                                      \
+                {                                                                                       \
+                    if (((FC_LOG_OBJ)->level) >= _level)                                                \
+                    {                                                                                   \
+                        if ((FC_LOG_OBJ)->lock)                                                         \
+                        {                                                                               \
+                            (FC_LOG_OBJ)->lock((FC_LOG_OBJ));                                           \
+                        }                                                                               \
+                        FC_LOG_PRINTF(text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+                        if ((FC_LOG_OBJ)->unlock)                                                       \
+                        {                                                                               \
+                            (FC_LOG_OBJ)->unlock((FC_LOG_OBJ));                                         \
+                        }                                                                               \
+                    }                                                                                   \
+                } while (0)
+        #else
+            #define log_format(text, _level, fmt, ...)                                                  \
+                do                                                                                      \
+                {                                                                                       \
+                    if (((FC_LOG_OBJ)->level) >= _level)                                                \
+                    {                                                                                   \
+                        FC_LOG_PRINTF(text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+                    }                                                                                   \
+                } while (0)
+        #endif
 
     #else
         #error "FC_LOG_MEM_TYPE unkown"
@@ -447,6 +463,12 @@ extern int fc_printf(const char *fmt, ...);
             }
     #endif
 
+    #define log_wrtie(level, fmt, ...)                           \
+        do                                                       \
+        {                                                        \
+            fc_log_write(FC_LOG_OBJ, level, fmt, ##__VA_ARGS__); \
+        } while (0)
+
 #else
 
 // clang-format off
@@ -457,6 +479,8 @@ extern int fc_printf(const char *fmt, ...);
     #define log_info(fmt, ...) do {} while(0)
     #define log_debug(fmt, ...) do {} while(0)
     #define log_verbose(fmt, ...) do {} while(0)
+
+    #define log_wrtie(level, fmt, ...) do {} while(0)
 
 // clang-format on
 
