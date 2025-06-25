@@ -102,7 +102,7 @@ int fc_port_puts(fc_port_t *port, const char *str)
     fc_stdio_assert(port->rb != NULL);
 
     size_t len = strlen(str);
-    size_t write_size = EOF;
+    int    write_size = EOF;
 
     FC_STDIO_ATOMIC
     {
@@ -167,9 +167,9 @@ int fc_port_printf(fc_port_t *port, const char *fmt, ...)
     int ret = EOF;
 
 #if FC_PORT_USE_LOCK
-    if (log->lock)
+    if (port->lock)
     {
-        log->lock(port);
+        port->lock(port);
     }
 #endif
 
@@ -182,9 +182,9 @@ int fc_port_printf(fc_port_t *port, const char *fmt, ...)
     va_end(arp);
 
 #if FC_PORT_USE_LOCK
-    if (log->unlock)
+    if (port->unlock)
     {
-        log->unlock(port);
+        port->unlock(port);
     }
 #endif
 
