@@ -463,10 +463,10 @@ extern int fc_printf(const char *fmt, ...);
             }
     #endif
 
-    #define log_wrtie(level, fmt, ...)                           \
-        do                                                       \
-        {                                                        \
-            fc_log_write(FC_LOG_OBJ, level, fmt, ##__VA_ARGS__); \
+    #define log_wrtie(level, buff, len)                 \
+        do                                              \
+        {                                               \
+            fc_log_write(FC_LOG_OBJ, level, buff, len); \
         } while (0)
 
 #else
@@ -480,7 +480,7 @@ extern int fc_printf(const char *fmt, ...);
     #define log_debug(fmt, ...) do {} while(0)
     #define log_verbose(fmt, ...) do {} while(0)
 
-    #define log_wrtie(level, fmt, ...) do {} while(0)
+    #define log_wrtie(level, buff, len) do {} while(0)
 
 // clang-format on
 
