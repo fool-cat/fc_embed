@@ -395,6 +395,27 @@ int fc_port_available(fc_port_t *port)
     }
 }
 
+/**
+ * @brief
+ *
+ * @param port
+ * @return int
+ */
+int fc_port_free(fc_port_t *port)
+{
+    fc_stdio_assert(port != NULL);
+    fc_stdio_assert(port->rb != NULL);
+
+    if (port->dir == FC_PORT_DIR_OUT)
+    {
+        return (int)fc_fifo_get_free(port->rb);
+    }
+    else
+    {
+        return (int)fc_fifo_get_used(port->rb);
+    }
+}
+
 //+********************************* 默认实例化对象 **********************************/
 
 fc_port_t fc_stdin = {0};  // 对象创建
@@ -602,6 +623,16 @@ int fc_in_available(void)
 /**
  * @brief
  *
+ * @return int
+ */
+int fc_in_free(void)
+{
+    return (int)fc_port_free(&fc_stdin);
+}
+
+/**
+ * @brief
+ *
  */
 void fc_out_trigger(void)
 {
@@ -626,6 +657,16 @@ void fc_out_end(int size)
 int fc_out_available(void)
 {
     return (int)fc_port_available(&fc_stdout);
+}
+
+/**
+ * @brief
+ *
+ * @return int
+ */
+int fc_out_free(void)
+{
+    return (int)fc_port_free(&fc_stdout);
 }
 
 #endif  // FC_STDIO_DEFINE_API

@@ -121,10 +121,11 @@ extern "C"
     extern int   fc_port_scanf(fc_port_t *port, const char *fmt, ...);           // TODO:待实现
     extern int   fc_port_vscanf(fc_port_t *port, const char *fmt, va_list arp);  // fc_port_scanf核心实现
 
-    // 这三个API的行为取决于fc_port_t的方向(fc_port_dir_t)
+    // 以下API的行为取决于fc_port_t的方向(fc_port_dir_t)
     extern void fc_port_trigger(fc_port_t *port);        // 触发慢速IO
     extern void fc_port_end(fc_port_t *port, int size);  // 慢速IO完成回调
     extern int  fc_port_available(fc_port_t *port);      // 缓冲区可用字节数
+    extern int  fc_port_free(fc_port_t *port);           // 获取缓冲区剩余空间
 
     //+********************************* 默认实例化对象 **********************************/
 
@@ -185,6 +186,7 @@ extern "C"
     extern void fc_out_trigger(void);    // 触发发送
     extern void fc_out_end(int size);    // 发送完成处理
     extern int  fc_out_available(void);  // 缓冲区可用字节数
+    extern int  fc_out_free(void);       // 缓冲区剩余空间
 
     /*----------------------------------------------*/
     /* Formatted string output                      */
@@ -221,6 +223,7 @@ extern "C"
     extern void fc_in_trigger(void);    // 触发接收
     extern void fc_in_end(int size);    // 接收完成处理
     extern int  fc_in_available(void);  // 缓冲区可用字节数
+    extern int  fc_in_free(void);       // 缓冲区剩余空间
 
 #else
 
@@ -244,6 +247,7 @@ extern "C"
     #define fc_out_trigger()    fc_port_trigger(FC_STDOUT_OBJ)      // 触发发送
     #define fc_out_end(size)    fc_port_end(FC_STDOUT_OBJ, size)    // 发送完成处理
     #define fc_out_available()  fc_port_available(FC_STDOUT_OBJ)    // 缓冲区可用字节数
+    #define fc_out_free()       fc_port_free(FC_STDOUT_OBJ)         // 缓冲区剩余空间
 
     /*----------------------------------------------*/
     /* Formatted string output                      */
@@ -280,6 +284,7 @@ extern "C"
     #define fc_in_trigger()     fc_port_trigger(FC_STDIN_OBJ)       // 触发接收
     #define fc_in_end(size)     fc_port_end(FC_STDIN_OBJ, size)     // 接收完成处理
     #define fc_in_available()   fc_port_available(FC_STDIN_OBJ)     // 缓冲区可用字节数
+    #define fc_in_free()        fc_port_free(FC_STDIN_OBJ)          // 缓冲区剩余空间
 
     // clang-format on
 
