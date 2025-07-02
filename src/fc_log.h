@@ -321,6 +321,13 @@ extern "C"
 
 #undef log_wrtie
 
+#undef log_error_write
+#undef log_warning_write
+#undef log_info_write
+#undef log_debug_write
+#undef log_verbose_write
+#undef log_assert_write
+
 #undef fc_log_level
 #undef fc_log_switch
 
@@ -383,19 +390,19 @@ extern "C"
             #error "FC_LOG_STACK_LINE_SIZE 必须大于0"
         #endif
 
-        #define log_format(text, level, fmt, ...)                                                                                                                            \
-            do                                                                                                                                                               \
-            {                                                                                                                                                                \
-                char SAFE_NAME(buff)[FC_LOG_STACK_LINE_SIZE]; /* 使用栈内存 */                                                                                               \
-                fc_log_printf_stack(FC_LOG_OBJ, level, (char *)&(SAFE_NAME(buff)), FC_LOG_STACK_LINE_SIZE, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+        #define log_format(text, _level, fmt, ...)                                                                                                                            \
+            do                                                                                                                                                                \
+            {                                                                                                                                                                 \
+                char SAFE_NAME(buff)[FC_LOG_STACK_LINE_SIZE]; /* 使用栈内存 */                                                                                                \
+                fc_log_printf_stack(FC_LOG_OBJ, _level, (char *)&(SAFE_NAME(buff)), FC_LOG_STACK_LINE_SIZE, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
             } while (0)
 
     #elif (FC_LOG_MEM_TYPE == FC_LOG_MEM_SELF)
 
-        #define log_format(text, level, fmt, ...)                                                                  \
-            do                                                                                                     \
-            {                                                                                                      \
-                fc_log_printf(FC_LOG_OBJ, level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+        #define log_format(text, _level, fmt, ...)                                                                  \
+            do                                                                                                      \
+            {                                                                                                       \
+                fc_log_printf(FC_LOG_OBJ, _level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
             } while (0)
 
     #elif (FC_LOG_MEM_TYPE == FC_LOG_MEM_NONE)
@@ -463,11 +470,58 @@ extern int fc_printf(const char *fmt, ...);
             }
     #endif
 
-    #define log_wrtie(level, buff, len)                 \
-        do                                              \
-        {                                               \
-            fc_log_write(FC_LOG_OBJ, level, buff, len); \
-        } while (0)
+    #ifndef FC_LOG_SNPRINTF
+extern int fc_snprintf(char *s, size_t n, const char *fmt, ...);
+        #define FC_LOG_SNPRINTF fc_snprintf
+    #endif
+
+    #ifndef FC_LOG_PREFIX_SIZE
+        #define FC_LOG_PREFIX_SIZE 32 /**< log前缀缓冲区大小 */
+    #endif
+
+    #if FC_LOG_USE_LOCK
+        #define log_wrtie(text, _level, buff, len)                                                              \
+            do                                                                                                  \
+            {                                                                                                   \
+                if (((FC_LOG_OBJ)->level) >= _level)                                                            \
+                {                                                                                               \
+                    if ((FC_LOG_OBJ)->lock)                                                                     \
+                    {                                                                                           \
+                        (FC_LOG_OBJ)->lock(FC_LOG_OBJ);                                                         \
+                    }                                                                                           \
+                    char SAFE_NAME(prefix)[FC_LOG_PREFIX_SIZE]; /* 使用栈内存 */                                \
+                    FC_LOG_SNPRINTF(SAFE_NAME(prefix), sizeof(SAFE_NAME(prefix)), text, FC_LOG_PREFIX_CONTENT); \
+                    fc_log_write(FC_LOG_OBJ, _level, buff, len);                                                \
+                    if ((FC_LOG_OBJ)->unlock)                                                                   \
+                    {                                                                                           \
+                        (FC_LOG_OBJ)->unlock(FC_LOG_OBJ);                                                       \
+                    }                                                                                           \
+                }                                                                                               \
+            } while (0)
+    #else
+        #define log_wrtie(text, _level, buff, len)                                                          \
+            do                                                                                              \
+            {                                                                                               \
+                char SAFE_NAME(prefix)[FC_LOG_PREFIX_SIZE]; /* 使用栈内存 */                                \
+                FC_LOG_SNPRINTF(SAFE_NAME(prefix), sizeof(SAFE_NAME(prefix)), text, FC_LOG_PREFIX_CONTENT); \
+                fc_log_write(FC_LOG_OBJ, _level, buff, len);                                                \
+            } while (0)
+    #endif
+
+    #define log_error_write(buf, len) \
+        log_wrtie(ERROR_TEXT, FC_LOG_ERROR, buf, len)
+
+    #define log_warning_write(buf, len) \
+        log_wrtie(WARNING_TEXT, FC_LOG_WRANING, buf, len)
+
+    #define log_info_write(buf, len) \
+        log_wrtie(INFO_TEXT, FC_LOG_INFO, buf, len)
+
+    #define log_debug_write(buf, len) \
+        log_wrtie(DEBUG_TEXT, FC_LOG_DEBUG, buf, len)
+
+    #define log_verbose_write(buf, len) \
+        log_wrtie(VERBOSE_TEXT, FC_LOG_VERBOSE, buf, len)
 
 #else
 
@@ -481,6 +535,12 @@ extern int fc_printf(const char *fmt, ...);
     #define log_verbose(fmt, ...) do {} while(0)
 
     #define log_wrtie(level, buff, len) do {} while(0)
+
+    #define log_error_write(buf, len) do {} while(0)
+    #define log_warning_write(buf, len) do {} while(0)
+    #define log_info_write(buf, len) do {} while(0)
+    #define log_debug_write(buf, len) do {} while(0)
+    #define log_verbose_write(buf, len) do {} while(0)
 
 // clang-format on
 
