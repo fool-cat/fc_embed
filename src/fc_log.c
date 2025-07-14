@@ -34,15 +34,6 @@
 
 //+*********************************  **********************************/
 
-#if FC_LOG_USE_LOCK
-void fc_log_catch_lock(fc_log_t *log, void (*lock)(fc_log_t *log), void (*unlock)(fc_log_t *log))
-{
-    fc_log_assert(log != NULL);
-    log->lock = lock;
-    log->unlock = unlock;
-}
-#endif
-
 void fc_log_set_level(fc_log_t *log, fc_log_level_t level)
 {
     fc_log_assert(log != NULL);
@@ -50,36 +41,27 @@ void fc_log_set_level(fc_log_t *log, fc_log_level_t level)
     log->level = level;
 }
 
-void fc_log_printf(fc_log_t *log, fc_log_level_t level, const char *fmt, ...)
+void fc_log_printf(fc_log_t *log, fc_log_level_t level, int advice_size, const char *fmt, ...)
 {
     fc_log_assert(log != NULL);
-    fc_log_assert(log->buff != NULL);
-    fc_log_assert(log->buff_size > 0);
+    fc_log_assert(log->alloc != NULL);
 
     if (log->level >= level)
     {
-        va_list vargs;
+        int           len = 0;
+        fc_log_pool_t pool = {0};
+        va_list       vargs;
+
         va_start(vargs, fmt);
-        int len = 0;
 
-#if FC_LOG_USE_LOCK
-        if (log->lock)
-        {
-            log->lock(log);
-        }
-#endif
+        log->alloc(FC_LOG_ALLOC_NEW, &pool, advice_size);
 
-        len = LOG_VSNPRINTF(log->buff, log->buff_size, fmt, vargs);
-        len -= log->write(log->buff, len);
+        len = LOG_VSNPRINTF(pool.buff, pool.size, fmt, vargs);
+        len -= log->write(pool.buff, len);
 
-#if FC_LOG_USE_LOCK
-        if (log->unlock)
-        {
-            log->unlock(log);
-        }
-#endif
+        FC_LOG_LOSE_HOOK(0 == len, log, pool.buff, len);
 
-        FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
+        log->alloc(FC_LOG_ALLOC_FREE, &pool, 0);  // 释放内存池
 
         va_end(vargs);
     }
@@ -108,9 +90,9 @@ void fc_log_printf_stack(fc_log_t *log, fc_log_level_t level, char *stack_buf, i
         int len = 0;
 
         len = LOG_VSNPRINTF(stack_buf, stack_size, fmt, vargs);
-        len -= log->write(log->buff, len);
+        len -= log->write(stack_buf, len);
 
-        FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
+        FC_LOG_LOSE_HOOK(0 == len, log, stack_buf, len);
 
         va_end(vargs);
     }
@@ -122,23 +104,35 @@ void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len
 
     if (log->level >= level)
     {
-#if FC_LOG_USE_LOCK
-        if (log->lock)
-        {
-            log->lock(log);
-        }
-#endif
-
         len -= log->write(buff, len);
 
-#if FC_LOG_USE_LOCK
-        if (log->unlock)
-        {
-            log->unlock(log);
-        }
-#endif
-        FC_LOG_LOSE_HOOK(0 == len, log, log->buff, len);
+        FC_LOG_LOSE_HOOK(0 == len, log, buff, len);
     }
+}
+
+//+********************************* 默认自带的内存池分配函数 **********************************/
+
+/**
+ * @brief  弱函数建议重写一份,用于调用日志组件的时候分配缓冲区,如果是操作系统可以提供多份固定大小的内存池或者动态内存
+ *
+ * @param alloc_type
+ * @param pool
+ * @param advice_size
+ * @return int 返回值目前未使用
+ */
+fc_weak int log_alloc_default(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size)
+{
+    (void)alloc_type;
+    (void)advice_size;
+
+    fc_log_assert(pool != NULL);
+
+    static char __buff[FC_LOG_LINE_SIZE] = {0};  // 默认内存池大小
+
+    // 默认为单线程且不考虑中断等情况
+    pool->buff = __buff;          // 内存池缓冲区
+    pool->size = sizeof(__buff);  // 内存池大小
+    return sizeof(__buff);
 }
 
 //+********************************* 写入丢失记录 **********************************/

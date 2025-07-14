@@ -128,6 +128,10 @@
     #error Please enable GNU extensions!
 #endif
 
+#if __PLOOC_VA_NUM_ARGS(1, 2, 3) != 3
+    #error Please enable GNU extensions!
+#endif
+
 // clang-format off
 #undef __CONNECT2
 #undef __CONNECT3

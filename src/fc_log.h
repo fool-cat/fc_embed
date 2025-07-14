@@ -43,10 +43,6 @@
         #define FC_LOG_DEFAULT_CREATE 1 /**< 是否创建默认的log对象,如果不创建则需要自己创建一个 */
     #endif
 
-    #ifndef FC_LOG_USE_LOCK
-        #define FC_LOG_USE_LOCK 1 /**< 添加lock,unlock指针 */
-    #endif
-
     #ifndef FC_LOG_USER_DATA
         #define FC_LOG_USER_DATA 0 /**< 添加user指针 */
     #endif
@@ -84,12 +80,12 @@
     // #define FC_LOG_END "\r\n"  // 每句log自带换行
     #endif
 
-    #define FC_LOG_MEM_SELF 0   // 使用自身的行缓冲区,线程不安全
-    #define FC_LOG_MEM_STACK 1  // 使用栈缓冲区,线程安全-适用于中断等场景
+    #define FC_LOG_MEM_POOL 0   // 使用自定义的内存池配置
+    #define FC_LOG_MEM_STACK 1  // 使用栈缓冲区
     #define FC_LOG_MEM_NONE 2   // 不使用行缓冲区,直接直接借助自定义printf输出
 
     #ifndef FC_LOG_MEM_TYPE
-        #define FC_LOG_MEM_TYPE FC_LOG_MEM_SELF /**< log缓冲区类型,默认是自己分配内存 */
+        #define FC_LOG_MEM_TYPE FC_LOG_MEM_POOL /**< log缓冲区类型 */
     #endif
 
 // clang-format off
@@ -148,38 +144,44 @@ typedef enum
     FC_LOG_ALL = 6,     /**< 所有日志 */
 } fc_log_level_t;
 
+typedef enum
+{
+    FC_LOG_ALLOC_FREE = 0, /**< 释放内存池 */
+    FC_LOG_ALLOC_NEW,      /**< 分配新内存池 */
+} fc_alloc_type_t;
+
     //> C/C++兼容性宏定义
     #ifdef __cplusplus
 extern "C"
 {
     #endif
     //+********************************* 面向对象 **********************************/
-    typedef struct _fc_log_t fc_log_t;
+    typedef struct _fc_log_t      fc_log_t;
+    typedef struct _fc_log_pool_t fc_log_pool_t;
+
+    typedef int (*fc_log_write_t)(const char *buf, int len);                                          // 写入数据
+    typedef int (*fc_log_alloc_t)(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size);  // log内存池处理函数,返回实际分配的内存池大小
+
+    struct _fc_log_pool_t
+    {
+        char *buff; /**< 内存池 */
+        int   size; /**< 内存池大小 */
+    };
+
     struct _fc_log_t
     {
         fc_log_level_t level;
 
-        // 每个log可以独立拥有自己的缓冲区
-        int   buff_size;                         // 行缓冲区大小
-        char *buff;                              // 行缓冲区
-        int (*write)(const char *buf, int len);  // 写入数据
-
-    #if FC_LOG_USE_LOCK
-        void (*lock)(fc_log_t *log);    // 加锁,必须使用递归锁
-        void (*unlock)(fc_log_t *log);  // 解锁
-    #endif
+        fc_log_write_t write;
+        fc_log_alloc_t alloc;
 
     #if FC_LOG_USER_DATA
         void *user;  // 自定义数据
     #endif
     };
 
-    #if FC_LOG_USE_LOCK
-    extern void fc_log_catch_lock(fc_log_t *log, void (*lock)(fc_log_t *log), void (*unlock)(fc_log_t *log));
-    #endif
-
     extern void fc_log_set_level(fc_log_t *log, fc_log_level_t level);
-    extern void fc_log_printf(fc_log_t *log, fc_log_level_t level, const char *fmt, ...);
+    extern void fc_log_printf(fc_log_t *log, fc_log_level_t level, int advice_size, const char *fmt, ...);
     extern void fc_log_printf_stack(fc_log_t *log, fc_log_level_t level, char *stack_buf, int stack_size, const char *fmt, ...);
     extern void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len);
 
@@ -189,6 +191,9 @@ extern "C"
     // 提供两个默认的write函数,一个是输出到fc_stdout,一个是输出到fc_transport的0端口
     extern int log_write_stdout(const char *buf, int len);     // 放在fc_port.c中实现
     extern int log_write_transport(const char *buf, int len);  // 放在fc_transport.c中实现
+
+    // 提供一份默认的内存池获取函数,可以在外面重写
+    extern int log_alloc_default(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size);  // 默认获取内存池的函数
 
     //+********************************* 实例化 **********************************/
 
@@ -204,39 +209,28 @@ extern "C"
         #define FC_LOG_DEFAULT_WRITE log_write_stdout
     #endif
 
-    #if FC_LOG_USE_LOCK
-        #define FC_LOG_IMPL_FULL(obj_name, _level, _func, _size)        \
-            static char SAFE_NAME(buff)[_size]; /* 缓冲区内存 */        \
-            fc_log_t    obj_name = {                                    \
-                   .level = _level,                  /* 日志级别 */     \
-                   .buff_size = _size,               /* 行缓冲区大小 */ \
-                   .buff = (char *)&SAFE_NAME(buff), /* 行缓冲区 */     \
-                   .write = _func,                   /* 写入函数 */     \
-                   .lock = NULL,                     /* 锁函数 */       \
-                   .unlock = NULL,                   /* 解锁函数 */     \
-            }
-    #else
-        #define FC_LOG_IMPL_FULL(obj_name, _level, _func, _size)        \
-            static char SAFE_NAME(buff)[_size]; /* 缓冲区内存 */        \
-            fc_log_t    obj_name = {                                    \
-                   .level = _level,                  /* 日志级别 */     \
-                   .buff_size = _size,               /* 行缓冲区大小 */ \
-                   .buff = (char *)&SAFE_NAME(buff), /* 行缓冲区 */     \
-                   .write = _func,                   /* 写入函数 */     \
-            }
+    #ifndef FC_LOG_DEFAULT_ALLOC
+        #define FC_LOG_DEFAULT_ALLOC log_alloc_default
     #endif
 
+    #define FC_LOG_IMPL_FULL(obj_name, _level, _write, _alloc) \
+        fc_log_t obj_name = {                                  \
+            .level = _level, /* 日志级别 */                    \
+            .write = _write, /* 写入函数 */                    \
+            .alloc = _alloc, /* 内存池获取函数 */              \
+        }
+
     #define _FC_LOG_IMPL_FULL_1(obj_name) \
-        FC_LOG_IMPL_FULL(obj_name, FC_LOG_ALL, FC_LOG_DEFAULT_WRITE, FC_LOG_LINE_SIZE)
+        FC_LOG_IMPL_FULL(obj_name, FC_LOG_ALL, FC_LOG_DEFAULT_WRITE, FC_LOG_DEFAULT_ALLOC)
 
     #define _FC_LOG_IMPL_FULL_2(obj_name, _level) \
-        FC_LOG_IMPL_FULL(obj_name, FC_LOG_ALL, _func, FC_LOG_LINE_SIZE)
+        FC_LOG_IMPL_FULL(obj_name, _level, FC_LOG_DEFAULT_WRITE, FC_LOG_DEFAULT_ALLOC)
 
-    #define _FC_LOG_IMPL_FULL_3(obj_name, _level, _func) \
-        FC_LOG_IMPL_FULL(obj_name, _level, _func, FC_LOG_LINE_SIZE)
+    #define _FC_LOG_IMPL_FULL_3(obj_name, _level, _write) \
+        FC_LOG_IMPL_FULL(obj_name, _level, _write, FC_LOG_DEFAULT_ALLOC)
 
-    #define _FC_LOG_IMPL_FULL_4(obj_name, _level, _func, _size) \
-        FC_LOG_IMPL_FULL(obj_name, _level, _func, _size)
+    #define _FC_LOG_IMPL_FULL_4(obj_name, _level, _write, _alloc) \
+        FC_LOG_IMPL_FULL(obj_name, _level, _write, _alloc)
 
     /**
      * 这个宏用于快速定义一个`fc_log_t`对象,禁止在头文件中使用,否则会导致多重定义
@@ -261,47 +255,6 @@ extern "C"
             #define FC_LOG_LOSE_HOOK(exp, log, buf, len) (void)(0)
         #endif
     #endif
-
-    #if FC_LOG_USE_LOCK
-        #define FC_LOG_IMPL_EMPTY_FULL(obj_name, _level, _func) \
-            fc_log_t obj_name = {                               \
-                .level = _level, /* 日志级别 */                 \
-                .buff_size = 0,  /* 行缓冲区大小 */             \
-                .buff = NULL,    /* 行缓冲区 */                 \
-                .write = _func,  /* 写入函数 */                 \
-                .lock = NULL,    /* 锁函数 */                   \
-                .unlock = NULL,  /* 解锁函数 */                 \
-            }
-    #else
-        #define FC_LOG_IMPL_EMPTY_FULL(obj_name, _level, _func) \
-            fc_log_t obj_name = {                               \
-                .level = _level, /* 日志级别 */                 \
-                .buff_size = 0,  /* 行缓冲区大小 */             \
-                .buff = NULL,    /* 行缓冲区 */                 \
-                .write = _func,  /* 写入函数 */                 \
-            }
-    #endif
-
-    #define FC_LOG_IMPL_EMPTY_1(obj_name) \
-        FC_LOG_IMPL_EMPTY_FULL(obj_name, FC_LOG_ALL, FC_LOG_DEFAULT_WRITE)
-
-    #define FC_LOG_IMPL_EMPTY_2(obj_name, _level) \
-        FC_LOG_IMPL_EMPTY_FULL(obj_name, _level, FC_LOG_DEFAULT_WRITE)
-
-    #define FC_LOG_IMPL_EMPTY_3(obj_name, _level, _func) \
-        FC_LOG_IMPL_EMPTY_FULL(obj_name, _level, _func)
-
-    /**
-     * 这个宏用于快速定义一个没有自身缓冲区的`fc_log_t`对象,禁止在头文件中使用,否则会导致多重定义
-     * 通过此宏创建的对象由于没有自身缓冲区,无法使用`FC_LOG_MEM_SELF`模式进行输出
-     * @brief 实例化log对象,至少一个参数,最大支持3个参数
-     *参数必须按照指定顺序给出,允许缺省(从后面开始缺省)
-     *<1>对象名称
-     *<2>日志级别
-     *<3>写入函数
-     */
-    #define FC_LOG_IMPL_EMPTY(...) \
-        CONNECT2(FC_LOG_IMPL_EMPTY_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
     #ifdef __cplusplus
 }
@@ -331,7 +284,6 @@ extern "C"
 #undef fc_log_level
 #undef fc_log_switch
 
-#undef fc_log_lock_ctach
 #undef fc_log_user_catch
 
 //+********************************* 宏API **********************************/
@@ -349,22 +301,6 @@ extern "C"
     {                                         \
         fc_log_set_level(FC_LOG_OBJ, _level); \
     } while (0)
-
-#if FC_LOG_USE_LOCK
-    // 绑定log对象锁,使用宏API,无需显示指定对象名称
-    #define fc_log_lock_ctach(lock, unlock)              \
-        do                                               \
-        {                                                \
-            fc_log_catch_lock(FC_LOG_OBJ, lock, unlock); \
-        } while (0)
-#else
-    #define fc_log_lock_ctach(lock, unlock) \
-        do                                  \
-        {                                   \
-            (void)lock;                     \
-            (void)unlock;                   \
-        } while (0)
-#endif
 
 #if FC_LOG_USER_DATA
     // 设置log对象的用户数据,使用宏API,无需显示指定对象名称
@@ -397,12 +333,12 @@ extern "C"
                 fc_log_printf_stack(FC_LOG_OBJ, _level, (char *)&(SAFE_NAME(buff)), FC_LOG_STACK_LINE_SIZE, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
             } while (0)
 
-    #elif (FC_LOG_MEM_TYPE == FC_LOG_MEM_SELF)
+    #elif (FC_LOG_MEM_TYPE == FC_LOG_MEM_POOL)
 
-        #define log_format(text, _level, fmt, ...)                                                                  \
-            do                                                                                                      \
-            {                                                                                                       \
-                fc_log_printf(FC_LOG_OBJ, _level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+        #define log_format(text, _level, fmt, ...)                                                                                    \
+            do                                                                                                                        \
+            {                                                                                                                         \
+                fc_log_printf(FC_LOG_OBJ, _level, FC_LOG_LINE_SIZE, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
             } while (0)
 
     #elif (FC_LOG_MEM_TYPE == FC_LOG_MEM_NONE)
@@ -412,33 +348,14 @@ extern int fc_printf(const char *fmt, ...);
             #define FC_LOG_PRINTF fc_printf
         #endif
 
-        #if FC_LOG_USE_LOCK
-            #define log_format(text, _level, fmt, ...)                                                  \
-                do                                                                                      \
-                {                                                                                       \
-                    if (((FC_LOG_OBJ)->level) >= _level)                                                \
-                    {                                                                                   \
-                        if ((FC_LOG_OBJ)->lock)                                                         \
-                        {                                                                               \
-                            (FC_LOG_OBJ)->lock((FC_LOG_OBJ));                                           \
-                        }                                                                               \
-                        FC_LOG_PRINTF(text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
-                        if ((FC_LOG_OBJ)->unlock)                                                       \
-                        {                                                                               \
-                            (FC_LOG_OBJ)->unlock((FC_LOG_OBJ));                                         \
-                        }                                                                               \
-                    }                                                                                   \
-                } while (0)
-        #else
-            #define log_format(text, _level, fmt, ...)                                                  \
-                do                                                                                      \
-                {                                                                                       \
-                    if (((FC_LOG_OBJ)->level) >= _level)                                                \
-                    {                                                                                   \
-                        FC_LOG_PRINTF(text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
-                    }                                                                                   \
-                } while (0)
-        #endif
+        #define log_format(text, _level, fmt, ...)                                                  \
+            do                                                                                      \
+            {                                                                                       \
+                if (((FC_LOG_OBJ)->level) >= _level)                                                \
+                {                                                                                   \
+                    FC_LOG_PRINTF(text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+                }                                                                                   \
+            } while (0)
 
     #else
         #error "FC_LOG_MEM_TYPE unkown"
@@ -479,34 +396,15 @@ extern int fc_snprintf(char *s, size_t n, const char *fmt, ...);
         #define FC_LOG_PREFIX_SIZE 32 /**< log前缀缓冲区大小 */
     #endif
 
-    #if FC_LOG_USE_LOCK
-        #define log_wrtie(text, _level, buff, len)                                                              \
-            do                                                                                                  \
-            {                                                                                                   \
-                if (((FC_LOG_OBJ)->level) >= _level)                                                            \
-                {                                                                                               \
-                    if ((FC_LOG_OBJ)->lock)                                                                     \
-                    {                                                                                           \
-                        (FC_LOG_OBJ)->lock(FC_LOG_OBJ);                                                         \
-                    }                                                                                           \
-                    char SAFE_NAME(prefix)[FC_LOG_PREFIX_SIZE]; /* 使用栈内存 */                                \
-                    FC_LOG_SNPRINTF(SAFE_NAME(prefix), sizeof(SAFE_NAME(prefix)), text, FC_LOG_PREFIX_CONTENT); \
-                    fc_log_write(FC_LOG_OBJ, _level, buff, len);                                                \
-                    if ((FC_LOG_OBJ)->unlock)                                                                   \
-                    {                                                                                           \
-                        (FC_LOG_OBJ)->unlock(FC_LOG_OBJ);                                                       \
-                    }                                                                                           \
-                }                                                                                               \
-            } while (0)
-    #else
-        #define log_wrtie(text, _level, buff, len)                                                          \
-            do                                                                                              \
-            {                                                                                               \
-                char SAFE_NAME(prefix)[FC_LOG_PREFIX_SIZE]; /* 使用栈内存 */                                \
-                FC_LOG_SNPRINTF(SAFE_NAME(prefix), sizeof(SAFE_NAME(prefix)), text, FC_LOG_PREFIX_CONTENT); \
-                fc_log_write(FC_LOG_OBJ, _level, buff, len);                                                \
-            } while (0)
-    #endif
+    /* log_write 不能保证写入的线程安全,最好在外面提前对递归锁加锁 */
+    #define log_wrtie(text, _level, buff, len)                                                     \
+        do                                                                                         \
+        {                                                                                          \
+            char __prefix[FC_LOG_PREFIX_SIZE]; /* 使用栈内存,保存前缀 */                           \
+            int  __len = FC_LOG_SNPRINTF(__prefix, sizeof(__prefix), text, FC_LOG_PREFIX_CONTENT); \
+            fc_log_write(FC_LOG_OBJ, _level, __prefix, __len);                                     \
+            fc_log_write(FC_LOG_OBJ, _level, buff, len);                                           \
+        } while (0)
 
     #define log_error_write(buf, len) \
         log_wrtie(ERROR_TEXT, FC_LOG_ERROR, buf, len)
