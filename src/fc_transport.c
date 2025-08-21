@@ -9,6 +9,21 @@
  *
  */
 
+// overlay的方式覆盖默认配置
+#ifdef FC_CONFIG_HEADER
+    #if defined(FC_USE_STRINGFY)
+        #define FC_HEADER_STRINGFY(x) #x
+        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
+        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
+    #elif defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
+        #define FC_HEADER_STRINGFY(x) #x
+        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
+        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
+    #else
+        #include FC_CONFIG_HEADER
+    #endif
+#endif
+
 #include <string.h>
 #include <stdlib.h>
 #include "fc_transport.h"
@@ -367,10 +382,7 @@ int fc_sender_printf(fc_sender_t *sender, size_t index, const char *fmt, ...)
     {
         va_list arp;
         va_start(arp, fmt);
-        FC_STDIO_ATOMIC
-        {
-            ret = fc_port_vprintf(sender->port, fmt, arp);
-        }
+        ret = fc_port_vprintf(sender->port, fmt, arp);
         va_end(arp);
     }
     return ret;

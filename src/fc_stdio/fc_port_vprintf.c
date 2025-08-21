@@ -13,21 +13,22 @@
 
 #include "fc_stdio.h"
 
-#include "fc_port.h"
+#include "../fc_port.h"  //使用相对路径避免依赖
 
-#ifndef FC_PORT_VPRINTF_LINEAR_WRITE
-    #define FC_PORT_VPRINTF_LINEAR_WRITE 0
+#ifndef FC_FIFO_VPRINTF_LINEAR_WRITE
+    #define FC_FIFO_VPRINTF_LINEAR_WRITE 1
 #endif
 
-#if FC_PORT_VPRINTF_LINEAR_WRITE
+#if FC_FIFO_VPRINTF_LINEAR_WRITE
+
 /**
- * @brief port_write的作用优化为对poer->rb的内存进行直接访问然后赋值给f->p_now,f->p_end
+ * @brief 直接使用fc_fifo_t提供的接口进行写入
  *
  * @param buf
  * @param len
  * @return int
  */
-static int __fc_port_vprintf_write(FC_FILE *f, const void *buf, int len)
+static int __fc_fifo_vprintf_write(FC_FILE *f, const void *buf, int len)
 {
     if (len > 0)
     {
@@ -55,33 +56,54 @@ static int __fc_port_vprintf_write(FC_FILE *f, const void *buf, int len)
     return len;
 }
 
-int fc_port_vprintf(fc_port_t *port, const char *fmt, va_list ap)
+/**
+ * @brief 将格式化字符串写入到fc_fifo_t的环形缓冲区中
+ *
+ * @param fifo
+ * @param fmt
+ * @param arp
+ * @return int
+ */
+int fc_fifo_vprintf(fc_fifo_t *fifo, const char *fmt, va_list arp)
 {
     FC_FILE f = {0};
     {
         size_t size = 0;
-        f.user = (void *)(port->rb);
-        f.p_start = (char *)fc_fifo_linear_write_setup(port->rb, &size);
+        f.user = (void *)(fifo);
+        f.p_start = (char *)fc_fifo_linear_write_setup(fifo, &size);
         f.p_end = (char *)f.p_start + size;
         f.p_now = f.p_start;
-        f.io.write = __fc_port_vprintf_write;
+        f.io.write = __fc_fifo_vprintf_write;
     }
 
-    fc_vfprintf(&f, fmt, ap);
+    fc_vfprintf(&f, fmt, arp);
 
     return f.n;
+}
+
+/**
+ * @brief fc_port_vprintf的核心实现,将格式化字符串写入到fc_port_t的环形缓冲区中
+ *
+ * @param port
+ * @param fmt
+ * @param arp
+ * @return int
+ */
+int fc_port_vprintf(fc_port_t *port, const char *fmt, va_list arp)
+{
+    return fc_fifo_vprintf(port->rb, fmt, arp);
 }
 
 #else
 
 /**
- * @brief port_write直接使用rb提供的接口进行写入
+ * @brief 直接使用fc_fifo_t提供的接口进行写入
  *
  * @param buf
  * @param len 实际fc_vfprintf每次只会写入1字节
  * @return int
  */
-static int __fc_port_vprintf_write(FC_FILE *f, const void *buf, int len)
+static int __fc_fifo_vprintf_write(FC_FILE *f, const void *buf, int len)
 {
     if (len > 0)
     {
@@ -90,16 +112,37 @@ static int __fc_port_vprintf_write(FC_FILE *f, const void *buf, int len)
     return len;
 }
 
-int fc_port_vprintf(fc_port_t *port, const char *fmt, va_list ap)
+/**
+ * @brief 将格式化字符串写入到fc_fifo_t的环形缓冲区中
+ *
+ * @param fifo
+ * @param fmt
+ * @param arp
+ * @return int
+ */
+int fc_fifo_vprintf(fc_fifo_t *fifo, const char *fmt, va_list arp)
 {
     FC_FILE f = {0};
 
-    f.user = (void *)(port->rb);
-    f.io.write = __fc_port_vprintf_write;
+    f.user = (void *)(fifo);
+    f.io.write = __fc_fifo_vprintf_write;
 
-    fc_vfprintf(&f, fmt, ap);
+    fc_vfprintf(&f, fmt, arp);
 
     return f.n;
+}
+
+/**
+ * @brief fc_port_vprintf的核心实现,将格式化字符串写入到fc_port_t的环形缓冲区中
+ *
+ * @param port
+ * @param fmt
+ * @param arp
+ * @return int
+ */
+int fc_port_vprintf(fc_port_t *port, const char *fmt, va_list arp)
+{
+    return fc_fifo_vprintf(port->rb, fmt, arp);
 }
 
 #endif

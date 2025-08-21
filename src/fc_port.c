@@ -9,6 +9,21 @@
  *
  */
 
+// overlay的方式覆盖默认配置
+#ifdef FC_CONFIG_HEADER
+    #if defined(FC_USE_STRINGFY)
+        #define FC_HEADER_STRINGFY(x) #x
+        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
+        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
+    #elif defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
+        #define FC_HEADER_STRINGFY(x) #x
+        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
+        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
+    #else
+        #include FC_CONFIG_HEADER
+    #endif
+#endif
+
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -18,9 +33,55 @@
 #include "fc_helper.h"
 #include "fc_port.h"
 
+//+********************************* 宏配置项 **********************************/
+
 #ifndef EOF
     #define EOF (-1)
 #endif
+
+// 等待一会儿,有操作系统建议使用操作系统的延时函数
+#ifndef FC_WAIT_MOMENT
+    #define FC_WAIT_MOMENT() ((void)0)
+#endif
+
+// 运行时断言
+#ifndef fc_stdio_assert
+    #define fc_stdio_assert(x) fc_assert(x)
+#endif
+
+#ifndef FIFO_TX_LOG2_SIZE
+    /* 输出环形队列大小,2^n */
+    // 4K Byte
+    #define FIFO_TX_LOG2_SIZE 12
+#endif
+
+#ifndef STDOUT_TX_SINGLE_MAX_SHIFT
+    // 单次发送最大字节数为缓冲区的1/(2^n),多段发送可以尽快空出部分缓冲区
+    #define STDOUT_TX_SINGLE_MAX_SHIFT 2
+#endif
+
+// 连续发送
+#ifndef PHY_SERIAL_TX_ENABLE
+    #define PHY_SERIAL_TX_ENABLE 0
+#endif
+
+#ifndef FIFO_RX_LOG2_SIZE
+    /* 输入环形队列大小,2^n */
+    // 256 Byte
+    #define FIFO_RX_LOG2_SIZE 8
+#endif
+
+#ifndef STDIN_RX_SINGLE_MAX_SHIFT
+    // 单次接收最大字节数为缓冲区的1/(2^n),多段接收可以防止连续接收满了之后来不及处理
+    #define STDIN_RX_SINGLE_MAX_SHIFT 1
+#endif
+
+// 连续接收
+#ifndef PHY_SERIAL_RX_ENABLE
+    #define PHY_SERIAL_RX_ENABLE 0
+#endif
+
+//+*********************************  **********************************/
 
 /**
  * @brief 丢失数据处理
@@ -72,12 +133,9 @@ int fc_port_putc(fc_port_t *port, int ch)
 
     int ret = ch;
 
-    FC_STDIO_ATOMIC
+    if (1 != fc_fifo_write(port->rb, (void *)&ch, 1))
     {
-        if (1 != fc_fifo_write(port->rb, (void *)&ch, 1))
-        {
-            ch = EOF;
-        }
+        ch = EOF;
     }
 
     if (EOF == ch)
@@ -104,12 +162,9 @@ int fc_port_puts(fc_port_t *port, const char *str)
     size_t len = strlen(str);
     int    write_size = EOF;
 
-    FC_STDIO_ATOMIC
+    if (fc_fifo_get_free(port->rb) >= len)
     {
-        if (fc_fifo_get_free(port->rb) >= len)
-        {
-            write_size = fc_fifo_write(port->rb, (void *)str, len);
-        }
+        write_size = fc_fifo_write(port->rb, (void *)str, len);
     }
 
     if (write_size < len)
@@ -135,12 +190,9 @@ int fc_port_write(fc_port_t *port, const void *buf, size_t len)
 
     int write_size = EOF;
 
-    FC_STDIO_ATOMIC
+    if (fc_fifo_get_free(port->rb) >= len)
     {
-        if (fc_fifo_get_free(port->rb) >= len)
-        {
-            write_size = fc_fifo_write(port->rb, (void *)buf, len);
-        }
+        write_size = fc_fifo_write(port->rb, (void *)buf, len);
     }
 
     if (write_size < len)
@@ -166,27 +218,10 @@ int fc_port_printf(fc_port_t *port, const char *fmt, ...)
 
     int ret = EOF;
 
-#if FC_PORT_USE_LOCK
-    if (port->lock)
-    {
-        port->lock(port);
-    }
-#endif
-
     va_list arp;
     va_start(arp, fmt);
-    FC_STDIO_ATOMIC
-    {
-        ret = fc_port_vprintf(port, fmt, arp);
-    }
+    ret = fc_port_vprintf(port, fmt, arp);
     va_end(arp);
-
-#if FC_PORT_USE_LOCK
-    if (port->unlock)
-    {
-        port->unlock(port);
-    }
-#endif
 
     return ret;
 }
@@ -242,7 +277,7 @@ char *fc_port_gets(fc_port_t *port, char *buf, size_t n)
 }
 
 /**
- * @brief
+ * @brief 从port中读取数据到buf中,并删除数据
  *
  * @param port
  * @param buf
@@ -252,20 +287,22 @@ char *fc_port_gets(fc_port_t *port, char *buf, size_t n)
 int fc_port_read(fc_port_t *port, void *buf, size_t len)
 {
     int read_size = 0;
-    FC_STDIO_ATOMIC
-    {
-        read_size = fc_fifo_read(port->rb, buf, len);
-    }
+    read_size = fc_fifo_read(port->rb, buf, len);
     return read_size;
 }
 
+/**
+ * @brief 从port中读取数据到buf中,但不删除数据
+ *
+ * @param port
+ * @param buf
+ * @param len
+ * @return int
+ */
 int fc_port_peek(fc_port_t *port, void *buf, size_t len)
 {
     int read_size = 0;
-    FC_STDIO_ATOMIC
-    {
-        read_size = fc_fifo_peek(port->rb, buf, len);
-    }
+    read_size = fc_fifo_peek(port->rb, buf, len);
     return read_size;
 }
 
@@ -284,40 +321,37 @@ void fc_port_trigger(fc_port_t *port)
     size_t size;
     void  *buf;
 
-    FC_PORT_ATOMIC
+    if (port->dir == FC_PORT_DIR_OUT)
     {
-        if (port->dir == FC_PORT_DIR_OUT)
-        {
-            busy = fc_fifo_linear_read_busy(port->rb);
+        busy = fc_fifo_linear_read_busy(port->rb);
 
-            if (!busy)
+        if (!busy)
+        {
+            if (port->single_max_shift)
             {
-                if (port->single_max_shift)
-                {
-                    fc_stdio_assert(fc_fifo_get_size(port->rb) > (1 << port->single_max_shift));
-                    buf = fc_fifo_linear_read_setup_limit(port->rb, &size, port->single_max_shift);
-                }
-                else
-                {
-                    buf = fc_fifo_linear_read_setup(port->rb, &size);
-                }
+                fc_stdio_assert(fc_fifo_get_size(port->rb) > (1 << port->single_max_shift));
+                buf = fc_fifo_linear_read_setup_limit(port->rb, &size, port->single_max_shift);
+            }
+            else
+            {
+                buf = fc_fifo_linear_read_setup(port->rb, &size);
             }
         }
-        else
-        {
-            busy = fc_fifo_linear_write_busy(port->rb);
+    }
+    else
+    {
+        busy = fc_fifo_linear_write_busy(port->rb);
 
-            if (!busy)
+        if (!busy)
+        {
+            if (port->single_max_shift)
             {
-                if (port->single_max_shift)
-                {
-                    fc_stdio_assert(fc_fifo_get_size(port->rb) > (1 << port->single_max_shift));
-                    buf = fc_fifo_linear_write_setup_limit(port->rb, &size, port->single_max_shift);
-                }
-                else
-                {
-                    buf = fc_fifo_linear_write_setup(port->rb, &size);
-                }
+                fc_stdio_assert(fc_fifo_get_size(port->rb) > (1 << port->single_max_shift));
+                buf = fc_fifo_linear_write_setup_limit(port->rb, &size, port->single_max_shift);
+            }
+            else
+            {
+                buf = fc_fifo_linear_write_setup(port->rb, &size);
             }
         }
     }
@@ -342,35 +376,32 @@ void fc_port_end(fc_port_t *port, int size)
     fc_stdio_assert(port != NULL);
     fc_stdio_assert(port->rb != NULL);
 
-    FC_PORT_ATOMIC
+    if (size < 0)
     {
-        if (size < 0)
+        if (port->dir == FC_PORT_DIR_OUT)
         {
-            if (port->dir == FC_PORT_DIR_OUT)
-            {
-                fc_fifo_linear_read_done(port->rb, fc_fifo_linear_read_get_size(port->rb));
-            }
-            else
-            {
-                fc_fifo_linear_write_done(port->rb, fc_fifo_linear_write_get_size(port->rb));
-            }
+            fc_fifo_linear_read_done(port->rb, fc_fifo_linear_read_get_size(port->rb));
         }
         else
         {
-            if (port->dir == FC_PORT_DIR_OUT)
-            {
-                fc_fifo_linear_read_done(port->rb, size);
-            }
-            else
-            {
-                fc_fifo_linear_write_done(port->rb, size);
-            }
+            fc_fifo_linear_write_done(port->rb, fc_fifo_linear_write_get_size(port->rb));
+        }
+    }
+    else
+    {
+        if (port->dir == FC_PORT_DIR_OUT)
+        {
+            fc_fifo_linear_read_done(port->rb, size);
+        }
+        else
+        {
+            fc_fifo_linear_write_done(port->rb, size);
         }
     }
 
     if (port->trigger_serial)
     {
-        fc_port_trigger(port);
+        return fc_port_trigger(port);
     }
 }
 
@@ -416,6 +447,21 @@ int fc_port_free(fc_port_t *port)
     }
 }
 
+int fc_fifo_printf(fc_fifo_t *fifo, const char *fmt, ...)
+{
+    fc_stdio_assert(fifo != NULL);
+    fc_stdio_assert(fmt != NULL);
+
+    int ret = EOF;
+
+    va_list arp;
+    va_start(arp, fmt);
+    ret = fc_fifo_vprintf(fifo, fmt, arp);
+    va_end(arp);
+
+    return ret;
+}
+
 //+********************************* 默认实例化对象 **********************************/
 
 fc_port_t fc_stdin = {0};  // 对象创建
@@ -445,10 +491,6 @@ void fc_stdio_init(void)
 #endif
 
     {
-        // 允许其在执行初始化之前绑定绑定物理IO指针
-        fc_phy_io_t phy = fc_stdout.phy;  // 物理IO函数指针
-        fc_stdout.phy = phy;              // 物理IO函数指针
-
         static const char str[] = "FC_OUT_RTT_MARK";  // "FC_OUT_RTT_MARK"
         memset(fc_stdout.id, 0, sizeof(fc_stdout.id));
         strncpy(fc_stdout.id, str, sizeof(fc_stdout.id) - 1);
@@ -462,9 +504,6 @@ void fc_stdio_init(void)
     }
 
     {
-        fc_phy_io_t phy = fc_stdin.phy;  // 物理IO函数指针
-        fc_stdin.phy = phy;              // 物理IO函数指针
-
         static const char str[] = "FC_IN_RTT_MARK";  // "FC_IN_RTT_MARK"
         memset(fc_stdin.id, 0, sizeof(fc_stdin.id));
         strncpy(fc_stdin.id, str, sizeof(fc_stdin.id) - 1);
@@ -477,199 +516,6 @@ void fc_stdio_init(void)
         fc_fifo_static_new_at(fc_stdin.rb, FIFO_RX_LOG2_SIZE);
     }
 }
-
-#if (0 == FC_STDIO_DEFINE_API)
-
-/**
- * @brief
- *
- * @param str
- * @return int
- */
-int fc_puts(const char *str)
-{
-    return fc_port_puts(&fc_stdout, str);
-}
-
-/**
- * @brief
- *
- * @param buf
- * @param len
- * @return int
- */
-int fc_write(const void *buf, size_t len)
-{
-    return fc_port_write(&fc_stdout, buf, len);
-}
-
-/**
- * @brief
- *
- * @param ch
- * @return int
- */
-int fc_putchar(int ch)
-{
-    return fc_port_putc(&fc_stdout, ch);
-}
-
-/**
- * @brief
- *
- * @param ch
- * @return int
- */
-int fc_putc(int ch)
-{
-    return fc_port_putc(&fc_stdout, ch);
-}
-
-/**
- * @brief
- *
- * @param fmt
- * @param ...
- * @return int
- */
-int fc_printf(const char *fmt, ...)
-{
-    int ret = 0;
-
-    va_list arp;
-    va_start(arp, fmt);
-    FC_STDIO_ATOMIC
-    {
-        ret = fc_port_vprintf(&fc_stdout, fmt, arp);
-    }
-    va_end(arp);
-    return ret;
-}
-
-/**
- * @brief
- *
- * @param buf
- * @param len
- * @return size_t
- */
-int fc_read(void *buf, size_t len)
-{
-    return fc_port_read(&fc_stdin, buf, len);
-}
-
-/**
- * @brief
- *
- * @return int
- */
-int fc_getc(void)
-{
-    return fc_port_getc(&fc_stdin);
-}
-
-/**
- * @brief
- *
- * @param buf
- * @param n
- * @return char*
- */
-char *fc_gets(char *buf, size_t n)
-{
-    return fc_port_gets(&fc_stdin, buf, n);
-}
-
-/**
- * @brief
- *
- * @return int
- */
-int fc_getchar(void)
-{
-    return fc_port_getc(&fc_stdin);
-}
-
-//+********************************* 异步端口操作 **********************************/
-/**
- * @brief
- *
- */
-void fc_in_trigger(void)
-{
-    fc_port_trigger(&fc_stdin);
-}
-
-/**
- * @brief
- *
- * @param size
- */
-void fc_in_end(int size)
-{
-    fc_port_end(&fc_stdin, size);
-}
-
-/**
- * @brief
- *
- * @return int
- */
-int fc_in_available(void)
-{
-    return (int)fc_port_available(&fc_stdin);
-}
-
-/**
- * @brief
- *
- * @return int
- */
-int fc_in_free(void)
-{
-    return (int)fc_port_free(&fc_stdin);
-}
-
-/**
- * @brief
- *
- */
-void fc_out_trigger(void)
-{
-    fc_port_trigger(&fc_stdout);
-}
-
-/**
- * @brief
- *
- * @param size
- */
-void fc_out_end(int size)
-{
-    fc_port_end(&fc_stdout, size);
-}
-
-/**
- * @brief
- *
- * @return int
- */
-int fc_out_available(void)
-{
-    return (int)fc_port_available(&fc_stdout);
-}
-
-/**
- * @brief
- *
- * @return int
- */
-int fc_out_free(void)
-{
-    return (int)fc_port_free(&fc_stdout);
-}
-
-#endif  // FC_STDIO_DEFINE_API
 
 //+********************************* log组件write函数 **********************************/
 

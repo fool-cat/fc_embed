@@ -18,25 +18,6 @@
 
 #include "fc_port.h"
 
-// overlay的方式覆盖默认配置
-#ifdef FC_CONFIG_HEADER
-    #if defined(FC_USE_STRINGFY)
-        #define FC_HEADER_STRINGFY(x) #x
-        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
-        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
-    #elif defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
-        #define FC_HEADER_STRINGFY(x) #x
-        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
-        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
-    #else
-        #include FC_CONFIG_HEADER
-    #endif
-#endif
-
-#ifndef USE_FC_SNPRINTF
-    #define USE_FC_SNPRINTF 1 /**< 是否使用fc_snprintf进行格式化 */
-#endif
-
 // > C/C++兼容性宏定义
 #ifdef __cplusplus
 extern "C"
@@ -52,7 +33,7 @@ extern "C"
 
     struct _fc_receiver_t
     {
-        fc_port_t        *port;   // 物理port
+        fc_port_t        *port;   // port指针
         size_t            index;  // 当前窗口索引
         fc_receiver_out_t out;    // 数据分发处理函数
         fc_receiver_end_t end;    // 如果出现不完整的分页符,根据此函数返回值决定是否将不完整的分页符当数据处理
@@ -69,7 +50,7 @@ extern "C"
     typedef struct _fc_sender_t fc_sender_t;
     struct _fc_sender_t
     {
-        fc_port_t *port;   // 物理port
+        fc_port_t *port;   // port指针
         size_t     index;  // 当前窗口索引
 
         // void* user;  // 预留用户个人数据

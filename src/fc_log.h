@@ -39,14 +39,6 @@
         #define FC_LOG_ENABLE 1 /**< 使能log */
     #endif
 
-    #ifndef FC_LOG_DEFAULT_CREATE
-        #define FC_LOG_DEFAULT_CREATE 1 /**< 是否创建默认的log对象,如果不创建则需要自己创建一个 */
-    #endif
-
-    #ifndef FC_LOG_USER_DATA
-        #define FC_LOG_USER_DATA 0 /**< 添加user指针 */
-    #endif
-
     #ifndef FC_LOG_LINE_SIZE
         #define FC_LOG_LINE_SIZE 128 /**< log行缓冲大小 */
     #endif
@@ -164,8 +156,8 @@ extern "C"
 
     struct _fc_log_pool_t
     {
-        char *buff; /**< 内存池 */
         int   size; /**< 内存池大小 */
+        char *buff; /**< 内存池 */
     };
 
     struct _fc_log_t
@@ -175,15 +167,17 @@ extern "C"
         fc_log_write_t write;
         fc_log_alloc_t alloc;
 
-    #if FC_LOG_USER_DATA
-        void *user;  // 自定义数据
-    #endif
+        // void *user;  // 自定义数据
     };
 
-    extern void fc_log_set_level(fc_log_t *log, fc_log_level_t level);
-    extern void fc_log_printf(fc_log_t *log, fc_log_level_t level, int advice_size, const char *fmt, ...);
-    extern void fc_log_printf_stack(fc_log_t *log, fc_log_level_t level, char *stack_buf, int stack_size, const char *fmt, ...);
-    extern void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len);
+    // clang-format off
+
+    extern void fc_log_set_level    (fc_log_t *log, fc_log_level_t level);
+    extern void fc_log_printf       (fc_log_t *log, fc_log_level_t level, int advice_size, const char *fmt, ...);
+    extern void fc_log_printf_stack (fc_log_t *log, fc_log_level_t level, char *stack_buf, int stack_size, const char *fmt, ...);
+    extern void fc_log_write        (fc_log_t *log, fc_log_level_t level, const void *buff, int len);
+
+    // clang-format on
 
     // 提供一份默认的弱函数log写丢失数据钩子,可以在外面重写
     extern int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len);
@@ -198,9 +192,6 @@ extern "C"
     //+********************************* 实例化 **********************************/
 
     #ifndef FC_LOG_OBJ
-        #if FC_LOG_DEFAULT_CREATE != 1
-            #error "不创建默认log对象情况下,必须提供自定义的fc_log_t对象,并定义FC_LOG_OBJ宏"
-        #endif
     extern fc_log_t default_log;  // 默认log对象
         #define FC_LOG_OBJ (&default_log)
     #endif
@@ -282,7 +273,6 @@ extern "C"
 #undef log_assert_write
 
 #undef fc_log_level
-#undef fc_log_switch
 
 #undef fc_log_user_catch
 
@@ -294,28 +284,6 @@ extern "C"
     {                                         \
         fc_log_set_level(FC_LOG_OBJ, _level); \
     } while (0)
-
-// 切换log等级,使用宏API,无需显示指定对象名称
-#define fc_log_switch(_level)                 \
-    do                                        \
-    {                                         \
-        fc_log_set_level(FC_LOG_OBJ, _level); \
-    } while (0)
-
-#if FC_LOG_USER_DATA
-    // 设置log对象的用户数据,使用宏API,无需显示指定对象名称
-    #define fc_log_user_catch(_data)  \
-        do                            \
-        {                             \
-            FC_LOG_OBJ->user = _data; \
-        } while (0)
-#else
-    #define fc_log_user_catch(_data) \
-        do                           \
-        {                            \
-            (void)_data;             \
-        } while (0)
-#endif
 
 #if FC_LOG_ENABLE
 

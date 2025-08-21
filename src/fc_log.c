@@ -169,9 +169,6 @@ fc_weak int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len)
 }
 
 //+********************************* 提供一份默认log对象 **********************************/
-#if FC_LOG_DEFAULT_CREATE
 
 // 默认实例化对象
 FC_LOG_IMPL(default_log);
-
-#endif

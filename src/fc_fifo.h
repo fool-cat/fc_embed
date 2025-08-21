@@ -14,21 +14,6 @@
 #ifndef __FC_FIFO_H__
 #define __FC_FIFO_H__
 
-// overlay的方式覆盖默认配置
-#ifdef FC_CONFIG_HEADER
-    #if defined(FC_USE_STRINGFY)
-        #define FC_HEADER_STRINGFY(x) #x
-        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
-        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
-    #elif defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
-        #define FC_HEADER_STRINGFY(x) #x
-        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
-        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
-    #else
-        #include FC_CONFIG_HEADER
-    #endif
-#endif
-
 // > C/C++兼容性宏定义
 #ifdef __cplusplus
 extern "C"
@@ -51,9 +36,10 @@ extern "C"
     #define fc_fifo_assert(x) ((void)0)
 #endif  //\ fc_fifo_assert
 
-// 高优化等级的时候memcpy可能会出现内存对齐问题,所以这里提供一份单字节拷贝的版本
-// #include <string.h>
-// #define fc_fifo_memcpy(dst, src, size) memcpy(dst, src, size)
+// 高优化等级的时候memcpy可能会出现内存对齐问题,所以这里提供一份单字节拷贝的版本可选
+#include <string.h>
+#define fc_fifo_memcpy(dst, src, size) memcpy(dst, src, size)
+
 #ifndef fc_fifo_memcpy
     #define fc_fifo_memcpy(dst, src, size)                   \
         {                                                    \
@@ -70,7 +56,6 @@ extern "C"
         size_t in;    // 写入位置
         size_t out;   // 读出位置
         size_t mask;  // 掩码,用于优化取模运算,等于size-1,例如256,掩码为255(0xFF)
-        size_t size;  // 缓冲池大小,考虑到可能需要频繁获取剩余大小,用mask+1需要运算,所以直接存储,以空间换时间
         void  *pool;  // 缓冲池,缓冲池大小必须为2的幂次方(2^n),例如256,512,1024...
 
         size_t linear_size_write;  // 连续写入大小,记录linear_write_setup时设置的大小,0表示空闲
@@ -159,7 +144,6 @@ extern "C"
         rb->in = 0;
         rb->out = 0;
         rb->mask = size - 1;
-        rb->size = size;
         rb->pool = pool;
         rb->linear_size_read = rb->linear_size_write = 0;
 
@@ -192,7 +176,7 @@ extern "C"
      * @brief 重置写指针
      * @param rb 环形队列指针
      */
-    inline void fc_fifo_reset_write(fc_fifo_t *rb)
+    fc_always_inline void fc_fifo_reset_write(fc_fifo_t *rb)
     {
         fc_fifo_assert(rb != NULL);
         rb->in = rb->out;
@@ -207,7 +191,7 @@ extern "C"
     fc_always_inline size_t fc_fifo_get_size(fc_fifo_t *rb)
     {
         fc_fifo_assert(rb != NULL);
-        return rb->size;
+        return (rb->mask + 1);
     }
 
     /**
@@ -218,7 +202,7 @@ extern "C"
     fc_always_inline size_t fc_fifo_get_used(fc_fifo_t *rb)
     {
         fc_fifo_assert(rb != NULL);
-        return rb->in - rb->out;
+        return (rb->in - rb->out);
     }
 
     /**
@@ -229,7 +213,7 @@ extern "C"
     fc_always_inline size_t fc_fifo_get_free(fc_fifo_t *rb)
     {
         fc_fifo_assert(rb != NULL);
-        return rb->size - (rb->in - rb->out);
+        return ((rb->mask + 1) - (rb->in - rb->out));
     }
 
     /**
@@ -240,7 +224,7 @@ extern "C"
     fc_always_inline bool fc_fifo_check_full(fc_fifo_t *rb)
     {
         fc_fifo_assert(rb != NULL);
-        return rb->in - rb->out == rb->size;
+        return ((rb->in - rb->out) == (rb->mask + 1));
     }
 
     /**
@@ -251,7 +235,7 @@ extern "C"
     fc_always_inline bool fc_fifo_check_empty(fc_fifo_t *rb)
     {
         fc_fifo_assert(rb != NULL);
-        return rb->in == rb->out;
+        return (rb->in == rb->out);
     }
 
     /**
@@ -357,7 +341,7 @@ extern "C"
         size_t offset;
         size_t remain;
 
-        unused = rb->size - (rb->in - rb->out);
+        unused = (rb->mask + 1) - (rb->in - rb->out);
 
         if (size > unused)
         {
@@ -366,7 +350,7 @@ extern "C"
 
         offset = rb->in & rb->mask;
 
-        remain = rb->size - offset;
+        remain = (rb->mask + 1) - offset;
         remain = remain > size ? size : remain;
 
         fc_fifo_memcpy(((uint8_t *)(rb->pool)) + offset, data, remain);
@@ -393,13 +377,13 @@ extern "C"
         size_t offset;
         size_t remain;
 
-        unused = rb->size - (rb->in - rb->out);
+        unused = (rb->mask + 1) - (rb->in - rb->out);
 
         if (size > unused)
         {
-            if (size > rb->size)
+            if (size > (rb->mask + 1))
             {
-                size = rb->size;
+                size = (rb->mask + 1);
             }
 
             rb->out += size - unused;
@@ -407,7 +391,7 @@ extern "C"
 
         offset = rb->in & rb->mask;
 
-        remain = rb->size - offset;
+        remain = (rb->mask + 1) - offset;
         remain = remain > size ? size : remain;
 
         fc_fifo_memcpy(((uint8_t *)(rb->pool)) + offset, data, remain);
@@ -442,7 +426,7 @@ extern "C"
 
         offset = rb->out & rb->mask;
 
-        remain = rb->size - offset;
+        remain = (rb->mask + 1) - offset;
         remain = remain > size ? size : remain;
 
         fc_fifo_memcpy(data, ((uint8_t *)(rb->pool)) + offset, remain);
@@ -502,11 +486,11 @@ extern "C"
         fc_fifo_assert(size != NULL);
 
         size_t free = fc_fifo_get_free(rb);
-        size_t linear_size = rb->size - (rb->in & rb->mask);
+        size_t linear_size = (rb->mask + 1) - (rb->in & rb->mask);
         rb->linear_size_write = (free < linear_size) ? free : linear_size;
         *size = rb->linear_size_write;
 
-        return (uint8_t *)rb->pool + (rb->in & rb->mask);
+        return ((void *)((uint8_t *)rb->pool + (rb->in & rb->mask)));
     }
 
     /**
@@ -521,11 +505,11 @@ extern "C"
         fc_fifo_assert(size != NULL);
 
         size_t used = fc_fifo_get_used(rb);
-        size_t linear_size = rb->size - (rb->out & rb->mask);
+        size_t linear_size = (rb->mask + 1) - (rb->out & rb->mask);
         rb->linear_size_read = (used < linear_size) ? used : linear_size;
         *size = rb->linear_size_read;
 
-        return (uint8_t *)rb->pool + (rb->out & rb->mask);
+        return ((void *)((uint8_t *)rb->pool + (rb->out & rb->mask)));
     }
 
     /**
@@ -566,19 +550,19 @@ extern "C"
      * @param shift_n
      * @return void*
      */
-    inline void *fc_fifo_linear_write_setup_limit(fc_fifo_t *rb, size_t *size, size_t shift_n)
+    fc_always_inline void *fc_fifo_linear_write_setup_limit(fc_fifo_t *rb, size_t *size, size_t shift_n)
     {
         fc_fifo_assert(rb != NULL);
         fc_fifo_assert(size != NULL);
-        fc_fifo_assert((rb->size >> shift_n) > 0);
+        fc_fifo_assert(((rb->mask + 1) >> shift_n) > 0);
 
         size_t free = fc_fifo_get_free(rb);
-        size_t linear_size = rb->size - (rb->in & rb->mask);
+        size_t linear_size = (rb->mask + 1) - (rb->in & rb->mask);
         rb->linear_size_write = (free < linear_size) ? free : linear_size;
-        rb->linear_size_write = (rb->linear_size_write < (rb->size >> shift_n)) ? rb->linear_size_write : (rb->size >> shift_n);
+        rb->linear_size_write = (rb->linear_size_write < ((rb->mask + 1) >> shift_n)) ? rb->linear_size_write : ((rb->mask + 1) >> shift_n);
         *size = rb->linear_size_write;
 
-        return (uint8_t *)rb->pool + (rb->in & rb->mask);
+        return ((void *)((uint8_t *)rb->pool + (rb->in & rb->mask)));
     }
 
     /**
@@ -589,19 +573,19 @@ extern "C"
      * @param shift_n
      * @return void*
      */
-    inline void *fc_fifo_linear_read_setup_limit(fc_fifo_t *rb, size_t *size, size_t shift_n)
+    fc_always_inline void *fc_fifo_linear_read_setup_limit(fc_fifo_t *rb, size_t *size, size_t shift_n)
     {
         fc_fifo_assert(rb != NULL);
         fc_fifo_assert(size != NULL);
-        fc_fifo_assert((rb->size >> shift_n) > 0);
+        fc_fifo_assert(((rb->mask + 1) >> shift_n) > 0);
 
         size_t used = fc_fifo_get_used(rb);
-        size_t linear_size = rb->size - (rb->out & rb->mask);
+        size_t linear_size = (rb->mask + 1) - (rb->out & rb->mask);
         rb->linear_size_read = (used < linear_size) ? used : linear_size;
-        rb->linear_size_read = (rb->linear_size_read < (rb->size >> shift_n)) ? rb->linear_size_read : (rb->size >> shift_n);
+        rb->linear_size_read = (rb->linear_size_read < ((rb->mask + 1) >> shift_n)) ? rb->linear_size_read : ((rb->mask + 1) >> shift_n);
         *size = rb->linear_size_read;
 
-        return (uint8_t *)rb->pool + (rb->out & rb->mask);
+        return ((void *)((uint8_t *)rb->pool + (rb->out & rb->mask)));
     }
 
     /**
@@ -609,7 +593,7 @@ extern "C"
      * @param rb 环形队列指针
      * @return size_t 获取上次linear_write_setup设置的大小
      */
-    inline size_t fc_fifo_linear_write_get_size(fc_fifo_t *rb)
+    fc_always_inline size_t fc_fifo_linear_write_get_size(fc_fifo_t *rb)
     {
         fc_fifo_assert(rb != NULL);
         return rb->linear_size_write;
@@ -620,7 +604,7 @@ extern "C"
      * @param rb 环形队列指针
      * @return size_t 获取上次linear_read_setup设置的大小
      */
-    inline size_t fc_fifo_linear_read_get_size(fc_fifo_t *rb)
+    fc_always_inline size_t fc_fifo_linear_read_get_size(fc_fifo_t *rb)
     {
         fc_fifo_assert(rb != NULL);
         return rb->linear_size_read;
@@ -631,10 +615,10 @@ extern "C"
      * @param rb 环形队列指针
      * @return bool true:忙, false:空闲
      */
-    inline bool fc_fifo_linear_write_busy(fc_fifo_t *rb)
+    fc_always_inline bool fc_fifo_linear_write_busy(fc_fifo_t *rb)
     {
         fc_fifo_assert(rb != NULL);
-        return rb->linear_size_write ? true : false;
+        return (rb->linear_size_write ? true : false);
     }
 
     /**
@@ -642,10 +626,10 @@ extern "C"
      * @param rb 环形队列指针
      * @return bool true:忙, false:空闲
      */
-    inline bool fc_fifo_linear_read_busy(fc_fifo_t *rb)
+    fc_always_inline bool fc_fifo_linear_read_busy(fc_fifo_t *rb)
     {
         fc_fifo_assert(rb != NULL);
-        return rb->linear_size_read ? true : false;
+        return (rb->linear_size_read ? true : false);
     }
 
 #ifdef __cplusplus
