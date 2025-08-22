@@ -58,6 +58,9 @@ extern "C"
     extern int fc_fprintf(FC_FILE *pf, const char *fmt, ...);
     extern int fc_vfprintf(FC_FILE *pf, const char *fmt, va_list arp);  // 格式化核心函数
 
+    //+********************************* 格式化解析API **********************************/
+    //! 废弃实现,建议直接使用标准库的
+
     //+********************************* port对接API **********************************/
     // 由外层fc_port.h声明
     // extern int fc_port_vprintf(fc_port_t* port, const char* fmt, va_list arp);  // 字符串格式化核心函数

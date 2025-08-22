@@ -21,7 +21,7 @@
 #endif
 
 #if USE_FC_VSNPRINTF
-    #include "./fc_stdio/fc_stdio.h"
+    #include "fc_stdio.h"
     #define LOG_VSNPRINTF fc_vsnprintf
 #else
     #include <stdio.h>

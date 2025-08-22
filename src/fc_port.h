@@ -19,15 +19,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "fc_helper.h"
 #include "fc_fifo.h"
 
 // clang-format on
 
-    #ifdef __cplusplus
+#ifdef __cplusplus
 extern "C"
 {
-    #endif
+#endif
 
     // 方向是对于内核来说(高速部分)
     typedef enum
@@ -52,11 +51,8 @@ extern "C"
         bool          trigger_serial;    // 连续触发
     };
 
-    // 端口写数据丢失处理
-    #ifndef FC_PORT_LOSE_HOOK
+    // 默认提供的写端口丢失钩子函数,提供默认弱实现可以在外面重写
     extern size_t fc_port_lose_hook(fc_port_t *port, const void *buf, size_t len);
-        #define FC_PORT_LOSE_HOOK(p_port, buf, len) fc_port_lose_hook(p_port, buf, len)
-    #endif
 
     //+********************************* 面向对象 **********************************/
     extern int fc_port_putc(fc_port_t *port, int ch);
@@ -86,49 +82,13 @@ extern "C"
     // 声明输入输出对象
     extern fc_port_t fc_stdin;
     extern fc_port_t fc_stdout;
-    #define fc_stdin_phy_catch(func) (fc_stdin.phy = (fc_phy_io_t)func)
-    #define fc_stdout_phy_catch(func) (fc_stdout.phy = (fc_phy_io_t)func)
+#define fc_stdin_phy_catch(func) (fc_stdin.phy = (fc_phy_io_t)func)
+#define fc_stdout_phy_catch(func) (fc_stdout.phy = (fc_phy_io_t)func)
 
-    // 为了提升效率单独实现IO触发与回调
-    extern void fc_stdio_init(void);  // 初始化标准输入输出
+    // 初始化标准输入输出
+    extern void fc_stdio_init(void);
 
-    #ifdef __cplusplus
-}
-    #endif
-
-#endif  // __FC_STDIO_H__
-
-//+********************************* 可重入宏 **********************************/
-#undef fc_putchar
-#undef fc_putc
-#undef fc_puts
-#undef fc_write
-#undef fc_printf
-
-#undef fc_out_trigger
-#undef fc_out_end
-#undef fc_out_available
-#undef fc_out_free
-
-#undef fc_getchar
-#undef fc_getc
-#undef fc_gets
-#undef fc_read
-
-#undef fc_in_trigger
-#undef fc_in_end
-#undef fc_in_available
-#undef fc_in_free
-
-// clang-format off
-
-    #ifndef FC_STDOUT_OBJ
-        #define FC_STDOUT_OBJ (&fc_stdout)
-    #endif
-
-    #ifndef FC_STDIN_OBJ
-        #define FC_STDIN_OBJ (&fc_stdin)
-    #endif
+    // clang-format off
 
     // 输出到fc_stdout
     #define fc_putchar(ch)      fc_port_putc(FC_STDOUT_OBJ, ch)
@@ -178,4 +138,20 @@ extern "C"
     #define fc_in_available()   fc_port_available(FC_STDIN_OBJ)     // 缓冲区可用字节数
     #define fc_in_free()        fc_port_free(FC_STDIN_OBJ)          // 缓冲区剩余空间
 
-// clang-format on
+    // clang-format on
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif  // __FC_STDIO_H__
+
+//+********************************* 可重入宏 **********************************/
+
+#ifndef FC_STDOUT_OBJ
+#define FC_STDOUT_OBJ (&fc_stdout)
+#endif
+
+#ifndef FC_STDIN_OBJ
+#define FC_STDIN_OBJ (&fc_stdin)
+#endif

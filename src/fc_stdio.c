@@ -46,23 +46,23 @@
 //+********************************* 格式化API **********************************/
 
 // sprintf
-#include "fc_sprintf.c"
+#include "./utils/fc_sprintf.c"
 
 // snprintf
-#include "fc_snprintf.c"
+#include "./utils/fc_snprintf.c"
 
 // vsprintf
-#include "fc_vsprintf.c"
+#include "./utils/fc_vsprintf.c"
 
 // vsnprintf
-#include "fc_vsnprintf.c"
+#include "./utils/fc_vsnprintf.c"
 
 // fprintf
-#include "fc_fprintf.c"
+#include "./utils/fc_fprintf.c"
 
 // vfprintf
-#include "fc_vfprintf.c"  // core function
+#include "./utils/fc_vfprintf.c"  // core function
 
 //+********************************* port API **********************************/
 
-#include "fc_port_vprintf.c"
+#include "./utils/fc_port_vprintf.c"

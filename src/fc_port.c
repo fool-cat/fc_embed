@@ -81,7 +81,12 @@
     #define PHY_SERIAL_RX_ENABLE 0
 #endif
 
-//+*********************************  **********************************/
+//+********************************* 提供的默认数据丢失处理钩子函数 **********************************/
+
+// 端口写数据丢失处理
+#ifndef FC_PORT_LOSE_HOOK
+    #define FC_PORT_LOSE_HOOK(p_port, buf, len) fc_port_lose_hook(p_port, buf, len)
+#endif
 
 /**
  * @brief 丢失数据处理
