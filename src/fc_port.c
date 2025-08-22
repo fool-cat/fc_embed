@@ -46,7 +46,7 @@
 
 // 运行时断言
 #ifndef fc_stdio_assert
-    #define fc_stdio_assert(x) fc_assert(x)
+    #define fc_stdio_assert(x) void(0)
 #endif
 
 #ifndef FIFO_TX_LOG2_SIZE

@@ -270,11 +270,8 @@ extern "C"
 #undef log_info_write
 #undef log_debug_write
 #undef log_verbose_write
-#undef log_assert_write
 
 #undef fc_log_level
-
-#undef fc_log_user_catch
 
 //+********************************* 宏API **********************************/
 

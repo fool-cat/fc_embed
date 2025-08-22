@@ -27,6 +27,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include "fc_transport.h"
+#include "fc_helper.h"
+
+// 运行时断言
+#ifndef fc_stdio_assert
+    #define fc_stdio_assert(x) void(0)
+#endif
 
 // 自定义的分页信息
 #ifndef FC_DIVISION_NUM_MAX_LEN

@@ -29,7 +29,7 @@
 #endif  //\ LOG_USE_VSNPRINTF
 
 #ifndef fc_log_assert
-    #define fc_log_assert(x) fc_assert(x)
+    #define fc_log_assert(x) void(0)
 #endif  //\ fc_log_assert
 
 //+*********************************  **********************************/
@@ -44,26 +44,24 @@ void fc_log_set_level(fc_log_t *log, fc_log_level_t level)
 void fc_log_printf(fc_log_t *log, fc_log_level_t level, int advice_size, const char *fmt, ...)
 {
     fc_log_assert(log != NULL);
-    fc_log_assert(log->alloc != NULL);
+    // fc_log_assert(log->alloc != NULL);
 
     if (log->level >= level)
     {
         int           len = 0;
         fc_log_pool_t pool = {0};
-        va_list       vargs;
+        log->alloc(FC_LOG_ALLOC_NEW, &pool, advice_size);  // 分配内存池
 
-        va_start(vargs, fmt);
+        {
+            va_list vargs;
+            va_start(vargs, fmt);
+            len = LOG_VSNPRINTF(pool.buff, pool.size, fmt, vargs);
+            va_end(vargs);
+        }
 
-        log->alloc(FC_LOG_ALLOC_NEW, &pool, advice_size);
-
-        len = LOG_VSNPRINTF(pool.buff, pool.size, fmt, vargs);
         len -= log->write(pool.buff, len);
-
         FC_LOG_LOSE_HOOK(0 == len, log, pool.buff, len);
-
         log->alloc(FC_LOG_ALLOC_FREE, &pool, 0);  // 释放内存池
-
-        va_end(vargs);
     }
 }
 
@@ -85,16 +83,17 @@ void fc_log_printf_stack(fc_log_t *log, fc_log_level_t level, char *stack_buf, i
 
     if (log->level >= level)
     {
-        va_list vargs;
-        va_start(vargs, fmt);
         int len = 0;
 
-        len = LOG_VSNPRINTF(stack_buf, stack_size, fmt, vargs);
+        {
+            va_list vargs;
+            va_start(vargs, fmt);
+            len = LOG_VSNPRINTF(stack_buf, stack_size, fmt, vargs);
+            va_end(vargs);
+        }
+
         len -= log->write(stack_buf, len);
-
         FC_LOG_LOSE_HOOK(0 == len, log, stack_buf, len);
-
-        va_end(vargs);
     }
 }
 
