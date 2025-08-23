@@ -63,7 +63,7 @@ extern "C"
 
     //+********************************* port对接API **********************************/
     // 由外层fc_port.h声明
-    // extern int fc_port_vprintf(fc_port_t* port, const char* fmt, va_list arp);  // 字符串格式化核心函数
+    // extern int fc_port_vprintf(fc_port_t *port, size_t rb_index, const char *fmt, va_list arp);  // 字符串格式化核心函数
 
 #ifdef __cplusplus
 }

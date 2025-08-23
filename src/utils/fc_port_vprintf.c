@@ -89,9 +89,9 @@ int fc_fifo_vprintf(fc_fifo_t *fifo, const char *fmt, va_list arp)
  * @param arp
  * @return int
  */
-int fc_port_vprintf(fc_port_t *port, const char *fmt, va_list arp)
+int fc_port_vprintf(fc_port_t *port, size_t rb_index, const char *fmt, va_list arp)
 {
-    return fc_fifo_vprintf(port->rb, fmt, arp);
+    return fc_fifo_vprintf(port->rb[rb_index], fmt, arp);
 }
 
 #else
@@ -140,9 +140,9 @@ int fc_fifo_vprintf(fc_fifo_t *fifo, const char *fmt, va_list arp)
  * @param arp
  * @return int
  */
-int fc_port_vprintf(fc_port_t *port, const char *fmt, va_list arp)
+int fc_port_vprintf(fc_port_t *port, size_t rb_index, const char *fmt, va_list arp)
 {
-    return fc_fifo_vprintf(port->rb, fmt, arp);
+    return fc_fifo_vprintf(port->rb[rb_index], fmt, arp);
 }
 
 #endif

@@ -31,7 +31,7 @@
 
 // 运行时断言
 #ifndef fc_stdio_assert
-    #define fc_stdio_assert(x) void(0)
+    #define fc_stdio_assert(x) ((void)(0))
 #endif
 
 // 自定义的分页信息
@@ -116,7 +116,7 @@ void fc_receiver_monitor(fc_receiver_t *receiver)
     fc_stdio_assert(NULL != receiver->port);
     fc_stdio_assert(NULL != receiver->out);  // 先绑定了分发函数才能调用
 
-    fc_fifo_t *rb = receiver->port->rb;  // 环形缓冲区
+    fc_fifo_t *rb = receiver->port->rb[0];  // 环形缓冲区
     size_t     len_total = fc_fifo_get_used(rb);
     if (len_total <= 0)
     {
@@ -234,7 +234,7 @@ void fc_sender_init(fc_sender_t *sender, fc_port_t *port)
     sender->port = port;
     sender->index = 0;  // 默认窗口0
 
-    fc_port_write(sender->port, FC_DIVISION_DEFAULT, sizeof(FC_DIVISION_DEFAULT) - 1);  // 写入默认窗口
+    fc_port_write(sender->port, 0, FC_DIVISION_DEFAULT, sizeof(FC_DIVISION_DEFAULT) - 1);  // 写入默认窗口
 }
 
 /**
@@ -311,7 +311,7 @@ bool fc_sender_switch(fc_sender_t *sender, size_t index)
             buff[pos++] = FC_DIVISION_TAIL[i];
         }
 
-        return (fc_port_write(sender->port, buff, pos) == pos);
+        return (fc_port_write(sender->port, 0, buff, pos) == pos);
     }
 
     return true;
@@ -330,7 +330,7 @@ int fc_sender_putc(fc_sender_t *sender, size_t index, int ch)
     int ret = EOF;
     if (fc_sender_switch(sender, index))
     {
-        ret = fc_port_putc(sender->port, ch);
+        ret = fc_port_putc(sender->port, 0, ch);
     }
     return ret;
 }
@@ -348,7 +348,7 @@ int fc_sender_puts(fc_sender_t *sender, size_t index, const char *str)
     int ret = EOF;
     if (fc_sender_switch(sender, index))
     {
-        ret = fc_port_puts(sender->port, str);
+        ret = fc_port_puts(sender->port, 0, str);
     }
     return ret;
 }
@@ -367,7 +367,7 @@ int fc_sender_write(fc_sender_t *sender, size_t index, const void *buf, size_t l
     int write_size = EOF;
     if (fc_sender_switch(sender, index))
     {
-        write_size = fc_port_write(sender->port, buf, len);
+        write_size = fc_port_write(sender->port, 0, buf, len);
     }
     return write_size;
 }
@@ -388,7 +388,7 @@ int fc_sender_printf(fc_sender_t *sender, size_t index, const char *fmt, ...)
     {
         va_list arp;
         va_start(arp, fmt);
-        ret = fc_port_vprintf(sender->port, fmt, arp);
+        ret = fc_port_vprintf(sender->port, 0, fmt, arp);
         va_end(arp);
     }
     return ret;

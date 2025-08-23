@@ -33,9 +33,43 @@
 #include <stdbool.h>
 #include "fc_stdio.h"
 
+// overlay的方式覆盖默认配置
+#ifdef FC_CONFIG_HEADER
+    #if defined(FC_HEADER_WRAP)
+        #define FC_HEADER_STRINGFY(x) #x
+        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
+        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
+    #elif defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
+        #define FC_HEADER_STRINGFY(x) #x
+        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
+        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
+    #else
+        #include FC_CONFIG_HEADER
+    #endif
+#endif
+
+//+********************************* xprintf core function config **********************************/
+// clang-format off
+/* output */
+#ifndef XF_USE_LLI
+    #define XF_USE_LLI  1 /* 1: Enable long long integer in size prefix ll */
+#endif
+
+#ifndef XF_USE_FP
+    #define XF_USE_FP   1 /* 1: Enable support for floating point in type e and f */
+#endif
+
+#ifndef XF_DPC
+    #define XF_DPC      '.' /* Decimal separator for floating point */
+#endif
+
+// clang-format on
+
 #ifndef SZB_OUTPUT
     #define SZB_OUTPUT 32
 #endif
+
+//+*********************************  **********************************/
 
 #if XF_USE_FP
     /*----------------------------------------------*/

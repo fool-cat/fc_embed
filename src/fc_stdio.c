@@ -26,23 +26,6 @@
 
 #include "fc_stdio.h"
 
-//+********************************* xprintf core function config **********************************/
-// clang-format off
-/* output */
-#ifndef XF_USE_LLI
-    #define XF_USE_LLI  1 /* 1: Enable long long integer in size prefix ll */
-#endif
-
-#ifndef XF_USE_FP
-    #define XF_USE_FP   1 /* 1: Enable support for floating point in type e and f */
-#endif
-
-#ifndef XF_DPC
-    #define XF_DPC      '.' /* Decimal separator for floating point */
-#endif
-
-// clang-format on
-
 //+********************************* 格式化API **********************************/
 
 // sprintf

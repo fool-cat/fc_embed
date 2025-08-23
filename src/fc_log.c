@@ -29,7 +29,7 @@
 #endif  //\ LOG_USE_VSNPRINTF
 
 #ifndef fc_log_assert
-    #define fc_log_assert(x) void(0)
+    #define fc_log_assert(x) ((void)(0))
 #endif  //\ fc_log_assert
 
 //+*********************************  **********************************/
