@@ -42,9 +42,11 @@ extern "C"
     typedef struct _fc_port_t fc_port_t;
     struct _fc_port_t
     {
-        char        id[16];           // 端口ID,用于调试输出
-        fc_fifo_t  *rb[PORT_RB_NUM];  // 环形缓冲
-        fc_phy_io_t phy;              // 物理IO接口
+        char        id[16];                // 端口ID,用于调试输出
+        size_t      rb_array_size;         // rb指针数组的大小,恒等于PORT_RB_NUM
+        fc_fifo_t  *rb[PORT_RB_NUM];       // 环形缓冲
+        const char *rb_name[PORT_RB_NUM];  // 每个rb缓冲区的名字
+        fc_phy_io_t phy;                   // 物理IO接口
 
         // void *user;  // 自定义数据
 
@@ -58,6 +60,8 @@ extern "C"
 
     //+********************************* 面向对象 **********************************/
     // clang-format off
+
+    extern void fc_port_init(fc_port_t *port, const char *id);  // port基础信息初始化,id字符串长度必须小于16字节
 
     extern int fc_port_putc   (fc_port_t *port, size_t rb_index, int ch);
     extern int fc_port_puts   (fc_port_t *port, size_t rb_index, const char *str);
@@ -79,8 +83,9 @@ extern "C"
     // clang-format on
 
     // 给环形缓冲区指针分配静态内存
-#define fc_port_static_alloc_rb(port, rb_index, log2_size) \
-    fc_fifo_static_new_at(port->rb[rb_index], log2_size)  // 静态内存分配环形缓冲区
+#define fc_port_static_alloc_rb(port, rb_index, log2_size, name) \
+    fc_fifo_static_new_at((port)->rb[rb_index], log2_size);      \
+    (port)->rb_name[rb_index] = name
 
     //+********************************* 提供一份格式化输出到fifo的API **********************************/
 
@@ -89,7 +94,7 @@ extern "C"
 
     //+********************************* 默认实例化对象 **********************************/
     // 初始化标准输入输出
-    extern void fc_stdio_init(void);
+    extern void fc_default_port_init(void);
 
     // 声明输入输出对象
     extern fc_port_t fc_stdin;

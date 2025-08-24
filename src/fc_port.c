@@ -123,6 +123,21 @@ fc_weak size_t fc_port_lose_hook(fc_port_t *port, size_t rb_index, const void *b
     return lose;
 }
 
+/**
+ * @brief port基础信息初始化
+ *
+ * @param port
+ * @param id
+ */
+void fc_port_init(fc_port_t *port, const char *id)
+{
+    fc_stdio_assert(port != NULL);
+
+    memset(port, 0, sizeof(fc_port_t));
+    port->rb_array_size = PORT_RB_NUM;
+    strncpy(port->id, id, sizeof(port->id) - 1);
+}
+
 //+********************************* 面向对象 **********************************/
 /**
  * @brief
@@ -505,7 +520,7 @@ fc_port_t fc_stdout = {0};
  * @brief
  *
  */
-void fc_stdio_init(void)
+void fc_default_port_init(void)
 {
     static bool init = false;
     if (init)
@@ -525,29 +540,29 @@ void fc_stdio_init(void)
 #endif
 
     {
-        static const char str[] = "FC_OUT_RTT_MARK";  // "FC_OUT_RTT_MARK"
-        memset(fc_stdout.id, 0, sizeof(fc_stdout.id));
-        strncpy(fc_stdout.id, str, sizeof(fc_stdout.id) - 1);
+        const char *str = "FC OUT RTT";  // "FC OUT RTT",使用空格不会跟函数命名等冲突比较安全
+        fc_port_init(&fc_stdout, str);
 
         fc_stdout.single_max_shift = STDOUT_TX_SINGLE_MAX_SHIFT;
         fc_stdout.dir = FC_PORT_DIR_OUT;
         fc_stdout.trigger_serial = PHY_SERIAL_TX_ENABLE ? true : false;
 
         // 初始化环形队列,静态内存构造,默认端口只给一个环形缓冲区分配内存
-        fc_fifo_static_new_at(fc_stdout.rb[0], FIFO_TX_LOG2_SIZE);
+        // fc_fifo_static_new_at(fc_stdout.rb[0], FIFO_TX_LOG2_SIZE);
+        fc_port_static_alloc_rb(&fc_stdout, 0, FIFO_TX_LOG2_SIZE, "fc_stdout_rb0");
     }
 
     {
-        static const char str[] = "FC_IN_RTT_MARK";  // "FC_IN_RTT_MARK"
-        memset(fc_stdin.id, 0, sizeof(fc_stdin.id));
-        strncpy(fc_stdin.id, str, sizeof(fc_stdin.id) - 1);
+        const char *str = "FC IN RTT";  // "FC IN RTT"
+        fc_port_init(&fc_stdin, str);
 
         fc_stdin.single_max_shift = STDIN_RX_SINGLE_MAX_SHIFT;
         fc_stdin.dir = FC_PORT_DIR_IN;
         fc_stdin.trigger_serial = PHY_SERIAL_RX_ENABLE ? true : false;
 
         // 初始化环形队列,静态内存构造,默认端口只给一个环形缓冲区分配内存
-        fc_fifo_static_new_at(fc_stdin.rb[0], FIFO_RX_LOG2_SIZE);
+        // fc_fifo_static_new_at(fc_stdin.rb[0], FIFO_RX_LOG2_SIZE);
+        fc_port_static_alloc_rb(&fc_stdin, 0, FIFO_RX_LOG2_SIZE, "fc_stdin_rb0");
     }
 }
 
@@ -580,7 +595,7 @@ extern "C"
 #if USE_FC_AUTO_INIT
 static void _fc_port_auto_init(void)
 {
-    fc_stdio_init();  // 纯内存结构初始化,可以放在constructor的时候就初始化
+    fc_default_port_init();  // 纯内存结构初始化,可以放在constructor的时候就初始化
 }
 INIT_EXPORT_ENV(_fc_port_auto_init, 100);  // 等级比默认的1000优先级更高,纯数据结构无外部依赖
 #endif

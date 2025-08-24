@@ -480,5 +480,5 @@ static void _fc_trans_auto_init(void)
     fc_receiver_init(&fc_receiver, fc_stdin.rb[0]);  // 初始化接收器
     fc_sender_init(&fc_sender, fc_stdout.rb[0]);     // 初始化发送器
 }
-INIT_EXPORT_ENV(_fc_trans_auto_init, 110);  // 等级比默认的1000优先级更高,但是低于fc_stdio_init,纯数据结构无外部依赖
+INIT_EXPORT_ENV(_fc_trans_auto_init, 110);  // 等级比默认的1000优先级更高,但是低于fc_default_port_init,纯数据结构无外部依赖
 #endif
