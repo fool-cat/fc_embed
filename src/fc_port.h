@@ -70,11 +70,11 @@ extern "C"
     extern int   fc_port_read(fc_port_t *port, size_t rb_index, void *buf, size_t len);  // 读取数据并删除
     extern int   fc_port_peek(fc_port_t *port, size_t rb_index, void *buf, size_t len);  // 读取数据但不删除
 
+    extern int  fc_port_available(fc_port_t *port, size_t rb_index);            // 获取指定缓冲区的已用空间大小
+    extern int  fc_port_free     (fc_port_t *port, size_t rb_index);            // 获取指定缓冲区的剩余空间大小
     // 以下API的行为取决于fc_port_t的方向(fc_port_dir_t)
     extern void fc_port_trigger  (fc_port_t *port, size_t rb_index);            // 触发慢速IO
     extern void fc_port_end      (fc_port_t *port, size_t rb_index, int size);  // 慢速IO完成回调
-    extern int  fc_port_available(fc_port_t *port, size_t rb_index);            // 缓冲区可用字节数
-    extern int  fc_port_free     (fc_port_t *port, size_t rb_index);            // 获取缓冲区剩余空间
 
     // clang-format on
 

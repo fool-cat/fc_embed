@@ -453,14 +453,7 @@ int fc_port_available(fc_port_t *port, size_t rb_index)
 
     fc_fifo_t *fifo = port->rb[rb_index];
 
-    if (port->dir == FC_PORT_DIR_OUT)
-    {
-        return (int)fc_fifo_get_used(fifo);
-    }
-    else
-    {
-        return (int)fc_fifo_get_free(fifo);
-    }
+    return (int)fc_fifo_get_used(fifo);
 }
 
 /**
@@ -477,14 +470,7 @@ int fc_port_free(fc_port_t *port, size_t rb_index)
 
     fc_fifo_t *fifo = port->rb[rb_index];
 
-    if (port->dir == FC_PORT_DIR_OUT)
-    {
-        return (int)fc_fifo_get_free(fifo);
-    }
-    else
-    {
-        return (int)fc_fifo_get_used(fifo);
-    }
+    return (int)fc_fifo_get_free(fifo);
 }
 
 /**
