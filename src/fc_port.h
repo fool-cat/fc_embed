@@ -57,7 +57,7 @@ extern "C"
     };
 
     // 默认提供的写端口丢失钩子函数,提供默认弱实现可以在外面重写
-    extern size_t fc_port_lose_hook(fc_port_t *port, const void *buf, size_t len);
+    extern size_t fc_port_lose_hook(fc_port_t *port, size_t rb_index, const void *buf, size_t len);
 
     //+********************************* 面向对象 **********************************/
     // clang-format off

@@ -182,9 +182,9 @@ extern "C"
     // 提供一份默认的弱函数log写丢失数据钩子,可以在外面重写
     extern int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len);
 
-    // 提供两个默认的write函数,一个是输出到fc_stdout,一个是输出到fc_transport的0端口
-    extern int log_write_stdout(const char *buf, int len);     // 放在fc_port.c中实现
-    extern int log_write_transport(const char *buf, int len);  // 放在fc_transport.c中实现
+    // 提供两个默认的write函数,一个是输出到fc_stdout的0号缓冲区,一个是输出到fc_trans的0号虚拟页
+    extern int log_write_stdout(const char *buf, int len);  // 放在fc_port.c中实现
+    extern int log_write_trans(const char *buf, int len);   // 放在fc_trans.c中实现
 
     // 提供一份默认的内存池获取函数,可以在外面重写
     extern int log_alloc_default(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size);  // 默认获取内存池的函数

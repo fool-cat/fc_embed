@@ -85,7 +85,7 @@
 
 // 端口写数据丢失处理
 #ifndef FC_PORT_LOSE_HOOK
-    #define FC_PORT_LOSE_HOOK(p_port, buf, len) fc_port_lose_hook(p_port, buf, len)
+    #define FC_PORT_LOSE_HOOK(p_port, rb_index, buf, len) fc_port_lose_hook(p_port, rb_index, buf, len)
 #endif
 
 /**
@@ -96,7 +96,7 @@
  * @param len
  * @return 后面的长度设为0可以获取丢失的长度
  */
-fc_weak size_t fc_port_lose_hook(fc_port_t *port, const void *buf, size_t len)
+fc_weak size_t fc_port_lose_hook(fc_port_t *port, size_t rb_index, const void *buf, size_t len)
 {
     (void)port;
     (void)buf;
@@ -105,15 +105,15 @@ fc_weak size_t fc_port_lose_hook(fc_port_t *port, const void *buf, size_t len)
 
     if (port == &fc_stdout)
     {
-        static volatile size_t _fc_stdout_lose = 0;
-        _fc_stdout_lose += len;
-        lose = _fc_stdout_lose;
+        static volatile size_t _fc_stdout_lose[PORT_RB_NUM] = {0};
+        _fc_stdout_lose[rb_index] += len;
+        lose = _fc_stdout_lose[rb_index];
     }
     else if (port == &fc_stdin)
     {
-        static volatile size_t _fc_stdin_lose = 0;
-        _fc_stdin_lose += len;
-        lose = _fc_stdin_lose;
+        static volatile size_t _fc_stdin_lose[PORT_RB_NUM] = {0};
+        _fc_stdin_lose[rb_index] += len;
+        lose = _fc_stdin_lose[rb_index];
     }
     else
     {
@@ -128,6 +128,7 @@ fc_weak size_t fc_port_lose_hook(fc_port_t *port, const void *buf, size_t len)
  * @brief
  *
  * @param port
+ * @param rb_index
  * @param ch
  * @return int 成功返回ch,失败返回EOF
  */
@@ -146,7 +147,7 @@ int fc_port_putc(fc_port_t *port, size_t rb_index, int ch)
     if (EOF == ch)
     {
         (void)ret;  // 防止未使用警告
-        FC_PORT_LOSE_HOOK(port, (void *)&ret, 1);
+        FC_PORT_LOSE_HOOK(port, rb_index, (void *)&ret, 1);
     }
 
     return ch;
@@ -156,6 +157,7 @@ int fc_port_putc(fc_port_t *port, size_t rb_index, int ch)
  * @brief
  *
  * @param port
+ * @param rb_index
  * @param str
  * @return int
  */
@@ -174,7 +176,7 @@ int fc_port_puts(fc_port_t *port, size_t rb_index, const char *str)
 
     if (write_size < len)
     {
-        FC_PORT_LOSE_HOOK(port, (void *)str, len);
+        FC_PORT_LOSE_HOOK(port, rb_index, (void *)str, len);
     }
 
     return (int)write_size;
@@ -184,6 +186,7 @@ int fc_port_puts(fc_port_t *port, size_t rb_index, const char *str)
  * @brief
  *
  * @param port
+ * @param rb_index
  * @param buf
  * @param len
  * @return int
@@ -203,7 +206,7 @@ int fc_port_write(fc_port_t *port, size_t rb_index, const void *buf, size_t len)
 
     if (write_size < len)
     {
-        FC_PORT_LOSE_HOOK(port, (void *)buf, len);
+        FC_PORT_LOSE_HOOK(port, rb_index, (void *)buf, len);
     }
 
     return write_size;
@@ -213,6 +216,7 @@ int fc_port_write(fc_port_t *port, size_t rb_index, const void *buf, size_t len)
  * @brief
  *
  * @param port
+ * @param rb_index
  * @param fmt
  * @param ...
  * @return int
@@ -237,6 +241,7 @@ int fc_port_printf(fc_port_t *port, size_t rb_index, const char *fmt, ...)
  * @brief
  *
  * @param port
+ * @param rb_index
  * @return int
  */
 int fc_port_getc(fc_port_t *port, size_t rb_index)
@@ -257,6 +262,7 @@ int fc_port_getc(fc_port_t *port, size_t rb_index)
  * @brief
  *
  * @param port
+ * @param rb_index
  * @param buf
  * @param n
  * @return char*
@@ -293,6 +299,7 @@ char *fc_port_gets(fc_port_t *port, size_t rb_index, char *buf, size_t n)
  * @brief 从port中读取数据到buf中,并删除数据
  *
  * @param port
+ * @param rb_index
  * @param buf
  * @param len
  * @return int
@@ -312,6 +319,7 @@ int fc_port_read(fc_port_t *port, size_t rb_index, void *buf, size_t len)
  * @brief 从port中读取数据到buf中,但不删除数据
  *
  * @param port
+ * @param rb_index
  * @param buf
  * @param len
  * @return int
@@ -332,6 +340,7 @@ int fc_port_peek(fc_port_t *port, size_t rb_index, void *buf, size_t len)
  * @brief
  *
  * @param port
+ * @param rb_index
  */
 void fc_port_trigger(fc_port_t *port, size_t rb_index)
 {
@@ -391,6 +400,7 @@ void fc_port_trigger(fc_port_t *port, size_t rb_index)
  * @brief
  *
  * @param port
+ * @param rb_index
  * @param size
  */
 void fc_port_end(fc_port_t *port, size_t rb_index, int size)
@@ -433,6 +443,7 @@ void fc_port_end(fc_port_t *port, size_t rb_index, int size)
  * @brief
  *
  * @param port
+ * @param rb_index
  * @return int
  */
 int fc_port_available(fc_port_t *port, size_t rb_index)
@@ -456,6 +467,7 @@ int fc_port_available(fc_port_t *port, size_t rb_index)
  * @brief
  *
  * @param port
+ * @param rb_index
  * @return int
  */
 int fc_port_free(fc_port_t *port, size_t rb_index)
@@ -475,6 +487,14 @@ int fc_port_free(fc_port_t *port, size_t rb_index)
     }
 }
 
+/**
+ * @brief
+ *
+ * @param fifo
+ * @param fmt
+ * @param ...
+ * @return int
+ */
 int fc_fifo_printf(fc_fifo_t *fifo, const char *fmt, ...)
 {
     fc_stdio_assert(fifo != NULL);
@@ -554,10 +574,9 @@ extern "C"
 #endif
 
     /**
-     * @brief 默认log对象的write函数,写入到fc_stdout
+     * @brief 默认log对象的write函数,写入到fc_stdout的0号队列
      *
-     * @param log
-     * @param buff
+     * @param buf
      * @param len
      * @return int
      */

@@ -41,6 +41,15 @@ void fc_log_set_level(fc_log_t *log, fc_log_level_t level)
     log->level = level;
 }
 
+/**
+ * @brief
+ *
+ * @param log
+ * @param level
+ * @param advice_size
+ * @param fmt
+ * @param ...
+ */
 void fc_log_printf(fc_log_t *log, fc_log_level_t level, int advice_size, const char *fmt, ...)
 {
     fc_log_assert(log != NULL);
@@ -97,6 +106,14 @@ void fc_log_printf_stack(fc_log_t *log, fc_log_level_t level, char *stack_buf, i
     }
 }
 
+/**
+ * @brief
+ *
+ * @param log
+ * @param level
+ * @param buff
+ * @param len
+ */
 void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len)
 {
     fc_log_assert(log != NULL);

@@ -1,5 +1,5 @@
 /**
- * @file fc_transport.c
+ * @file fc_trans.c
  * @author fool_cat (2696652257@qq.com)
  * @brief 默认"\033[?;" "<num>" "m"作为分页信息,长度定为10个字符其能支持的端口号范围为4位数字(0 ~ 9999)
  * @version 1.0
@@ -26,8 +26,9 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "fc_transport.h"
+#include "fc_trans.h"
 #include "fc_helper.h"
+#include "fc_port.h"
 
 // 运行时断言
 #ifndef fc_stdio_assert
@@ -54,7 +55,14 @@
     #define EOF (-1)
 #endif
 
-// 判断字符数组是否全为数字
+/**
+ * @brief 判断字符数组是否全为数字
+ *
+ * @param arr
+ * @param length
+ * @return true
+ * @return false
+ */
 static bool is_all_digits(const char *arr, int length)
 {
     if (length <= 0)
@@ -78,16 +86,16 @@ static bool is_all_digits(const char *arr, int length)
  * @brief 初始化接收器
  *
  * @param receiver  接收器对象
- * @param port      一般建议是输入方向的port,不做强制
+ * @param fifo      一般建议是输入方向的fifo,不做强制
  */
-void fc_receiver_init(fc_receiver_t *receiver, fc_port_t *port)
+void fc_receiver_init(fc_receiver_t *receiver, fc_fifo_t *fifo)
 {
     fc_stdio_assert(NULL != receiver);
-    fc_stdio_assert(NULL != port);
+    fc_stdio_assert(NULL != fifo);
 
     memset(receiver, 0, sizeof(fc_receiver_t));
-    receiver->port = port;
-    receiver->index = 0;  // 默认窗口0
+    receiver->fifo = fifo;
+    receiver->index = 0;  // 默认窗口(页)0
 }
 
 /**
@@ -113,10 +121,10 @@ void fc_receiver_catch(fc_receiver_t *receiver, fc_receiver_out_t out, fc_receiv
  */
 void fc_receiver_monitor(fc_receiver_t *receiver)
 {
-    fc_stdio_assert(NULL != receiver->port);
+    fc_stdio_assert(NULL != receiver->fifo);
     fc_stdio_assert(NULL != receiver->out);  // 先绑定了分发函数才能调用
 
-    fc_fifo_t *rb = receiver->port->rb[0];  // 环形缓冲区
+    fc_fifo_t *rb = receiver->fifo;  // 环形缓冲区
     size_t     len_total = fc_fifo_get_used(rb);
     if (len_total <= 0)
     {
@@ -223,18 +231,19 @@ void fc_receiver_monitor(fc_receiver_t *receiver)
  * @brief 初始化发送器
  *
  * @param sender
- * @param port // 一般建议是输出方向的port,不做强制
+ * @param fifo // 一般建议是输出方向的fifo,不做强制
  */
-void fc_sender_init(fc_sender_t *sender, fc_port_t *port)
+void fc_sender_init(fc_sender_t *sender, fc_fifo_t *fifo)
 {
     fc_stdio_assert(NULL != sender);
-    fc_stdio_assert(NULL != port);
+    fc_stdio_assert(NULL != fifo);
 
+    const char *default_division = FC_DIVISION_DEFAULT;
     memset(sender, 0, sizeof(fc_sender_t));
-    sender->port = port;
+    sender->fifo = fifo;
     sender->index = 0;  // 默认窗口0
 
-    fc_port_write(sender->port, 0, FC_DIVISION_DEFAULT, sizeof(FC_DIVISION_DEFAULT) - 1);  // 写入默认窗口
+    fc_fifo_write(sender->fifo, (void *)default_division, sizeof(FC_DIVISION_DEFAULT) - 1);  // 写入默认窗口
 }
 
 /**
@@ -248,12 +257,11 @@ void fc_sender_init(fc_sender_t *sender, fc_port_t *port)
 bool fc_sender_switch(fc_sender_t *sender, size_t index)
 {
     fc_stdio_assert(NULL != sender);
-    fc_stdio_assert(NULL != sender->port);
+    fc_stdio_assert(NULL != sender->fifo);
     fc_stdio_assert(index <= FC_DIVISION_NUM_MAX);  // 确保索引在范围内
 
     if (sender->index != index)
     {
-        sender->index = index;
         size_t num = index;
         char   buff[FC_DIVISION_MAX_BUF_LEN] = {0};
         int    pos = FC_DIVISION_POSITION;
@@ -311,7 +319,20 @@ bool fc_sender_switch(fc_sender_t *sender, size_t index)
             buff[pos++] = FC_DIVISION_TAIL[i];
         }
 
-        return (fc_port_write(sender->port, 0, buff, pos) == pos);
+        if (fc_fifo_get_free(sender->fifo) < (size_t)pos)
+        {
+            return false;  // 不够写入完整的分页信息
+        }
+
+        if (pos == fc_fifo_write(sender->fifo, buff, pos))
+        {
+            sender->index = index;  // 成功切换窗口(页)
+        }
+        else
+        {
+            fc_stdio_assert(false);
+            return false;  // 分页信息写入失败,理论上这里不可能进入
+        }
     }
 
     return true;
@@ -327,12 +348,14 @@ bool fc_sender_switch(fc_sender_t *sender, size_t index)
  */
 int fc_sender_putc(fc_sender_t *sender, size_t index, int ch)
 {
-    int ret = EOF;
     if (fc_sender_switch(sender, index))
     {
-        ret = fc_port_putc(sender->port, 0, ch);
+        if (fc_fifo_write_byte(sender->fifo, (uint8_t)ch))
+        {
+            return ch;  // 成功返回写入的字符
+        }
     }
-    return ret;
+    return EOF;  // 返回失败
 }
 
 /**
@@ -345,12 +368,16 @@ int fc_sender_putc(fc_sender_t *sender, size_t index, int ch)
  */
 int fc_sender_puts(fc_sender_t *sender, size_t index, const char *str)
 {
-    int ret = EOF;
+    size_t len = strlen(str);
     if (fc_sender_switch(sender, index))
     {
-        ret = fc_port_puts(sender->port, 0, str);
+        if (fc_fifo_get_free(sender->fifo) >= len)
+        {
+            len = fc_fifo_write(sender->fifo, (void *)str, len);
+            return (int)len;
+        }
     }
-    return ret;
+    return EOF;
 }
 
 /**
@@ -364,12 +391,15 @@ int fc_sender_puts(fc_sender_t *sender, size_t index, const char *str)
  */
 int fc_sender_write(fc_sender_t *sender, size_t index, const void *buf, size_t len)
 {
-    int write_size = EOF;
     if (fc_sender_switch(sender, index))
     {
-        write_size = fc_port_write(sender->port, 0, buf, len);
+        if (fc_fifo_get_free(sender->fifo) >= len)
+        {
+            len = fc_fifo_write(sender->fifo, (void *)buf, len);
+            return (int)len;
+        }
     }
-    return write_size;
+    return EOF;
 }
 
 /**
@@ -388,8 +418,27 @@ int fc_sender_printf(fc_sender_t *sender, size_t index, const char *fmt, ...)
     {
         va_list arp;
         va_start(arp, fmt);
-        ret = fc_port_vprintf(sender->port, 0, fmt, arp);
+        ret = fc_fifo_vprintf(sender->fifo, fmt, arp);
         va_end(arp);
+    }
+    return ret;
+}
+
+/**
+ * @brief
+ *
+ * @param sender
+ * @param index
+ * @param fmt
+ * @param arp
+ * @return int
+ */
+int fc_sender_vprintf(fc_sender_t *sender, size_t index, const char *fmt, va_list arp)
+{
+    int ret = EOF;
+    if (fc_sender_switch(sender, index))
+    {
+        ret = fc_fifo_vprintf(sender->fifo, fmt, arp);
     }
     return ret;
 }
@@ -399,7 +448,7 @@ int fc_sender_printf(fc_sender_t *sender, size_t index, const char *fmt, ...)
 fc_receiver_t fc_receiver;  // 接收器对象
 fc_sender_t   fc_sender;    // 发送器对象
 
-//+********************************* log组件提供一份对接到transport的写API **********************************/
+//+********************************* 提供一份对接log组件的写API **********************************/
 
 // > C/C++兼容性宏定义
 #ifdef __cplusplus
@@ -408,13 +457,13 @@ extern "C"
 #endif
 
     /**
-     * @brief 默认log对象的write函数,写入到fc_transport的0端口
+     * @brief 默认log对象的write函数,写入到fc_trans的0端口
      *
      * @param buf
      * @param len
      * @return int
      */
-    int log_write_transport(const char *buf, int len)
+    int log_write_trans(const char *buf, int len)
     {
         return fc_sender_write(&fc_sender, 0, buf, len);
     }
@@ -426,10 +475,10 @@ extern "C"
 //+********************************* 自动注册初始化 **********************************/
 #include "fc_auto_init.h"
 #if USE_FC_AUTO_INIT
-static void _fc_transport_auto_init(void)
+static void _fc_trans_auto_init(void)
 {
-    fc_receiver_init(&fc_receiver, &fc_stdin);  // 初始化接收器
-    fc_sender_init(&fc_sender, &fc_stdout);     // 初始化发送器
+    fc_receiver_init(&fc_receiver, fc_stdin.rb[0]);  // 初始化接收器
+    fc_sender_init(&fc_sender, fc_stdout.rb[0]);     // 初始化发送器
 }
-INIT_EXPORT_ENV(_fc_transport_auto_init, 110);  // 等级比默认的1000优先级更高,但是低于fc_stdio_init,纯数据结构无外部依赖
+INIT_EXPORT_ENV(_fc_trans_auto_init, 110);  // 等级比默认的1000优先级更高,但是低于fc_stdio_init,纯数据结构无外部依赖
 #endif
