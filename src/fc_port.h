@@ -9,10 +9,9 @@
  *
  */
 
-// clang-format off
-
-#ifndef __FC_STDIO_H__
-#define __FC_STDIO_H__
+// > 单次包含宏定义
+#ifndef _FC_PORT_H_
+#define _FC_PORT_H_
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -20,8 +19,6 @@
 #include <stdint.h>
 
 #include "fc_fifo.h"
-
-// clang-format on
 
 #ifdef __cplusplus
 extern "C"
@@ -91,6 +88,8 @@ extern "C"
     extern int fc_fifo_vprintf(fc_fifo_t *fifo, const char *fmt, va_list arp);  // fc_fifo_printf核心实现,在fc_port_vprintf.c中实现
 
     //+********************************* 默认实例化对象 **********************************/
+    // 初始化标准输入输出
+    extern void fc_stdio_init(void);
 
     // 声明输入输出对象
     extern fc_port_t fc_stdin;
@@ -98,8 +97,21 @@ extern "C"
 #define fc_stdin_phy_catch(func) (fc_stdin.phy = (fc_phy_io_t)func)
 #define fc_stdout_phy_catch(func) (fc_stdout.phy = (fc_phy_io_t)func)
 
-    // 初始化标准输入输出
-    extern void fc_stdio_init(void);
+#ifndef FC_STDOUT_OBJ
+    #define FC_STDOUT_OBJ (&fc_stdout)
+#endif
+
+#ifndef FC_STDOUT_RB_INDEX
+    #define FC_STDOUT_RB_INDEX (0)
+#endif
+
+#ifndef FC_STDIN_OBJ
+    #define FC_STDIN_OBJ (&fc_stdin)
+#endif
+
+#ifndef FC_STDIN_RB_INDEX
+    #define FC_STDIN_RB_INDEX (0)
+#endif
 
     // clang-format off
 
@@ -157,22 +169,4 @@ extern "C"
 }
 #endif
 
-#endif  // __FC_STDIO_H__
-
-//+********************************* 可重入宏 **********************************/
-
-#ifndef FC_STDOUT_OBJ
-#define FC_STDOUT_OBJ (&fc_stdout)
-#endif
-
-#ifndef FC_STDOUT_RB_INDEX
-#define FC_STDOUT_RB_INDEX (0)
-#endif
-
-#ifndef FC_STDIN_OBJ
-#define FC_STDIN_OBJ (&fc_stdin)
-#endif
-
-#ifndef FC_STDIN_RB_INDEX
-#define FC_STDIN_RB_INDEX (0)
-#endif
+#endif  //\ _FC_PORT_H_

@@ -10,8 +10,8 @@
  */
 
 // > 单次包含宏定义
-#ifndef _FC_STDIO_CONFIG_H_
-#define _FC_STDIO_CONFIG_H_
+#ifndef _FC_STDIO_H_
+#define _FC_STDIO_H_
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -69,4 +69,4 @@ extern "C"
 }
 #endif  //\ __cplusplus
 
-#endif  //\ _FC_STDIO_CONFIG_H_
+#endif  //\ _FC_STDIO_H_
