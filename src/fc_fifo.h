@@ -21,11 +21,11 @@ extern "C"
 #endif
 
 #include <stddef.h>
-
 #include <stdbool.h>
 #include <stdint.h>
 
 #include "fc_compiler.h"
+#include "fc_config.h"
 
 #ifndef fc_always_inline
     #define fc_always_inline static inline
@@ -36,19 +36,29 @@ extern "C"
     #define fc_fifo_assert(x) ((void)0)
 #endif  //\ fc_fifo_assert
 
-// 高优化等级的时候memcpy可能会出现内存对齐问题,所以这里提供一份单字节拷贝的版本可选
-#include <string.h>
-#define fc_fifo_memcpy(dst, src, size) memcpy(dst, src, size)
+#ifndef FC_USE_STD_MEMCPY
+    #define FC_USE_STD_MEMCPY 1 /**< 是否使用标准库的memcpy */
+#endif
 
-#ifndef fc_fifo_memcpy
-    #define fc_fifo_memcpy(dst, src, size)                   \
-        {                                                    \
-            for (size_t _i = 0; _i < size; _i++)             \
-            {                                                \
-                ((uint8_t *)dst)[_i] = ((uint8_t *)src)[_i]; \
-            }                                                \
-        }
-#endif  //\ fc_fifo_memcpy
+#if FC_USE_STD_MEMCPY
+
+    // 高优化等级的时候memcpy可能会出现内存对齐问题,所以这里提供一份单字节拷贝的版本可选
+    #include <string.h>
+    #define fc_fifo_memcpy(dst, src, size) memcpy(dst, src, size)
+
+#else
+
+    #ifndef fc_fifo_memcpy
+        #define fc_fifo_memcpy(dst, src, size)                   \
+            {                                                    \
+                for (size_t _i = 0; _i < size; _i++)             \
+                {                                                \
+                    ((uint8_t *)dst)[_i] = ((uint8_t *)src)[_i]; \
+                }                                                \
+            }
+    #endif  //\ fc_fifo_memcpy
+
+#endif  //\ FC_USE_STD_MEMCPY
 
     typedef struct _fc_fifo_t fc_fifo_t;
     struct _fc_fifo_t

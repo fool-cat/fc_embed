@@ -2,6 +2,7 @@
  * @file fc_trans.h
  * @author fool_cat (2696652257@qq.com)
  * @brief 提供一种简单的分页机制实现单个通道聚合传输解析,接收器和发送器需要配合使用
+ * 通常用于传输日志等"可视化"字符,不完全适合二进制数据,存在极小概率与分页机制冲突,碰撞
  * @version 1.0
  * @date 2025-04-05
  *
@@ -16,6 +17,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdarg.h>
+
+#include "fc_config.h"
 
 #include "fc_fifo.h"
 

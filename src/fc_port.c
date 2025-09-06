@@ -9,21 +9,6 @@
  *
  */
 
-// overlay的方式覆盖默认配置
-#ifdef FC_CONFIG_HEADER
-    #if defined(FC_USE_STRINGFY)
-        #define FC_HEADER_STRINGFY(x) #x
-        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
-        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
-    #elif defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
-        #define FC_HEADER_STRINGFY(x) #x
-        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
-        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
-    #else
-        #include FC_CONFIG_HEADER
-    #endif
-#endif
-
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -31,6 +16,8 @@
 
 #include "fc_compiler.h"
 #include "fc_helper.h"
+
+#include "fc_config.h"
 #include "fc_port.h"
 
 //+********************************* 宏配置项 **********************************/
@@ -45,8 +32,8 @@
 #endif
 
 // 运行时断言
-#ifndef fc_stdio_assert
-    #define fc_stdio_assert(x) ((void)(0))
+#ifndef fc_assert
+    #define fc_assert(x) ((void)(0))
 #endif
 
 #ifndef FIFO_TX_LOG2_SIZE
@@ -117,25 +104,10 @@ fc_weak size_t fc_port_lose_hook(fc_port_t *port, size_t rb_index, const void *b
     }
     else
     {
-        fc_stdio_assert(0);
+        fc_assert(0);
     }
 
     return lose;
-}
-
-/**
- * @brief port基础信息初始化
- *
- * @param port
- * @param id
- */
-void fc_port_init(fc_port_t *port, const char *id)
-{
-    fc_stdio_assert(port != NULL);
-
-    memset(port, 0, sizeof(fc_port_t));
-    port->rb_array_size = PORT_RB_NUM;
-    strncpy(port->id, id, sizeof(port->id) - 1);
 }
 
 //+********************************* 面向对象 **********************************/
@@ -149,8 +121,8 @@ void fc_port_init(fc_port_t *port, const char *id)
  */
 int fc_port_putc(fc_port_t *port, size_t rb_index, int ch)
 {
-    fc_stdio_assert(port != NULL);
-    fc_stdio_assert(port->rb[rb_index] != NULL);
+    fc_assert(port != NULL);
+    fc_assert(port->rb[rb_index] != NULL);
 
     fc_fifo_t *fifo = port->rb[rb_index];
     int        ret = ch;
@@ -178,8 +150,8 @@ int fc_port_putc(fc_port_t *port, size_t rb_index, int ch)
  */
 int fc_port_puts(fc_port_t *port, size_t rb_index, const char *str)
 {
-    fc_stdio_assert(port != NULL);
-    fc_stdio_assert(port->rb[rb_index] != NULL);
+    fc_assert(port != NULL);
+    fc_assert(port->rb[rb_index] != NULL);
 
     fc_fifo_t *fifo = port->rb[rb_index];
     size_t     len = strlen(str);
@@ -208,8 +180,8 @@ int fc_port_puts(fc_port_t *port, size_t rb_index, const char *str)
  */
 int fc_port_write(fc_port_t *port, size_t rb_index, const void *buf, size_t len)
 {
-    fc_stdio_assert(port != NULL);
-    fc_stdio_assert(port->rb[rb_index] != NULL);
+    fc_assert(port != NULL);
+    fc_assert(port->rb[rb_index] != NULL);
 
     fc_fifo_t *fifo = port->rb[rb_index];
     int        write_size = EOF;
@@ -238,8 +210,8 @@ int fc_port_write(fc_port_t *port, size_t rb_index, const void *buf, size_t len)
  */
 int fc_port_printf(fc_port_t *port, size_t rb_index, const char *fmt, ...)
 {
-    fc_stdio_assert(port != NULL);
-    fc_stdio_assert(port->rb[rb_index] != NULL);
+    fc_assert(port != NULL);
+    fc_assert(port->rb[rb_index] != NULL);
 
     fc_fifo_t *fifo = port->rb[rb_index];
     int        ret = EOF;
@@ -261,8 +233,8 @@ int fc_port_printf(fc_port_t *port, size_t rb_index, const char *fmt, ...)
  */
 int fc_port_getc(fc_port_t *port, size_t rb_index)
 {
-    fc_stdio_assert(port != NULL);
-    fc_stdio_assert(port->rb[rb_index] != NULL);
+    fc_assert(port != NULL);
+    fc_assert(port->rb[rb_index] != NULL);
 
     fc_fifo_t *fifo = port->rb[rb_index];
     int        ch;
@@ -284,7 +256,7 @@ int fc_port_getc(fc_port_t *port, size_t rb_index)
  */
 char *fc_port_gets(fc_port_t *port, size_t rb_index, char *buf, size_t n)
 {
-    fc_stdio_assert(port != NULL);
+    fc_assert(port != NULL);
 
     int c;
     int i = 0;
@@ -321,8 +293,8 @@ char *fc_port_gets(fc_port_t *port, size_t rb_index, char *buf, size_t n)
  */
 int fc_port_read(fc_port_t *port, size_t rb_index, void *buf, size_t len)
 {
-    fc_stdio_assert(port != NULL);
-    fc_stdio_assert(port->rb[rb_index] != NULL);
+    fc_assert(port != NULL);
+    fc_assert(port->rb[rb_index] != NULL);
 
     fc_fifo_t *fifo = port->rb[rb_index];
     int        read_size = 0;
@@ -341,8 +313,8 @@ int fc_port_read(fc_port_t *port, size_t rb_index, void *buf, size_t len)
  */
 int fc_port_peek(fc_port_t *port, size_t rb_index, void *buf, size_t len)
 {
-    fc_stdio_assert(port != NULL);
-    fc_stdio_assert(port->rb[rb_index] != NULL);
+    fc_assert(port != NULL);
+    fc_assert(port->rb[rb_index] != NULL);
 
     fc_fifo_t *fifo = port->rb[rb_index];
     int        read_size = 0;
@@ -359,15 +331,15 @@ int fc_port_peek(fc_port_t *port, size_t rb_index, void *buf, size_t len)
  */
 void fc_port_trigger(fc_port_t *port, size_t rb_index)
 {
-    fc_stdio_assert(port != NULL);
-    fc_stdio_assert(port->rb != NULL);
+    fc_assert(port != NULL);
+    fc_assert(port->rb != NULL);
 
     bool       busy;
     size_t     size;
     void      *buf;
     fc_fifo_t *fifo = port->rb[rb_index];
 
-    if (port->dir == FC_PORT_DIR_OUT)
+    if ((uint8_t)FC_PORT_DIR_OUT == port->dir)
     {
         busy = fc_fifo_linear_read_busy(fifo);
 
@@ -375,7 +347,7 @@ void fc_port_trigger(fc_port_t *port, size_t rb_index)
         {
             if (port->single_max_shift)
             {
-                fc_stdio_assert(fc_fifo_get_size(fifo) > (1 << port->single_max_shift));
+                fc_assert(fc_fifo_get_size(fifo) > (1 << port->single_max_shift));
                 buf = fc_fifo_linear_read_setup_limit(fifo, &size, port->single_max_shift);
             }
             else
@@ -392,7 +364,7 @@ void fc_port_trigger(fc_port_t *port, size_t rb_index)
         {
             if (port->single_max_shift)
             {
-                fc_stdio_assert(fc_fifo_get_size(fifo) > (1 << port->single_max_shift));
+                fc_assert(fc_fifo_get_size(fifo) > (1 << port->single_max_shift));
                 buf = fc_fifo_linear_write_setup_limit(fifo, &size, port->single_max_shift);
             }
             else
@@ -407,7 +379,7 @@ void fc_port_trigger(fc_port_t *port, size_t rb_index)
         return;
     }
 
-    fc_stdio_assert(port->phy != NULL);
+    fc_assert(port->phy != NULL);
     port->phy(rb_index, buf, size);
 }
 
@@ -420,14 +392,14 @@ void fc_port_trigger(fc_port_t *port, size_t rb_index)
  */
 void fc_port_end(fc_port_t *port, size_t rb_index, int size)
 {
-    fc_stdio_assert(port != NULL);
-    fc_stdio_assert(port->rb != NULL);
+    fc_assert(port != NULL);
+    fc_assert(port->rb != NULL);
 
     fc_fifo_t *fifo = port->rb[rb_index];
 
     if (size < 0)
     {
-        if (port->dir == FC_PORT_DIR_OUT)
+        if ((uint8_t)FC_PORT_DIR_OUT == port->dir)
         {
             fc_fifo_linear_read_done(fifo, fc_fifo_linear_read_get_size(fifo));
         }
@@ -438,7 +410,7 @@ void fc_port_end(fc_port_t *port, size_t rb_index, int size)
     }
     else
     {
-        if (port->dir == FC_PORT_DIR_OUT)
+        if ((uint8_t)FC_PORT_DIR_OUT == port->dir)
         {
             fc_fifo_linear_read_done(fifo, size);
         }
@@ -463,8 +435,8 @@ void fc_port_end(fc_port_t *port, size_t rb_index, int size)
  */
 int fc_port_available(fc_port_t *port, size_t rb_index)
 {
-    fc_stdio_assert(port != NULL);
-    fc_stdio_assert(port->rb != NULL);
+    fc_assert(port != NULL);
+    fc_assert(port->rb != NULL);
 
     fc_fifo_t *fifo = port->rb[rb_index];
 
@@ -480,8 +452,8 @@ int fc_port_available(fc_port_t *port, size_t rb_index)
  */
 int fc_port_free(fc_port_t *port, size_t rb_index)
 {
-    fc_stdio_assert(port != NULL);
-    fc_stdio_assert(port->rb != NULL);
+    fc_assert(port != NULL);
+    fc_assert(port->rb != NULL);
 
     fc_fifo_t *fifo = port->rb[rb_index];
 
@@ -498,8 +470,8 @@ int fc_port_free(fc_port_t *port, size_t rb_index)
  */
 int fc_fifo_printf(fc_fifo_t *fifo, const char *fmt, ...)
 {
-    fc_stdio_assert(fifo != NULL);
-    fc_stdio_assert(fmt != NULL);
+    fc_assert(fifo != NULL);
+    fc_assert(fmt != NULL);
 
     int ret = EOF;
 
@@ -515,6 +487,8 @@ int fc_fifo_printf(fc_fifo_t *fifo, const char *fmt, ...)
 
 fc_port_t fc_stdin = {0};  // 对象创建
 fc_port_t fc_stdout = {0};
+
+static fc_port_rtt_t fc_port_rtt = {0};
 
 /**
  * @brief
@@ -540,12 +514,9 @@ void fc_default_port_init(void)
 #endif
 
     {
-        const char *str = "FC OUT RTT";  // "FC OUT RTT",使用空格不会跟函数命名等冲突比较安全
-        fc_port_init(&fc_stdout, str);
-
         fc_stdout.single_max_shift = STDOUT_TX_SINGLE_MAX_SHIFT;
-        fc_stdout.dir = FC_PORT_DIR_OUT;
-        fc_stdout.trigger_serial = PHY_SERIAL_TX_ENABLE ? true : false;
+        fc_stdout.dir = (uint8_t)FC_PORT_DIR_OUT;
+        fc_stdout.trigger_serial = PHY_SERIAL_TX_ENABLE ? 1 : 0;
 
         // 初始化环形队列,静态内存构造,默认端口只给一个环形缓冲区分配内存
         // fc_fifo_static_new_at(fc_stdout.rb[0], FIFO_TX_LOG2_SIZE);
@@ -553,16 +524,25 @@ void fc_default_port_init(void)
     }
 
     {
-        const char *str = "FC IN RTT";  // "FC IN RTT"
-        fc_port_init(&fc_stdin, str);
-
         fc_stdin.single_max_shift = STDIN_RX_SINGLE_MAX_SHIFT;
-        fc_stdin.dir = FC_PORT_DIR_IN;
-        fc_stdin.trigger_serial = PHY_SERIAL_RX_ENABLE ? true : false;
+        fc_stdin.dir = (uint8_t)FC_PORT_DIR_IN;
+        fc_stdin.trigger_serial = PHY_SERIAL_RX_ENABLE ? 1 : 0;
 
         // 初始化环形队列,静态内存构造,默认端口只给一个环形缓冲区分配内存
         // fc_fifo_static_new_at(fc_stdin.rb[0], FIFO_RX_LOG2_SIZE);
         fc_port_static_alloc_rb(&fc_stdin, 0, FIFO_RX_LOG2_SIZE, "fc_stdin_rb0");
+    }
+
+    {
+        static const char mark_str[] = "\0\0\0\0KRAM TTR CF";  // "FC RTT MARK"内存标记点
+        // static_assert(sizeof(mark_str) !=sizeof(fc_port_rtt.id), "mark_str size must equal fc_port_rtt.id size");
+        for (size_t i = 0; i < sizeof(fc_port_rtt.id); i++)
+        {
+            fc_port_rtt.id[i] = mark_str[i];
+        }
+        fc_port_rtt.rb_array_size = PORT_RB_NUM;
+        fc_port_rtt.port_in = &fc_stdin;
+        fc_port_rtt.port_out = &fc_stdout;
     }
 }
 
@@ -581,7 +561,7 @@ extern "C"
      * @param len
      * @return int
      */
-    int log_write_stdout(const char *buf, int len)
+    fc_weak int log_write_stdout(const char *buf, int len)
     {
         return fc_port_write(&fc_stdout, 0, buf, len);
     }
@@ -597,5 +577,6 @@ static void _fc_port_auto_init(void)
 {
     fc_default_port_init();  // 纯内存结构初始化,可以放在constructor的时候就初始化
 }
-INIT_EXPORT_ENV(_fc_port_auto_init, 100);  // 等级比默认的1000优先级更高,纯数据结构无外部依赖
+// 等级比默认的1000优先级更高,纯数据结构无外部依赖
+INIT_EXPORT_ENV(_fc_port_auto_init, FC_PORT_INIT_ORDER);
 #endif

@@ -24,11 +24,23 @@ extern "C"
 
 #include "fc_compiler.h"
 #include "fc_helper.h"
+#include "fc_config.h"
 
-// fc_section_init_env 是否自动调用
+// 默认几个ENV层注册的顺序
+#define FC_PORT_INIT_ORDER 100
+#define FC_TRANS_INIT_ORDER 110
+#define FC_LOG_INIT_ORDER 120
+
+// fc_section_init_env 注册自动运行段同时自动在main之前运行一遍
 #ifndef USE_FC_AUTO_INIT
     #define USE_FC_AUTO_INIT 1
 #endif
+
+/* stringfy */
+#undef __FC_STRINGFY
+#undef FC_STRINGFY
+#define __FC_STRINGFY(x) #x
+#define FC_STRINGFY(x) __FC_STRINGFY(x)
 
 #if defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
     #define SECTION_EXTERN(section_name)                   \
@@ -96,7 +108,7 @@ extern "C"
         size_t              order;  // 优先级
     } fc_auto_init_elem_t;
 
-    // 参考上面ELEM_EXPORT宏的写法
+// 参考上面ELEM_EXPORT宏的写法
 #define FC_INIT_EXPORT(section_name, func, order) \
     static const fc_auto_init_elem_t fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = {&func, order}
 
@@ -115,11 +127,11 @@ extern "C"
 
 #define _INIT_EXPORT_APP_1(func)            INIT_EXPORT_3(3, func, 1000)
 #define _INIT_EXPORT_APP_2(func, order)     INIT_EXPORT_3(3, func, order)
-    // clang-format on
+// clang-format on
 
-    //+********************************* 自定义的四个初始段 **********************************/
+//+********************************* 自定义的四个初始段 **********************************/
 
-    // 这个宏用于声明一个段的起始和结束地址,用于遍历段中的元素
+// 这个宏用于声明一个段的起始和结束地址,用于遍历段中的元素
 #define FC_EXTERN(section_name) SECTION_EXTERN(section_name)
 
     /**

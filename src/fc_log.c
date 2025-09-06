@@ -12,8 +12,8 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "fc_config.h"
 #include "fc_log.h"
-
 #include "fc_port.h"
 
 #ifndef USE_FC_VSNPRINTF
@@ -28,15 +28,37 @@
     #define LOG_VSNPRINTF vsnprintf
 #endif  //\ LOG_USE_VSNPRINTF
 
-#ifndef fc_log_assert
-    #define fc_log_assert(x) ((void)(0))
-#endif  //\ fc_log_assert
+#ifndef fc_assert
+    #define fc_assert(x) ((void)(0))
+#endif  //\ fc_assert
 
 //+*********************************  **********************************/
+/**
+ * @brief 绑定日志组件的写函数和内存池分配函数
+ *
+ * @param log
+ * @param write
+ * @param alloc
+ */
+void fc_log_catch(fc_log_t *log, fc_log_write_t write, fc_log_alloc_t alloc)
+{
+    fc_assert(log != NULL);
+    fc_assert(write != NULL);
+    fc_assert(alloc != NULL);
 
+    log->write = write;
+    log->alloc = alloc;
+}
+
+/**
+ * @brief 设置日志等级
+ *
+ * @param log
+ * @param level
+ */
 void fc_log_set_level(fc_log_t *log, fc_log_level_t level)
 {
-    fc_log_assert(log != NULL);
+    fc_assert(log != NULL);
 
     log->level = level;
 }
@@ -52,14 +74,18 @@ void fc_log_set_level(fc_log_t *log, fc_log_level_t level)
  */
 void fc_log_printf(fc_log_t *log, fc_log_level_t level, int advice_size, const char *fmt, ...)
 {
-    fc_log_assert(log != NULL);
-    // fc_log_assert(log->alloc != NULL);
+    fc_assert(log != NULL);
+    fc_assert(log->alloc != NULL);
 
     if (log->level >= level)
     {
         int           len = 0;
         fc_log_pool_t pool = {0};
         log->alloc(FC_LOG_ALLOC_NEW, &pool, advice_size);  // 分配内存池
+        if (NULL == pool.buff)
+        {
+            return;  // 这里丢失由内存池分配函数alloc处理
+        }
 
         {
             va_list vargs;
@@ -86,9 +112,9 @@ void fc_log_printf(fc_log_t *log, fc_log_level_t level, int advice_size, const c
  */
 void fc_log_printf_stack(fc_log_t *log, fc_log_level_t level, char *stack_buf, int stack_size, const char *fmt, ...)
 {
-    fc_log_assert(log != NULL);
-    fc_log_assert(stack_buf != NULL);
-    fc_log_assert(stack_size > 0);
+    fc_assert(log != NULL);
+    fc_assert(stack_buf != NULL);
+    fc_assert(stack_size > 0);
 
     if (log->level >= level)
     {
@@ -106,6 +132,8 @@ void fc_log_printf_stack(fc_log_t *log, fc_log_level_t level, char *stack_buf, i
     }
 }
 
+#if 0
+// 废弃
 /**
  * @brief
  *
@@ -116,7 +144,7 @@ void fc_log_printf_stack(fc_log_t *log, fc_log_level_t level, char *stack_buf, i
  */
 void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len)
 {
-    fc_log_assert(log != NULL);
+    fc_assert(log != NULL);
 
     if (log->level >= level)
     {
@@ -124,6 +152,25 @@ void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len
 
         FC_LOG_LOSE_HOOK(0 == len, log, buff, len);
     }
+}
+#endif
+
+//+********************************* 默认自带的写函数 **********************************/
+
+/**
+ * @brief
+ *
+ * @param buf
+ * @param len
+ * @return int
+ */
+fc_weak int log_write_default(const char *buf, int len)
+{
+    // 提供两个默认的write函数,一个是输出到fc_stdout的0号缓冲区,一个是输出到fc_trans的0号虚拟页
+    extern int log_write_stdout(const char *buf, int len);  // 放在fc_port.c中实现,提供一份弱实现
+    extern int log_write_trans(const char *buf, int len);   // 放在fc_trans.c中实现,提供一份弱实现
+
+    return log_write_stdout(buf, len);
 }
 
 //+********************************* 默认自带的内存池分配函数 **********************************/
@@ -141,7 +188,7 @@ fc_weak int log_alloc_default(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, i
     (void)alloc_type;
     (void)advice_size;
 
-    fc_log_assert(pool != NULL);
+    fc_assert(pool != NULL);
 
     static char __buff[FC_LOG_LINE_SIZE] = {0};  // 默认内存池大小
 
@@ -178,7 +225,7 @@ fc_weak int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len)
     }
     else
     {
-        fc_log_assert(log != NULL);
+        fc_assert(log != NULL);
     }
 
     return count;
@@ -187,4 +234,4 @@ fc_weak int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len)
 //+********************************* 提供一份默认log对象 **********************************/
 
 // 默认实例化对象
-FC_LOG_IMPL(default_log);
+FC_LOG_IMPL(default_log, FC_LOG_ALL, log_write_default, log_alloc_default);

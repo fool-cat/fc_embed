@@ -18,6 +18,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "fc_config.h"
 #include "fc_fifo.h"
 
 #ifdef __cplusplus
@@ -42,17 +43,24 @@ extern "C"
     typedef struct _fc_port_t fc_port_t;
     struct _fc_port_t
     {
-        char        id[16];                // 端口ID,用于调试输出
-        size_t      rb_array_size;         // rb指针数组的大小,恒等于PORT_RB_NUM
         fc_fifo_t  *rb[PORT_RB_NUM];       // 环形缓冲
         const char *rb_name[PORT_RB_NUM];  // 每个rb缓冲区的名字
         fc_phy_io_t phy;                   // 物理IO接口
 
         // void *user;  // 自定义数据
 
-        fc_port_dir_t dir;               // 方向
-        uint8_t       single_max_shift;  // 单次读写限制(针对慢速IO而言),限制大小为缓冲区空间的1/(2^n)
-        bool          trigger_serial;    // 连续触发
+        uint8_t dir;               // 方向,用uint8_t而不是枚举(fc_port_dir_t)是为了明确空间大小
+        uint8_t single_max_shift;  // 单次读写限制(针对慢速IO而言),限制大小为缓冲区空间的1/(2^n)
+        uint8_t trigger_serial;    // 连续触发
+    };
+
+    typedef struct _fc_port_rtt_t fc_port_rtt_t;
+    struct _fc_port_rtt_t
+    {
+        char       id[16];         // 端口ID,用于RTT定位
+        size_t     rb_array_size;  // rb指针数组的大小,恒等于PORT_RB_NUM
+        fc_port_t *port_in;        // 输入端口
+        fc_port_t *port_out;       // 输出端口
     };
 
     // 默认提供的写端口丢失钩子函数,提供默认弱实现可以在外面重写
@@ -61,7 +69,10 @@ extern "C"
     //+********************************* 面向对象 **********************************/
     // clang-format off
 
-    extern void fc_port_init(fc_port_t *port, const char *id);  // port基础信息初始化,id字符串长度必须小于16字节
+    // 给环形缓冲区指针分配静态内存
+#define fc_port_static_alloc_rb(port, rb_index, log2_size, name) \
+    fc_fifo_static_new_at((port)->rb[rb_index], log2_size);      \
+    (port)->rb_name[rb_index] = name
 
     extern int fc_port_putc   (fc_port_t *port, size_t rb_index, int ch);
     extern int fc_port_puts   (fc_port_t *port, size_t rb_index, const char *str);
@@ -81,11 +92,6 @@ extern "C"
     extern void fc_port_end      (fc_port_t *port, size_t rb_index, int size);  // 慢速IO完成回调
 
     // clang-format on
-
-    // 给环形缓冲区指针分配静态内存
-#define fc_port_static_alloc_rb(port, rb_index, log2_size, name) \
-    fc_fifo_static_new_at((port)->rb[rb_index], log2_size);      \
-    (port)->rb_name[rb_index] = name
 
     //+********************************* 提供一份格式化输出到fifo的API **********************************/
 
@@ -121,11 +127,12 @@ extern "C"
     // clang-format off
 
     // 输出到fc_stdout
-    #define fc_putchar(ch)      fc_port_putc  (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, ch)
-    #define fc_putc(ch)         fc_port_putc  (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, ch)
-    #define fc_puts(str)        fc_port_puts  (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, str)
-    #define fc_write(buf, len)  fc_port_write (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, buf, len)  // 要么全部写入,要么返回0
-    #define fc_printf(fmt, ...) fc_port_printf(FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, fmt, ##__VA_ARGS__)
+    #define fc_putchar(ch)       fc_port_putc   (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, ch)
+    #define fc_putc(ch)          fc_port_putc   (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, ch)
+    #define fc_puts(str)         fc_port_puts   (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, str)
+    #define fc_write(buf, len)   fc_port_write  (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, buf, len)  // 要么全部写入,要么返回0
+    #define fc_printf(fmt, ...)  fc_port_printf (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, fmt, ##__VA_ARGS__)
+    #define fc_vprintf(fmt, arp) fc_port_vprintf(FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, fmt, arp)
 
     #define fc_out_trigger()    fc_port_trigger  (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX)          // 触发发送
     #define fc_out_end(size)    fc_port_end      (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, size)    // 发送完成处理

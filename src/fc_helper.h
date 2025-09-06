@@ -19,7 +19,7 @@
  * @file fc_helper.h
  * @author fool-cat (2696652257@qq.com)
  * @brief 部分辅助定义,大量使用PLOOC(https://github.com/GorgonMeducer/PLOOC)和perf_counter(https://github.com/GorgonMeducer/perf_counter)的源码
- * 强烈推荐作者的微信公众号(裸机思维)<为宏正名>系列文章
+ * 强烈推荐作者的微信公众号(裸机思维)<为宏正名>系列文章,需开启GNU C99支持
  * @version 1.0
  * @date 2025-01-30
  *
@@ -163,8 +163,10 @@
                                             __CONNECT9(__A, __B, __C, __D, __E, __F, __G, __H, __I)
 
 /* link symbol */
-#define CONNECT(...)                                                            \
+#ifndef CONNECT
+    #define CONNECT(...)                                                        \
             ALT_CONNECT2(CONNECT, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#endif
 
 #undef __using1
 #undef __using2
@@ -225,7 +227,9 @@
 #endif
 
 /* Utilities */
-#define SAFE_NAME(__NAME)   CONNECT3(__,__NAME,__LINE__)
+#ifndef SAFE_NAME
+    #define SAFE_NAME(__NAME)   CONNECT3(__,__NAME,__LINE__)
+#endif
 
 #undef foreach1
 #undef foreach2
@@ -257,47 +261,5 @@
 #define foreach(...)                                                            \
             CONNECT2(foreach, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 // clang-format on
-
-//+********************************* user **********************************/
-
-// overlay的方式覆盖默认配置
-#ifdef FC_CONFIG_HEADER
-    #if defined(FC_USE_STRINGFY)
-        #define FC_HEADER_STRINGFY(x) #x
-        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
-        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
-    #elif defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
-        #define FC_HEADER_STRINGFY(x) #x
-        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
-        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
-    #else
-        #include FC_CONFIG_HEADER
-    #endif
-#endif
-
-/* Common Utilities */
-#define FC_UNUSED(x) (void)(x)
-
-/* stringfy */
-#define __FC_STRINGFY(x) #x
-#define FC_STRINGFY(x) __FC_STRINGFY(x)
-
-/* compile time assertion */
-#ifndef FC_STATIC_ASSERT
-    #define FC_STATIC_ASSERT(expn, msg) typedef char SAFE_NAME(fc_static_assert_fail_at_)[(expn) ? 1 : -1]
-#endif
-
-/* dynamic assert */
-#ifndef fc_assert
-    // 直接卡死在断言失败的位置,方便调试
-    #define fc_assert(exp) \
-        do                 \
-        {                  \
-            if (!(exp))    \
-                while (1)  \
-                {          \
-                }          \
-        } while (0)
-#endif
 
 #endif  // __FC_HELPER_H__

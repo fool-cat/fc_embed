@@ -18,22 +18,12 @@
     #include <stdbool.h>
     #include <stdint.h>
 
-    // overlay的方式覆盖默认配置
-    #ifdef FC_CONFIG_HEADER
-        #if defined(FC_USE_STRINGFY)
-            #define FC_HEADER_STRINGFY(x) #x
-            #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
-            #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
-        #elif defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
-            #define FC_HEADER_STRINGFY(x) #x
-            #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
-            #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
-        #else
-            #include FC_CONFIG_HEADER
-        #endif
-    #endif
-
+    #include "fc_config.h"
     #include "fc_helper.h"
+
+    #ifndef FC_LOG_NOPREFIX_API
+        #define FC_LOG_NOPREFIX_API 1 /**< 提供不带(fc_)前缀的log宏API */
+    #endif
 
     #ifndef FC_LOG_ENABLE
         #define FC_LOG_ENABLE 1 /**< 使能log */
@@ -60,11 +50,11 @@
     #ifndef FC_LOG_PREFIX_CONTENT
         #undef __MACRO_EXPANDING
         #define __MACRO_EXPANDING(...) __VA_ARGS__
-        #define FC_LOG_PREFIX_CONTENT __MACRO_EXPANDING(666, __FUNCTION__)
+        #define FC_LOG_PREFIX_CONTENT __MACRO_EXPANDING((uint32_t)666, __FUNCTION__)
 
     // #include <stdint.h>
     // extern uint32_t HAL_GetTick(void);
-    //     #define FC_LOG_PREFIX_CONTENT __MACRO_EXPANDING(HAL_GetTick(), __FUNCTION__)
+    //     #define FC_LOG_PREFIX_CONTENT __MACRO_EXPANDING((uint32_t)HAL_GetTick(), __FUNCTION__)
     #endif
 
     #ifndef FC_LOG_END
@@ -82,59 +72,59 @@
 
 // clang-format off
 
-/**
- * 终端字体颜色代码
- */
-#define     CSI_BLACK           30              /**< 黑色 */
-#define     CSI_RED             31              /**< 红色 */
-#define     CSI_GREEN           32              /**< 绿色 */
-#define     CSI_YELLOW          33              /**< 黄色 */
-#define     CSI_BLUE            34              /**< 蓝色 */
-#define     CSI_FUCHSIN         35              /**< 品红 */
-#define     CSI_CYAN            36              /**< 青色 */
-#define     CSI_WHITE           37              /**< 白色 */
-#define     CSI_BLACK_L         90              /**< 亮黑 */
-#define     CSI_RED_L           91              /**< 亮红 */
-#define     CSI_GREEN_L         92              /**< 亮绿 */
-#define     CSI_YELLOW_L        93              /**< 亮黄 */
-#define     CSI_BLUE_L          94              /**< 亮蓝 */
-#define     CSI_FUCHSIN_L       95              /**< 亮品红 */
-#define     CSI_CYAN_L          96              /**< 亮青 */
-#define     CSI_WHITE_L         97              /**< 亮白 */
-#define     CSI_DEFAULT         39              /**< 默认 */
+    /**
+     * 终端字体颜色代码
+     */
+    #define     CSI_BLACK           30              /**< 黑色 */
+    #define     CSI_RED             31              /**< 红色 */
+    #define     CSI_GREEN           32              /**< 绿色 */
+    #define     CSI_YELLOW          33              /**< 黄色 */
+    #define     CSI_BLUE            34              /**< 蓝色 */
+    #define     CSI_FUCHSIN         35              /**< 品红 */
+    #define     CSI_CYAN            36              /**< 青色 */
+    #define     CSI_WHITE           37              /**< 白色 */
+    #define     CSI_BLACK_L         90              /**< 亮黑 */
+    #define     CSI_RED_L           91              /**< 亮红 */
+    #define     CSI_GREEN_L         92              /**< 亮绿 */
+    #define     CSI_YELLOW_L        93              /**< 亮黄 */
+    #define     CSI_BLUE_L          94              /**< 亮蓝 */
+    #define     CSI_FUCHSIN_L       95              /**< 亮品红 */
+    #define     CSI_CYAN_L          96              /**< 亮青 */
+    #define     CSI_WHITE_L         97              /**< 亮白 */
+    #define     CSI_DEFAULT         39              /**< 默认 */
 
-#define     CSI(code)           "\033[" #code "m"   /**< ANSI CSI指令 */
-#define     CSI_RST             "\033[0m"           /**< ANSI CSI指令重置 */
+    #define     CSI(code)           "\033[" #code "m"   /**< ANSI CSI指令 */
+    #define     CSI_RST             "\033[0m"           /**< ANSI CSI指令重置 */
 
-/**
- * log级别字符(包含颜色)
- */
-#if FC_LOG_USING_COLOR == 1
-    #define ERROR_TEXT      CSI(31) "E" FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 错误标签 */
-    #define WARNING_TEXT    CSI(33) "W" FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 警告标签 */
-    #define INFO_TEXT       CSI(32) "I" FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 信息标签 */
-    #define DEBUG_TEXT      CSI(34) "D" FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 调试标签 */
-    #define VERBOSE_TEXT    CSI(36) "V" FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 冗余信息标签 */
-#else
-    #define ERROR_TEXT      "E" FC_LOG_PREFIX_FMT
-    #define WARNING_TEXT    "W" FC_LOG_PREFIX_FMT
-    #define INFO_TEXT       "I" FC_LOG_PREFIX_FMT
-    #define DEBUG_TEXT      "D" FC_LOG_PREFIX_FMT
-    #define VERBOSE_TEXT    "V" FC_LOG_PREFIX_FMT
-#endif
+    /**
+     * log级别字符(包含颜色)
+     */
+    #if FC_LOG_USING_COLOR == 1
+        #define FC_ERROR_TEXT      CSI(31) "E" FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 错误标签 */
+        #define FC_WARNING_TEXT    CSI(33) "W" FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 警告标签 */
+        #define FC_INFO_TEXT       CSI(32) "I" FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 信息标签 */
+        #define FC_DEBUG_TEXT      CSI(34) "D" FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 调试标签 */
+        #define FC_VERBOSE_TEXT    CSI(36) "V" FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 冗余信息标签 */
+    #else
+        #define FC_ERROR_TEXT      "E" FC_LOG_PREFIX_FMT
+        #define FC_WARNING_TEXT    "W" FC_LOG_PREFIX_FMT
+        #define FC_INFO_TEXT       "I" FC_LOG_PREFIX_FMT
+        #define FC_DEBUG_TEXT      "D" FC_LOG_PREFIX_FMT
+        #define FC_VERBOSE_TEXT    "V" FC_LOG_PREFIX_FMT
+    #endif
+
+    typedef enum
+    {
+        FC_LOG_NONE     = 0,    /**< 屏蔽所有 */
+        FC_LOG_ERROR    = 1,    /**< 错误 */
+        FC_LOG_WRANING  = 2,    /**< 警告 */
+        FC_LOG_INFO     = 3,    /**< 消息 */
+        FC_LOG_DEBUG    = 4,    /**< 调试 */
+        FC_LOG_VERBOSE  = 5,    /**< 冗余 */
+        FC_LOG_ALL      = 6,    /**< 所有日志 */
+    } fc_log_level_t;
 
 // clang-format on
-
-typedef enum
-{
-    FC_LOG_NONE = 0,    /**< 屏蔽所有 */
-    FC_LOG_ERROR = 1,   /**< 错误 */
-    FC_LOG_WRANING = 2, /**< 警告 */
-    FC_LOG_INFO = 3,    /**< 消息 */
-    FC_LOG_DEBUG = 4,   /**< 调试 */
-    FC_LOG_VERBOSE = 5, /**< 冗余 */
-    FC_LOG_ALL = 6,     /**< 所有日志 */
-} fc_log_level_t;
 
 typedef enum
 {
@@ -142,134 +132,92 @@ typedef enum
     FC_LOG_ALLOC_NEW,      /**< 分配新内存池 */
 } fc_alloc_type_t;
 
-    //> C/C++兼容性宏定义
+//+********************************* 面向对象 **********************************/
+typedef struct _fc_log_t      fc_log_t;
+typedef struct _fc_log_pool_t fc_log_pool_t;
+
+typedef int (*fc_log_write_t)(const char *buf, int len);                                          // 写入数据
+typedef int (*fc_log_alloc_t)(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size);  // log内存池处理函数,返回实际分配的内存池大小
+
+struct _fc_log_pool_t
+{
+    int   size; /**< 内存池大小 */
+    char *buff; /**< 内存池 */
+    // void *user; /**< 用户自定义数据 */
+};
+
+struct _fc_log_t
+{
+    fc_log_level_t level;
+
+    fc_log_write_t write;
+    fc_log_alloc_t alloc;
+
+    // void *user;  // 自定义数据
+};
+
     #ifdef __cplusplus
 extern "C"
 {
     #endif
-    //+********************************* 面向对象 **********************************/
-    typedef struct _fc_log_t      fc_log_t;
-    typedef struct _fc_log_pool_t fc_log_pool_t;
-
-    typedef int (*fc_log_write_t)(const char *buf, int len);                                          // 写入数据
-    typedef int (*fc_log_alloc_t)(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size);  // log内存池处理函数,返回实际分配的内存池大小
-
-    struct _fc_log_pool_t
-    {
-        int   size; /**< 内存池大小 */
-        char *buff; /**< 内存池 */
-    };
-
-    struct _fc_log_t
-    {
-        fc_log_level_t level;
-
-        fc_log_write_t write;
-        fc_log_alloc_t alloc;
-
-        // void *user;  // 自定义数据
-    };
 
     // clang-format off
 
+    extern void fc_log_catch        (fc_log_t *log, fc_log_write_t write, fc_log_alloc_t alloc);
     extern void fc_log_set_level    (fc_log_t *log, fc_log_level_t level);
     extern void fc_log_printf       (fc_log_t *log, fc_log_level_t level, int advice_size, const char *fmt, ...);
     extern void fc_log_printf_stack (fc_log_t *log, fc_log_level_t level, char *stack_buf, int stack_size, const char *fmt, ...);
-    extern void fc_log_write        (fc_log_t *log, fc_log_level_t level, const void *buff, int len);
+    // extern void fc_log_write        (fc_log_t *log, fc_log_level_t level, const void *buff, int len); // 废弃
 
     // clang-format on
 
     // 提供一份默认的弱函数log写丢失数据钩子,可以在外面重写
     extern int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len);
 
-    // 提供两个默认的write函数,一个是输出到fc_stdout的0号缓冲区,一个是输出到fc_trans的0号虚拟页
-    extern int log_write_stdout(const char *buf, int len);  // 放在fc_port.c中实现
-    extern int log_write_trans(const char *buf, int len);   // 放在fc_trans.c中实现
+    // 提供一份默认的log写函数,可以在外面重写
+    extern int log_write_default(const char *buf, int len);
 
     // 提供一份默认的内存池获取函数,可以在外面重写
     extern int log_alloc_default(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size);  // 默认获取内存池的函数
-
-    //+********************************* 实例化 **********************************/
-
-    #ifndef FC_LOG_OBJ
-    extern fc_log_t default_log;  // 默认log对象
-        #define FC_LOG_OBJ (&default_log)
-    #endif
-
-    #ifndef FC_LOG_DEFAULT_WRITE
-        #define FC_LOG_DEFAULT_WRITE log_write_stdout
-    #endif
-
-    #ifndef FC_LOG_DEFAULT_ALLOC
-        #define FC_LOG_DEFAULT_ALLOC log_alloc_default
-    #endif
-
-    #define FC_LOG_IMPL_FULL(obj_name, _level, _write, _alloc) \
-        fc_log_t obj_name = {                                  \
-            .level = _level, /* 日志级别 */                    \
-            .write = _write, /* 写入函数 */                    \
-            .alloc = _alloc, /* 内存池获取函数 */              \
-        }
-
-    #define _FC_LOG_IMPL_FULL_1(obj_name) \
-        FC_LOG_IMPL_FULL(obj_name, FC_LOG_ALL, FC_LOG_DEFAULT_WRITE, FC_LOG_DEFAULT_ALLOC)
-
-    #define _FC_LOG_IMPL_FULL_2(obj_name, _level) \
-        FC_LOG_IMPL_FULL(obj_name, _level, FC_LOG_DEFAULT_WRITE, FC_LOG_DEFAULT_ALLOC)
-
-    #define _FC_LOG_IMPL_FULL_3(obj_name, _level, _write) \
-        FC_LOG_IMPL_FULL(obj_name, _level, _write, FC_LOG_DEFAULT_ALLOC)
-
-    #define _FC_LOG_IMPL_FULL_4(obj_name, _level, _write, _alloc) \
-        FC_LOG_IMPL_FULL(obj_name, _level, _write, _alloc)
-
-    /**
-     * 这个宏用于快速定义一个`fc_log_t`对象,禁止在头文件中使用,否则会导致多重定义
-     * @brief 实例化log对象,至少一个参数,最大支持4个参数
-     *参数必须按照指定顺序给出,允许缺省(从后面开始缺省)
-     *<1>对象名称
-     *<2>日志级别
-     *<3>写入函数
-     *<4>行缓冲区大小
-     */
-    #define FC_LOG_IMPL(...) \
-        CONNECT2(_FC_LOG_IMPL_FULL_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
-
-    #ifndef FC_LOG_LOSE_HOOK
-        #if 1
-            #define FC_LOG_LOSE_HOOK(exp, log, buf, len)   \
-                if (!(exp))                                \
-                {                                          \
-                    fc_log_write_lose_hook(log, buf, len); \
-                }
-        #else
-            #define FC_LOG_LOSE_HOOK(exp, log, buf, len) (void)(0)
-        #endif
-    #endif
 
     #ifdef __cplusplus
 }
     #endif
 
+//+********************************* 实例化 **********************************/
+
+    #ifndef FC_LOG_OBJ
+extern fc_log_t default_log;  // 默认log对象
+        #define FC_LOG_OBJ (&default_log)
+    #endif
+
+    #define FC_LOG_IMPL(obj_name, _level, _write, _alloc) \
+        fc_log_t obj_name = {                             \
+            .level = _level, /* 日志级别 */               \
+            .write = _write, /* 写入函数 */               \
+            .alloc = _alloc, /* 内存池获取函数 */         \
+        }
+
+    #ifndef FC_LOG_LOSE_HOOK
+        /* #define FC_LOG_LOSE_HOOK(exp, log, buf, len) (void)(0) */
+        #define FC_LOG_LOSE_HOOK(exp, log, buf, len)   \
+            if (!(exp))                                \
+            {                                          \
+                fc_log_write_lose_hook(log, buf, len); \
+            }
+    #endif
+
 #endif  // __FC_LOG_H__
 
 //+********************************* 以下部分允许重入 **********************************/
-#undef log_format
+#undef fc_log_format
 
-#undef log_error
-#undef log_warning
-#undef log_info
-#undef log_debug
-#undef log_verbose
-#undef log_assert
-
-#undef log_wrtie
-
-#undef log_error_write
-#undef log_warning_write
-#undef log_info_write
-#undef log_debug_write
-#undef log_verbose_write
+#undef fc_log_error
+#undef fc_log_warning
+#undef fc_log_info
+#undef fc_log_debug
+#undef fc_log_verbose
+#undef fc_log_assert
 
 #undef fc_log_level
 
@@ -291,7 +239,7 @@ extern "C"
             #error "FC_LOG_STACK_LINE_SIZE 必须大于0"
         #endif
 
-        #define log_format(text, _level, fmt, ...)                                                                                                                            \
+        #define fc_log_format(text, _level, fmt, ...)                                                                                                                         \
             do                                                                                                                                                                \
             {                                                                                                                                                                 \
                 char SAFE_NAME(buff)[FC_LOG_STACK_LINE_SIZE]; /* 使用栈内存 */                                                                                                \
@@ -300,7 +248,7 @@ extern "C"
 
     #elif (FC_LOG_MEM_TYPE == FC_LOG_MEM_POOL)
 
-        #define log_format(text, _level, fmt, ...)                                                                                    \
+        #define fc_log_format(text, _level, fmt, ...)                                                                                 \
             do                                                                                                                        \
             {                                                                                                                         \
                 fc_log_printf(FC_LOG_OBJ, _level, FC_LOG_LINE_SIZE, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
@@ -313,7 +261,7 @@ extern int fc_printf(const char *fmt, ...);
             #define FC_LOG_PRINTF fc_printf
         #endif
 
-        #define log_format(text, _level, fmt, ...)                                                  \
+        #define fc_log_format(text, _level, fmt, ...)                                               \
             do                                                                                      \
             {                                                                                       \
                 if (((FC_LOG_OBJ)->level) >= _level)                                                \
@@ -328,94 +276,66 @@ extern int fc_printf(const char *fmt, ...);
     #endif
 
     //+********************************* 期望使用 **********************************/
-    #define log_error(fmt, ...) \
-        log_format(ERROR_TEXT, FC_LOG_ERROR, fmt, ##__VA_ARGS__)
+    #define fc_log_error(fmt, ...) \
+        fc_log_format(FC_ERROR_TEXT, FC_LOG_ERROR, fmt, ##__VA_ARGS__)
 
-    #define log_warning(fmt, ...) \
-        log_format(WARNING_TEXT, FC_LOG_WRANING, fmt, ##__VA_ARGS__)
+    #define fc_log_warning(fmt, ...) \
+        fc_log_format(FC_WARNING_TEXT, FC_LOG_WRANING, fmt, ##__VA_ARGS__)
 
-    #define log_info(fmt, ...) \
-        log_format(INFO_TEXT, FC_LOG_INFO, fmt, ##__VA_ARGS__)
+    #define fc_log_info(fmt, ...) \
+        fc_log_format(FC_INFO_TEXT, FC_LOG_INFO, fmt, ##__VA_ARGS__)
 
-    #define log_debug(fmt, ...) \
-        log_format(DEBUG_TEXT, FC_LOG_DEBUG, fmt, ##__VA_ARGS__)
+    #define fc_log_debug(fmt, ...) \
+        fc_log_format(FC_DEBUG_TEXT, FC_LOG_DEBUG, fmt, ##__VA_ARGS__)
 
-    #define log_verbose(fmt, ...) \
-        log_format(VERBOSE_TEXT, FC_LOG_VERBOSE, fmt, ##__VA_ARGS__)
+    #define fc_log_verbose(fmt, ...) \
+        fc_log_format(FC_VERBOSE_TEXT, FC_LOG_VERBOSE, fmt, ##__VA_ARGS__)
 
-    #ifndef log_assert
-        #define log_assert(expr, ...)                                                                   \
-            if (!(expr))                                                                                \
-            {                                                                                           \
-                log_error("\"" #expr "\" assert failed at file: %s, line: %d\r\n", __FILE__, __LINE__); \
-                __VA_ARGS__;                                                                            \
+    #ifndef fc_log_assert
+        #define fc_log_assert(expr, ...)                                                                   \
+            if (!(expr))                                                                                   \
+            {                                                                                              \
+                fc_log_error("\"" #expr "\" assert failed at file: %s, line: %d\r\n", __FILE__, __LINE__); \
+                __VA_ARGS__;                                                                               \
             }
     #endif
-
-    #ifndef FC_LOG_SNPRINTF
-extern int fc_snprintf(char *s, size_t n, const char *fmt, ...);
-        #define FC_LOG_SNPRINTF fc_snprintf
-    #endif
-
-    #ifndef FC_LOG_PREFIX_SIZE
-        #define FC_LOG_PREFIX_SIZE 32 /**< log前缀缓冲区大小 */
-    #endif
-
-    /* log_write 不能保证写入的线程安全,最好在外面提前对递归锁加锁 */
-    #define log_wrtie(text, _level, buff, len)                                                     \
-        do                                                                                         \
-        {                                                                                          \
-            char __prefix[FC_LOG_PREFIX_SIZE]; /* 使用栈内存,保存前缀 */                           \
-            int  __len = FC_LOG_SNPRINTF(__prefix, sizeof(__prefix), text, FC_LOG_PREFIX_CONTENT); \
-            fc_log_write(FC_LOG_OBJ, _level, __prefix, __len);                                     \
-            fc_log_write(FC_LOG_OBJ, _level, buff, len);                                           \
-        } while (0)
-
-    #define log_error_write(buf, len) \
-        log_wrtie(ERROR_TEXT, FC_LOG_ERROR, buf, len)
-
-    #define log_warning_write(buf, len) \
-        log_wrtie(WARNING_TEXT, FC_LOG_WRANING, buf, len)
-
-    #define log_info_write(buf, len) \
-        log_wrtie(INFO_TEXT, FC_LOG_INFO, buf, len)
-
-    #define log_debug_write(buf, len) \
-        log_wrtie(DEBUG_TEXT, FC_LOG_DEBUG, buf, len)
-
-    #define log_verbose_write(buf, len) \
-        log_wrtie(VERBOSE_TEXT, FC_LOG_VERBOSE, buf, len)
 
 #else
 
 // clang-format off
 
-    #define log_format(text, level, fmt, ...) do {} while(0)
-    #define log_error(fmt, ...) do {} while(0)
-    #define log_warning(fmt, ...) do {} while(0)
-    #define log_info(fmt, ...) do {} while(0)
-    #define log_debug(fmt, ...) do {} while(0)
-    #define log_verbose(fmt, ...) do {} while(0)
-
-    #define log_wrtie(level, buff, len) do {} while(0)
-
-    #define log_error_write(buf, len) do {} while(0)
-    #define log_warning_write(buf, len) do {} while(0)
-    #define log_info_write(buf, len) do {} while(0)
-    #define log_debug_write(buf, len) do {} while(0)
-    #define log_verbose_write(buf, len) do {} while(0)
+    #define fc_log_format   (text, level, fmt, ...) do {} while(0)
+    #define fc_log_error    (fmt, ...)              do {} while(0)
+    #define fc_log_warning  (fmt, ...)              do {} while(0)
+    #define fc_log_info     (fmt, ...)              do {} while(0)
+    #define fc_log_debug    (fmt, ...)              do {} while(0)
+    #define fc_log_verbose  (fmt, ...)              do {} while(0)
 
 // clang-format on
 
 // 一般在断言中只进行变量比较等操作,通常来说取消断言后效果需要等效完全注释掉
-    #ifndef log_assert
-        // #define log_assert(expr, ...) do {} while(0)
-        #define log_assert(expr, ...) \
-            if (!(expr))              \
-            {                         \
-                (void)0;              \
-                __VA_ARGS__;          \
+    #ifndef fc_log_assert
+    // #define fc_log_assert(expr, ...) do {} while(0)
+        #define fc_log_assert(expr, ...) \
+            if (!(expr))                 \
+            {                            \
+                (void)0;                 \
+                __VA_ARGS__;             \
             }
     #endif
 
 #endif
+
+// clang-format off
+
+#if FC_LOG_NOPREFIX_API
+    #define log_level       fc_log_level
+    #define log_error       fc_log_error
+    #define log_warning     fc_log_warning
+    #define log_info        fc_log_info
+    #define log_debug       fc_log_debug
+    #define log_verbose     fc_log_verbose
+    #define log_assert      fc_log_assert
+#endif
+
+// clang-format on

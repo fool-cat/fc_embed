@@ -9,39 +9,25 @@
  *
  */
 
-// overlay的方式覆盖默认配置
-#ifdef FC_CONFIG_HEADER
-    #if defined(FC_USE_STRINGFY)
-        #define FC_HEADER_STRINGFY(x) #x
-        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
-        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
-    #elif defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
-        #define FC_HEADER_STRINGFY(x) #x
-        #define FC_INCLUDE_FILE(x) FC_HEADER_STRINGFY(x)
-        #include FC_INCLUDE_FILE(FC_CONFIG_HEADER)
-    #else
-        #include FC_CONFIG_HEADER
-    #endif
-#endif
-
 #include <string.h>
 #include <stdlib.h>
+
 #include "fc_trans.h"
 #include "fc_helper.h"
 #include "fc_port.h"
 
 // 运行时断言
-#ifndef fc_stdio_assert
-    #define fc_stdio_assert(x) ((void)(0))
+#ifndef fc_assert
+    #define fc_assert(x) ((void)(0))
 #endif
 
 // 自定义的分页信息
 #ifndef FC_DIVISION_NUM_MAX_LEN
-    #define FC_DIVISION_NUM_MAX_LEN 4  // 分页信息中端口号的最大长度("9999")
+    #define FC_DIVISION_NUM_MAX_LEN 4 /* 分页信息中端口号的最大长度("9999") */
 #endif
 
 #ifndef FC_DIVISION_NUM_MAX
-    #define FC_DIVISION_NUM_MAX (9999)  // 分页信息中端口号的最大值,即4位数字的最大值
+    #define FC_DIVISION_NUM_MAX (9999) /* 分页信息中端口号的最大值,即4位数字的最大值 */
 #endif
 
 #define FC_DIVISION_HEAD "\033[?;"
@@ -90,8 +76,8 @@ static bool is_all_digits(const char *arr, int length)
  */
 void fc_receiver_init(fc_receiver_t *receiver, fc_fifo_t *fifo)
 {
-    fc_stdio_assert(NULL != receiver);
-    fc_stdio_assert(NULL != fifo);
+    fc_assert(NULL != receiver);
+    fc_assert(NULL != fifo);
 
     memset(receiver, 0, sizeof(fc_receiver_t));
     receiver->fifo = fifo;
@@ -107,8 +93,8 @@ void fc_receiver_init(fc_receiver_t *receiver, fc_fifo_t *fifo)
  */
 void fc_receiver_catch(fc_receiver_t *receiver, fc_receiver_out_t out, fc_receiver_end_t end)
 {
-    fc_stdio_assert(NULL != receiver);
-    fc_stdio_assert(NULL != out);  // 必须绑定分发函数
+    fc_assert(NULL != receiver);
+    fc_assert(NULL != out);  // 必须绑定分发函数
 
     receiver->out = out;  // 分发函数
     receiver->end = end;  // 结束函数,可以为NULL
@@ -121,8 +107,8 @@ void fc_receiver_catch(fc_receiver_t *receiver, fc_receiver_out_t out, fc_receiv
  */
 void fc_receiver_monitor(fc_receiver_t *receiver)
 {
-    fc_stdio_assert(NULL != receiver->fifo);
-    fc_stdio_assert(NULL != receiver->out);  // 先绑定了分发函数才能调用
+    fc_assert(NULL != receiver->fifo);
+    fc_assert(NULL != receiver->out);  // 先绑定了分发函数才能调用
 
     fc_fifo_t *rb = receiver->fifo;  // 环形缓冲区
     size_t     len_total = fc_fifo_get_used(rb);
@@ -235,8 +221,8 @@ void fc_receiver_monitor(fc_receiver_t *receiver)
  */
 void fc_sender_init(fc_sender_t *sender, fc_fifo_t *fifo)
 {
-    fc_stdio_assert(NULL != sender);
-    fc_stdio_assert(NULL != fifo);
+    fc_assert(NULL != sender);
+    fc_assert(NULL != fifo);
 
     const char *default_division = FC_DIVISION_DEFAULT;
     memset(sender, 0, sizeof(fc_sender_t));
@@ -256,9 +242,9 @@ void fc_sender_init(fc_sender_t *sender, fc_fifo_t *fifo)
  */
 bool fc_sender_switch(fc_sender_t *sender, size_t index)
 {
-    fc_stdio_assert(NULL != sender);
-    fc_stdio_assert(NULL != sender->fifo);
-    fc_stdio_assert(index <= FC_DIVISION_NUM_MAX);  // 确保索引在范围内
+    fc_assert(NULL != sender);
+    fc_assert(NULL != sender->fifo);
+    fc_assert(index <= FC_DIVISION_NUM_MAX);  // 确保索引在范围内
 
     if (sender->index != index)
     {
@@ -330,7 +316,7 @@ bool fc_sender_switch(fc_sender_t *sender, size_t index)
         }
         else
         {
-            fc_stdio_assert(false);
+            fc_assert(false);
             return false;  // 分页信息写入失败,理论上这里不可能进入
         }
     }
@@ -463,7 +449,7 @@ extern "C"
      * @param len
      * @return int
      */
-    int log_write_trans(const char *buf, int len)
+    fc_weak int log_write_trans(const char *buf, int len)
     {
         return fc_sender_write(&fc_sender, 0, buf, len);
     }
@@ -480,5 +466,6 @@ static void _fc_trans_auto_init(void)
     fc_receiver_init(&fc_receiver, fc_stdin.rb[0]);  // 初始化接收器
     fc_sender_init(&fc_sender, fc_stdout.rb[0]);     // 初始化发送器
 }
-INIT_EXPORT_ENV(_fc_trans_auto_init, 110);  // 等级比默认的1000优先级更高,但是低于fc_default_port_init,纯数据结构无外部依赖
+// 等级比默认的1000优先级更高,但是低于port层的默认初始化,纯数据结构无外部依赖
+INIT_EXPORT_ENV(_fc_trans_auto_init, FC_TRANS_INIT_ORDER);
 #endif
