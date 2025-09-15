@@ -11,7 +11,7 @@
 
 #include <stdarg.h>
 
-#include "fc_stdio.h"
+#include "../fc_stdio.h"
 
 int fc_snprintf(char *s, size_t n, const char *fmt, ...)
 {

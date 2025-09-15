@@ -11,7 +11,8 @@
 
 #include <limits.h>
 #include <stdarg.h>
-#include "fc_stdio.h"
+
+#include "../fc_stdio.h"
 
 #ifndef INT_MAX
     #define INT_MAX 0x7fffffff

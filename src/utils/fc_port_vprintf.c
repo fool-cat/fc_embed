@@ -11,7 +11,7 @@
 
 #include <stdarg.h>
 
-#include "fc_stdio.h"
+#include "../fc_stdio.h"
 
 #include "../fc_port.h"  //使用相对路径避免依赖
 

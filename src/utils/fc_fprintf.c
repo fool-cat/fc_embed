@@ -10,7 +10,7 @@
  */
 
 #include <stdarg.h>
-#include "fc_stdio.h"
+#include "../fc_stdio.h"
 
 int fc_fprintf(FC_FILE *f, const char *fmt, ...)
 {

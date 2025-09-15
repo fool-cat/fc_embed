@@ -31,9 +31,9 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdbool.h>
-#include "fc_stdio.h"
 
 #include "fc_config.h"
+#include "../fc_stdio.h"
 
 //+********************************* xprintf core function config **********************************/
 // clang-format off

@@ -11,7 +11,7 @@
 
 #include <stdarg.h>
 
-#include "fc_stdio.h"
+#include "../fc_stdio.h"
 
 int fc_sprintf(char *s, const char *fmt, ...)
 {
