@@ -18,6 +18,14 @@
     #define INT_MAX 0x7fffffff
 #endif
 
+/**
+ * @brief 不建议使用,建议使用fc_vsnprintf
+ *
+ * @param s
+ * @param fmt
+ * @param ap
+ * @return int
+ */
 int fc_vsprintf(char *s, const char *fmt, va_list ap)
 {
     return fc_vsnprintf(s, INT_MAX, fmt, ap);
