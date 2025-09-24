@@ -292,6 +292,7 @@ static bool _write_ch(FC_FILE *f, char ch)
         f->io.write(f, f->p_now, 0); \
     }
 
+//+********************************* core function **********************************/
 int fc_vfprintf(
     FC_FILE    *pf,  /* Pointer to the file object */
     const char *fmt, /* Pointer to the format string */
@@ -385,6 +386,11 @@ int fc_vfprintf(
             }
 #endif
         }
+        if (c == 'z')
+        { /* Prefix: Size is size_t */
+            f |= sizeof(size_t);
+            c = *fmt++;
+        }
         if (!c)
             break; /* End of format? */
         switch (c)
@@ -403,6 +409,14 @@ int fc_vfprintf(
         case 'X': /* Hexdecimal (upper case) */
             r = 16;
             break;
+        case 'p': /* Pointer address */
+        {
+            r = 16;
+            __fc_fputc(pf, '0');
+            __fc_fputc(pf, 'x');
+            c = 'x';  // 当作16进制处理
+        }
+        break;
         case 'c': /* A character */
         {
             __fc_fputc(pf, (char)va_arg(arp, int));
@@ -474,7 +488,7 @@ int fc_vfprintf(
 #else
         if (f & 4)
         { /* long argument? */
-            v = (long)va_arg(arp, long);
+            v = (c == 'd') ? (long)va_arg(arp, long) : (long)va_arg(arp, unsigned long);
         }
         else
         { /* int/short/char argument */
