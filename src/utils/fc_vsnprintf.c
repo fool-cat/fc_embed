@@ -21,7 +21,9 @@
  */
 static int __fc_vsnprintf_write(FC_FILE *f, const void *buf, int len)
 {
-    return len;  // 直接返回模拟写入成功
+    // 调用write的时候缓冲区一定用完了,置为空防止后续写入
+    f->p_now = NULL;  // 直接置空,防止后续写入
+    return len;       // 直接返回模拟写入成功
 }
 
 /**

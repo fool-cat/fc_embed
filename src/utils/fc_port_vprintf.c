@@ -115,11 +115,13 @@ static int __fc_fifo_vprintf_write(FC_FILE *f, const void *buf, int len)
             len = (int)FC_IO_EOF;  // 提前结束
         }
     }
+    #if 0
     else if (len > (int)FC_IO_SWAP)
     {
         // 不可能走这里
         len = fc_fifo_write((fc_fifo_t *)(f->user), (void *)(buf), len);
     }
+    #endif
 
     return len;
 }
