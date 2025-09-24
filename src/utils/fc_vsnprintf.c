@@ -21,24 +21,7 @@
  */
 static int __fc_vsnprintf_write(FC_FILE *f, const void *buf, int len)
 {
-    if (f->p_start && (f->p_start + f->n <= f->p_end) && len > 0)
-    {
-        char *p_now = f->p_start + f->n;
-        for (int i = 0; i < len; i++)
-        {
-            if (p_now <= f->p_end)
-            {
-                p_now[i] = ((char *)buf)[i];
-                p_now++;
-            }
-            else
-            {
-                f->p_start = NULL;  // 优化下一次进入性能
-                break;              // 超出范围后不再写入
-            }
-        }
-    }
-    return len;
+    return len;  // 直接返回模拟写入成功
 }
 
 /**
@@ -54,15 +37,28 @@ int fc_vsnprintf(char *s, size_t n, const char *fmt, va_list ap)
 {
     FC_FILE f = {0};
 
-    f.p_now = NULL;  // 不赋值p_now,全部靠write函数写入
-    f.p_start = (s && n >= 2) ? s : NULL;
-    f.p_end = (s && n >= 2) ? (s + n - 1) : NULL;
+    if (s && n >= 2)
+    {
+        f.p_now = s;
+        f.p_start = s;
+        f.p_end = s + n - 1;  // 预留一个字节给\0
+    }
+    else
+    {
+        f.p_now = NULL;  // 完全通过write函数控制
+    }
     f.io.write = __fc_vsnprintf_write;
 
-    n = fc_vfprintf(&f, fmt, ap);
-    if (s && n)
+    fc_vfprintf(&f, fmt, ap);
+
+    if (f.n >= n && s && n > 0)
     {
-        s[n] = '\0';
+        s[n - 1] = '\0';  // 截断
     }
-    return (int)n;
+    else if (s && f.p_now)
+    {
+        *f.p_now = '\0';  // 结尾
+    }
+
+    return f.n;
 }

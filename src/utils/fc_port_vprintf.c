@@ -30,9 +30,11 @@
  */
 static int __fc_fifo_vprintf_write(FC_FILE *f, const void *buf, int len)
 {
-    if (len > 0)
+    (void)buf;
+
+    if (len >= (int)FC_IO_SWAP)  // 只可能==FC_IO_SWAP
     {
-        fc_fifo_linear_write_done((fc_fifo_t *)(f->user), len);
+        fc_fifo_linear_write_done((fc_fifo_t *)(f->user), (size_t)f->p_now - (size_t)f->p_start);
 
         // 还有空间
         if (fc_fifo_get_free((fc_fifo_t *)(f->user)) >= 1)
@@ -44,13 +46,13 @@ static int __fc_fifo_vprintf_write(FC_FILE *f, const void *buf, int len)
         }
         else
         {
-            len = -1;  // 保证结束
+            len = (int)FC_IO_EOF;  // 提前结束
         }
     }
-    else
+    else  // if (len == (int)FC_IO_EOF)
     {
-        // 为0表示结束,将环形缓冲区的写指针移动到最新位置
-        fc_fifo_linear_write_done((fc_fifo_t *)(f->user), (size_t)buf - (size_t)f->p_start);
+        // 结束,将环形缓冲区的写指针移动到最新位置
+        fc_fifo_linear_write_done((fc_fifo_t *)(f->user), (size_t)f->p_now - (size_t)f->p_start);
     }
 
     return len;
@@ -105,10 +107,20 @@ int fc_port_vprintf(fc_port_t *port, size_t rb_index, const char *fmt, va_list a
  */
 static int __fc_fifo_vprintf_write(FC_FILE *f, const void *buf, int len)
 {
-    if (len > 0)
+    if (1 == len)
     {
+        // 优化一定性能
+        if (false == fc_fifo_write_byte((fc_fifo_t *)(f->user), *(uint8_t *)buf))
+        {
+            len = (int)FC_IO_EOF;  // 提前结束
+        }
+    }
+    else if (len > (int)FC_IO_SWAP)
+    {
+        // 不可能走这里
         len = fc_fifo_write((fc_fifo_t *)(f->user), (void *)(buf), len);
     }
+
     return len;
 }
 

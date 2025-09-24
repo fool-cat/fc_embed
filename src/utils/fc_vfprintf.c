@@ -248,8 +248,8 @@ static bool _write_ch(FC_FILE *f, char ch)
             f->p_now = NULL;
             if (f->io.write)
             {
-                int _size = (int)(f->p_end - f->p_start);
-                if (_size != f->io.write(f, f->p_start, _size))
+                // 准备交换(重新设置)缓冲区
+                if ((int)FC_IO_SWAP != f->io.write(f, f->p_now, (int)FC_IO_SWAP))
                 {
                     return false;
                 }
@@ -276,7 +276,7 @@ static bool _write_ch(FC_FILE *f, char ch)
     return true;
 }
 
-// 不使用do{}while(0)的结构节省一条指令的性能开销
+// 不使用do{}while(0)的结构节省无效判断指令(-O0优化)的性能开销
 #undef __fc_fputc
 #define __fc_fputc(f, ch)            \
     {                                \
@@ -286,10 +286,10 @@ static bool _write_ch(FC_FILE *f, char ch)
 
 // 退出的后处理
 #undef __fc_exit_handle
-#define __fc_exit_handle(f)          \
-    if (f->io.write)                 \
-    {                                \
-        f->io.write(f, f->p_now, 0); \
+#define __fc_exit_handle(f)                       \
+    if (f->io.write)                              \
+    {                                             \
+        f->io.write(f, f->p_now, (int)FC_IO_EOF); \
     }
 
 //+********************************* core function **********************************/
