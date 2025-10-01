@@ -24,6 +24,12 @@ extern "C"
 
     //+********************************* 仿标准stdio **********************************/
 
+// 表明FC_FILE的io指针函数写入或者读取完了
+#define FC_IO_EOF (-1)
+
+// 表明FC_FILE的io指针函数需要交换(重新设置)FC_FILE对象的缓冲区
+#define FC_IO_SWAP (0)
+
     /**
      * @brief FC_FILE对象的读写会优先使用内存地址进行操作,其次才是调用write和read函数
      *
@@ -40,9 +46,9 @@ extern "C"
 
         union
         {
-            // write和read函数传入长度为0表示一些尾处理,需要处理长度以及处理内存等操作
-            int (*write)(FC_FILE *f, const void *buf, int len);  // 返回实际写入的长度,实际每次只会写入1字节
-            int (*read)(FC_FILE *f, void *buf, int len);         // 返回实际读取的长度,实际每次只会读取1字节
+            // write和read函数传入为FC_IO_EOF或FC_IO_SWAP或大于0的长度
+            int (*write)(FC_FILE *f, const void *buf, int len);  // 返回实际写入的长度,实际每次只会写入1字节,返回值通常等于len,否则表示结束写入
+            int (*read)(FC_FILE *f, void *buf, int len);         // 返回实际读取的长度,实际每次只会读取1字节,暂时废弃不实现scanf相关API
         } io;
     };
 
