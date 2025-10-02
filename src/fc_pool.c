@@ -290,6 +290,211 @@ size_t fc_pool_record_lost(fc_pool_t *pool)
     return pool->record_lost;
 }
 
+/**
+ * @brief
+ *
+ * @param pool
+ * @param size
+ * @return void*
+ */
+void *fc_pool_malloc(fc_pool_t *pool, size_t size)
+{
+    fc_assert(pool != NULL);
+
+    void  *tail = NULL;
+    void  *head = NULL;
+    void  *ptr = NULL;
+    size_t alloc_size = 0;
+    size_t per_size = fc_pool_per_size(pool);
+
+    head = fc_pool_alloc(pool, &alloc_size);
+    if (head == NULL)
+    {
+        return NULL;  // 分配失败
+    }
+
+    tail = head;
+    if (size <= per_size)
+    {
+        // fc_pool_end(tail);  // 标记最后一块,分配时默认已经标记
+        return head;
+    }
+
+    for (;;)
+    {
+        size -= per_size;
+
+        ptr = fc_pool_alloc(pool, &alloc_size);
+        if (ptr == NULL)
+        {
+            fc_pool_free(pool, head);  // 分配失败,释放已分配的内存
+            return NULL;
+        }
+
+        fc_pool_link(tail, ptr);  // 连接前后两块内存
+        tail = ptr;               // 移动尾部
+
+        if (size <= per_size)
+        {
+            // fc_pool_end(tail);  // 标记最后一块,分配时默认已经标记
+            break;
+        }
+    }
+
+    return head;
+}
+
+/**
+ * @brief 等效与从一个char数组的offset位置写入write_size字节数据到链式非连续内存块中,返回实际写入的字节数
+ *  将ptr当作连续内存,等效于从(char*)ptr + offset位置写入write_size字节数据
+ * @param pool
+ * @param ptr
+ * @param offset
+ * @param write_size
+ * @return size_t
+ */
+size_t fc_pool_write(fc_pool_t *pool, void *ptr, size_t offset, size_t write_size)
+{
+    fc_assert(pool != NULL);
+    fc_assert(ptr != NULL);
+
+    fc_pool_header_t *node = (fc_pool_header_t *)((uint8_t *)ptr - sizeof(fc_pool_header_t));
+    size_t            per_size = fc_pool_per_size(pool);
+
+    // 找到offset所在的内存块
+    while (offset >= per_size)
+    {
+        if (node->next == NULL)  // offset超出链式内存块大小
+        {
+            return 0;
+        }
+        node = node->next;
+        offset -= per_size;
+    }
+
+    size_t   copied_size = 0;
+    size_t   copy_size = 0;
+    uint8_t *src = (uint8_t *)ptr;
+    uint8_t *dst = (uint8_t *)node + sizeof(fc_pool_header_t) + offset;
+    size_t   left_size = write_size;
+    size_t   can_copy_size = per_size - offset;  // 当前块还能写入的大小
+    while (left_size > 0)
+    {
+        copy_size = (left_size > can_copy_size) ? can_copy_size : left_size;
+        memcpy(dst, src + copied_size, copy_size);
+
+        copied_size += copy_size;
+        left_size -= copy_size;
+
+        if (left_size == 0)  // 写入完成
+        {
+            break;
+        }
+
+        if (node->next == NULL)  // 没有下一块内存了
+        {
+            break;
+        }
+
+        node = node->next;
+        dst = (uint8_t *)node + sizeof(fc_pool_header_t);
+        can_copy_size = per_size;  // 新块可以全部写入
+    }
+
+    return copied_size;
+}
+
+/**
+ * @brief 从链式非连续内存块中读取数据到ptr,等效与从一个char数组的offset位置读取read_size字节数据到ptr中,返回实际读取的字节数
+ * 将ptr当作连续内存,等效于从(char*)ptr + offset位置读取read_size字节数据
+ * @param pool
+ * @param ptr
+ * @param offset
+ * @param read_size
+ * @return size_t
+ */
+size_t fc_pool_read(fc_pool_t *pool, void *ptr, size_t offset, size_t read_size)
+{
+    fc_assert(pool != NULL);
+    fc_assert(ptr != NULL);
+
+    fc_pool_header_t *node = (fc_pool_header_t *)((uint8_t *)ptr - sizeof(fc_pool_header_t));
+    size_t            per_size = fc_pool_per_size(pool);
+
+    // 找到offset所在的内存块
+    while (offset >= per_size)
+    {
+        if (node->next == NULL)  // offset超出链式内存块大小
+        {
+            return 0;
+        }
+        node = node->next;
+        offset -= per_size;
+    }
+
+    size_t   copied_size = 0;
+    size_t   copy_size = 0;
+    uint8_t *dst = (uint8_t *)ptr;
+    uint8_t *src = (uint8_t *)node + sizeof(fc_pool_header_t) + offset;
+    size_t   left_size = read_size;
+    size_t   can_copy_size = per_size - offset;  // 当前块还能读取的大小
+    while (left_size > 0)
+    {
+        copy_size = (left_size > can_copy_size) ? can_copy_size : left_size;
+        memcpy(dst + copied_size, src, copy_size);
+
+        copied_size += copy_size;
+        left_size -= copy_size;
+
+        if (left_size == 0)  // 读取完成
+        {
+            break;
+        }
+
+        if (node->next == NULL)  // 没有下一块内存了
+        {
+            break;
+        }
+
+        node = node->next;
+        src = (uint8_t *)node + sizeof(fc_pool_header_t);
+        can_copy_size = per_size;  // 新块可以全部读取
+    }
+
+    return copied_size;
+}
+
+/**
+ * @brief 获取链式非连续内存块的总大小(字节)
+ *
+ * @param pool
+ * @param ptr
+ * @return size_t
+ */
+size_t fc_pool_strip_size(fc_pool_t *pool, void *ptr)
+{
+    fc_assert(pool != NULL);
+    fc_assert(ptr != NULL);
+
+    fc_pool_header_t *node = (fc_pool_header_t *)((uint8_t *)ptr - sizeof(fc_pool_header_t));
+    size_t            per_size = fc_pool_per_size(pool);
+    size_t            total_size = 0;
+
+    while (node)
+    {
+        total_size += per_size;
+
+        if (node->pool.tag.end == FC_POOL_TAG_END)  // 找到这一次链式内存块的最后一块
+        {
+            break;
+        }
+
+        node = node->next;
+    }
+
+    return total_size;
+}
+
 //+********************************* 进阶API **********************************/
 
 /**
@@ -397,13 +602,13 @@ void *fc_pool_fifo_pop(fc_pool_t *pool)
 }
 
 /**
- * @brief 遍历pop出来的链式非连续内存块,不会释放内存,自行确保函数的线程安全
+ * @brief 遍历链式非连续内存块,不会释放内存,自行确保函数的线程安全
  *
  * @param ptr 链式非连续内存块的头部的用户起始地址
  * @param walker
  * @param user
  */
-void fc_pool_fifo_walk(void *ptr, fc_pool_walker_t walker, void *user)
+void fc_pool_walk(void *ptr, fc_pool_walker_t walker, void *user)
 {
     fc_assert(ptr != NULL);
 
@@ -440,7 +645,7 @@ void fc_pool_fifo_walk(void *ptr, fc_pool_walker_t walker, void *user)
  * @param walker
  * @param user
  */
-void fc_pool_walk(fc_pool_t *pool, fc_pool_walker_t walker, void *user)
+void fc_pool_fifo_walk(fc_pool_t *pool, fc_pool_walker_t walker, void *user)
 {
     fc_assert(pool != NULL);
 
@@ -449,7 +654,7 @@ void fc_pool_walk(fc_pool_t *pool, fc_pool_walker_t walker, void *user)
     while (!fc_pool_fifo_empty(pool))
     {
         ptr = fc_pool_fifo_pop(pool);
-        fc_pool_fifo_walk(ptr, walker, user);
+        fc_pool_walk(ptr, walker, user);
         fc_pool_free(&fc_log_pool, ptr);
     }
 }
