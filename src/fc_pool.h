@@ -55,7 +55,7 @@ extern "C"
         size_t record_lost;  // 丢失记录(分配失败次数)
     };
 
-    int fc_pool_init(fc_pool_t *pool, void *mem, size_t pool_size, size_t block_size);
+    int fc_pool_init(fc_pool_t *pool, void *mem, size_t mem_size, size_t block_size);
 
     void *fc_pool_alloc(fc_pool_t *pool, size_t *size);  // 区别于malloc,传入size的指针,返回实际分配的大小,O(1)复杂度
     void  fc_pool_free(fc_pool_t *pool, void *ptr);      // 如果是链式非连续内存块,会将整个链式内存块释放掉,O(n)复杂度,n为链式内存块的块数

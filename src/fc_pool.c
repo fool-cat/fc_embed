@@ -38,11 +38,11 @@
  *
  * @param pool
  * @param mem
- * @param pool_size
+ * @param mem_size
  * @param block_size
  * @return int 可使用内存块数,返回负数表示失败,请检查参数合法性
  */
-int fc_pool_init(fc_pool_t *pool, void *mem, size_t pool_size, size_t block_size)
+int fc_pool_init(fc_pool_t *pool, void *mem, size_t mem_size, size_t block_size)
 {
     fc_assert(pool != NULL);
     fc_assert(mem != NULL);
@@ -76,7 +76,7 @@ int fc_pool_init(fc_pool_t *pool, void *mem, size_t pool_size, size_t block_size
         }
     }
 
-    if (pool_size < per_block_size || mem == NULL)
+    if (mem_size < per_block_size || mem == NULL)
     {
         return -1;  // 检查参数合法性
     }
@@ -85,7 +85,7 @@ int fc_pool_init(fc_pool_t *pool, void *mem, size_t pool_size, size_t block_size
     pool->fifo_used.next = NULL;
     pool->list_free.pool.record_now = 0;  // 初始化空闲块数
 
-    for (size_t i = (size_t)start_addr; i < (size_t)mem + pool_size - per_block_size; i += per_block_size)
+    for (size_t i = (size_t)start_addr; i < (size_t)mem + mem_size - per_block_size; i += per_block_size)
     {
         node->next = (fc_pool_header_t *)i;  // 指向下一个节点
         node = node->next;                   // 移动到下一个节点
