@@ -115,7 +115,7 @@ extern "C"
     // clang-format off
 #define INIT_EXPORT_3(num, func, order) FC_INIT_EXPORT(fc_section_##num, func, order)
 
-    // 导出到指定段中,目前只有0~3段,默认优先级为1000,优先级越低越先执行,对应段的优先级也应该越低越先执行
+    // 导出到指定段中,目前只有0~3段,默认优先级为1000,越小越先执行
 #define _INIT_EXPORT_ENV_1(func)            INIT_EXPORT_3(0, func, 1000)
 #define _INIT_EXPORT_ENV_2(func, order)     INIT_EXPORT_3(0, func, order)
 

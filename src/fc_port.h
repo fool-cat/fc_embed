@@ -31,11 +31,21 @@ extern "C"
     #define PORT_RB_NUM 8
 #endif
 
+#ifndef FC_PORT_LOCK
+    #define FC_PORT_LOCK(port, rb_index, dir) ((void)0)
+#endif
+
+#ifndef FC_PORT_UNLOCK
+    #define FC_PORT_UNLOCK(port, rb_index, dir) ((void)0)
+#endif
+
     // 方向是从内核视角来说(高速部分)
     typedef enum
     {
-        FC_PORT_DIR_IN = 0,   // 慢速IO(通常是物理层)->环形缓冲->高速IO(通常是内核)
-        FC_PORT_DIR_OUT = 1,  // 高速IO(通常是内核)->环形缓冲->慢速IO(通常是物理层)
+        FC_PORT_DIR_IN = 0,                  // 慢速IO(通常是物理层)->环形缓冲->高速IO(通常是内核)
+        FC_PORT_DIR_OUT = 1,                 // 高速IO(通常是内核)->环形缓冲->慢速IO(通常是物理层)
+        FC_PORT_DIR_WRITE = FC_PORT_DIR_IN,  // 往缓冲区写数据
+        FC_PORT_DIR_READ = FC_PORT_DIR_OUT,  // 从缓冲区读数据
     } fc_port_dir_t;
 
     typedef size_t (*fc_phy_io_t)(size_t rb_index, void *buf, size_t len);  // 返回值仅做保留
@@ -95,6 +105,7 @@ extern "C"
 
     //+********************************* 提供一份格式化输出到fifo的API **********************************/
 
+    // 这两个API使用都需要自行保证fifo的写操作线程安全
     extern int fc_fifo_printf(fc_fifo_t *fifo, const char *fmt, ...);
     extern int fc_fifo_vprintf(fc_fifo_t *fifo, const char *fmt, va_list arp);  // fc_fifo_printf核心实现,在fc_port_vprintf.c中实现
 

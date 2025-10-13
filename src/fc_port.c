@@ -126,10 +126,13 @@ int fc_port_putc(fc_port_t *port, size_t rb_index, int ch)
 
     fc_fifo_t *fifo = port->rb[rb_index];
     int        ret = ch;
+
+    FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_WRITE);
     if (1 != fc_fifo_write(fifo, (void *)&ch, 1))
     {
         ch = EOF;
     }
+    FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_WRITE);
 
     if (EOF == ch)
     {
@@ -156,10 +159,13 @@ int fc_port_puts(fc_port_t *port, size_t rb_index, const char *str)
     fc_fifo_t *fifo = port->rb[rb_index];
     size_t     len = strlen(str);
     int        write_size = EOF;
+
+    FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_WRITE);
     if (fc_fifo_get_free(fifo) >= len)
     {
         write_size = fc_fifo_write(fifo, (void *)str, len);
     }
+    FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_WRITE);
 
     if (write_size < len)
     {
@@ -186,10 +192,12 @@ int fc_port_write(fc_port_t *port, size_t rb_index, const void *buf, size_t len)
     fc_fifo_t *fifo = port->rb[rb_index];
     int        write_size = EOF;
 
+    FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_WRITE);
     if (fc_fifo_get_free(fifo) >= len)
     {
         write_size = fc_fifo_write(fifo, (void *)buf, len);
     }
+    FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_WRITE);
 
     if (write_size < len)
     {
@@ -218,7 +226,11 @@ int fc_port_printf(fc_port_t *port, size_t rb_index, const char *fmt, ...)
 
     va_list arp;
     va_start(arp, fmt);
+
+    FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_WRITE);
     ret = fc_fifo_vprintf(fifo, fmt, arp);
+    FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_WRITE);
+
     va_end(arp);
 
     return ret;
@@ -238,10 +250,20 @@ int fc_port_getc(fc_port_t *port, size_t rb_index)
 
     fc_fifo_t *fifo = port->rb[rb_index];
     int        ch;
+
+    FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_READ);
+
     while (1 != fc_fifo_read(fifo, (void *)&ch, 1))
     {
+        FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_READ);  // 释放锁
+
         FC_WAIT_MOMENT();
+
+        FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_READ);  // 重新获取锁
     }
+
+    FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_READ);
+
     return ch;
 }
 
@@ -298,7 +320,11 @@ int fc_port_read(fc_port_t *port, size_t rb_index, void *buf, size_t len)
 
     fc_fifo_t *fifo = port->rb[rb_index];
     int        read_size = 0;
+
+    FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_READ);
     read_size = fc_fifo_read(fifo, buf, len);
+    FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_READ);
+
     return read_size;
 }
 
@@ -318,7 +344,11 @@ int fc_port_peek(fc_port_t *port, size_t rb_index, void *buf, size_t len)
 
     fc_fifo_t *fifo = port->rb[rb_index];
     int        read_size = 0;
+
+    FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_READ);
     read_size = fc_fifo_peek(fifo, buf, len);
+    FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_READ);
+
     return read_size;
 }
 
