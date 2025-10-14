@@ -83,6 +83,7 @@ int fc_pool_init(fc_pool_t *pool, void *mem, size_t mem_size, size_t block_size)
 
     pool->block_size = per_block_size - sizeof(fc_pool_header_t);
     pool->fifo_used.next = NULL;
+    pool->fifo_used.pool.tail = NULL;
     pool->list_free.pool.record_now = 0;  // 初始化空闲块数
 
     for (size_t i = (size_t)start_addr; i < (size_t)mem + mem_size - per_block_size; i += per_block_size)

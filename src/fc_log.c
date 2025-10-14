@@ -389,7 +389,7 @@ fc_weak bool log_alloc_default(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, 
 
 fc_pool_t fc_log_pool;  // log组件使用的内存池
 
-    // log组件使用的内存池总大小(字节),建议向上取整到sizeof(size_t)
+    // log组件可使用的内存池大小(字节),建议向上取整到sizeof(size_t)
     #ifndef FC_LOG_POOL_TOTAL_SIZE
         #define FC_LOG_POOL_TOTAL_SIZE (4 * 1024) /* 默认4KB */
     #endif
@@ -401,7 +401,9 @@ fc_pool_t fc_log_pool;  // log组件使用的内存池
 
 void fc_log_pool_init(void)
 {
-    static size_t log_pool_mem[FC_LOG_POOL_TOTAL_SIZE / sizeof(size_t)];  // 内存池
+    // static size_t log_pool_mem[FC_LOG_POOL_TOTAL_SIZE / sizeof(size_t)];  // 内存池
+    // static size_t log_pool_mem[FC_CALC_POOL_MEM_SIZE(FC_LOG_ALLOC_BLOCK_SIZE, 64) / sizeof(size_t)];                         // 内存池,64块内存,每块FC_LOG_ALLOC_BLOCK_SIZE字节
+    static size_t log_pool_mem[FC_CALC_POOL_USABLE_SIZE(FC_LOG_ALLOC_BLOCK_SIZE, FC_LOG_POOL_TOTAL_SIZE) / sizeof(size_t)];  // 内存池,每块FC_LOG_ALLOC_BLOCK_SIZE字节,至少包含FC_LOG_POOL_TOTAL_SIZE字节的内存
     fc_pool_init(&fc_log_pool, log_pool_mem, sizeof(log_pool_mem), FC_LOG_ALLOC_BLOCK_SIZE);
 }
 INIT_EXPORT_ENV(fc_log_pool_init, FC_LOG_INIT_ORDER - 1);  // 确保在log_init之前初始化
