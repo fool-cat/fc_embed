@@ -1,7 +1,7 @@
 /**
  * @file fc_fifo.h
  * @author fool_cat (2696652257@qq.com)
- * @brief 环形队列参考linux内核kfifo和CherryRB(https://github.com/cherry-embedded/CherryRB)
+ * @brief 字节流-环形队列参考linux内核kfifo和CherryRB(https://github.com/cherry-embedded/CherryRB)
  * 这个环形队列要求的是绝对的性能,可以保证在只有一个消费者和一个生产者的情况下不需要加锁机制
  * @version 1.0
  * @date 2025-01-07
@@ -109,6 +109,36 @@ extern "C"
     fc_always_inline size_t fc_fifo_linear_read_get_size(fc_fifo_t *rb);
     fc_always_inline bool   fc_fifo_linear_write_busy(fc_fifo_t *rb);
     fc_always_inline bool   fc_fifo_linear_read_busy(fc_fifo_t *rb);
+
+    fc_always_inline bool   fc_fifo_seek_byte(fc_fifo_t *rb, uint8_t *byte, size_t offset);
+    fc_always_inline size_t fc_fifo_seek(fc_fifo_t *rb, void *data, size_t size, size_t offset);
+
+    fc_always_inline bool   fc_fifo_drop_tail_byte(fc_fifo_t *rb);
+    fc_always_inline size_t fc_fifo_drop_tail(fc_fifo_t *rb, size_t size);
+
+    /*
+    // 同时操作写入和读取索引
+    // 1. fc_fifo_init
+    // 2. fc_fifo_reset
+    // 3. fc_fifo_overwrite_byte,当装满时才操作out
+    // 4. fc_fifo_overwrite,当装满时才操作out
+
+    // 仅操作写入索引
+    // 1. fc_fifo_reset_write
+    // 2. fc_fifo_write_byte
+    // 3. fc_fifo_write
+    // 4. fc_fifo_linear_write_done,配套使用fc_fifo_linear_write_setup,在setup到done期间不要调用其他写操作
+    // 5. fc_fifo_drop_tail_byte
+    // 6. fc_fifo_drop_tail
+
+    // 仅操作读取索引
+    // 1. fc_fifo_reset_read
+    // 2. fc_fifo_read_byte
+    // 3. fc_fifo_read
+    // 4. fc_fifo_linear_read_done,配套使用fc_fifo_linear_read_setup,在setup到done期间不要调用其他读操作
+    // 5. fc_fifo_drop_byte
+    // 6. fc_fifo_drop
+    */
 
 /**
  * @brief 类函数宏,对fc_fifo_t类型指针分配静态内存,一个指针只使用一次,不然会有大量的静态内存浪费
@@ -640,6 +670,108 @@ extern "C"
     {
         fc_fifo_assert(rb != NULL);
         return (rb->linear_size_read ? true : false);
+    }
+
+    /**
+     * @brief 查看指定位置的字节但不取出
+     * 可以等效看作从数组中读取下标为[offset-1]的元素
+     * @param rb
+     * @param byte
+     * @param offset
+     * @return fc_always_inline
+     */
+    fc_always_inline bool fc_fifo_seek_byte(fc_fifo_t *rb, uint8_t *byte, size_t offset)
+    {
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(byte != NULL);
+
+        size_t used = rb->in - rb->out;
+        if (offset >= used)
+            return false;
+
+        *byte = ((uint8_t *)rb->pool)[(rb->out + offset) & rb->mask];
+        return true;
+    }
+
+    /**
+     * @brief 批量查看指定偏移位置的数据但不取出
+     *
+     * @param rb
+     * @param data
+     * @param size
+     * @param offset
+     * @return fc_always_inline
+     */
+    fc_always_inline size_t fc_fifo_seek(fc_fifo_t *rb, void *data, size_t size, size_t offset)
+    {
+        fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(data != NULL);
+
+        size_t used;
+        size_t actual_size;
+        size_t data_offset;
+        size_t remain;
+
+        used = rb->in - rb->out;
+        if (offset >= used)
+        {
+            return 0;
+        }
+
+        actual_size = used - offset;
+        if (size > actual_size)
+        {
+            size = actual_size;
+        }
+
+        data_offset = (rb->out + offset) & rb->mask;
+
+        remain = (rb->mask + 1) - data_offset;
+        remain = remain > size ? size : remain;
+
+        fc_fifo_memcpy(data, ((uint8_t *)(rb->pool)) + data_offset, remain);
+        fc_fifo_memcpy((uint8_t *)data + remain, rb->pool, size - remain);
+
+        return size;
+    }
+
+    /**
+     * @brief 丢弃末尾一个字节
+     *
+     * @param rb
+     * @return fc_always_inline
+     */
+    fc_always_inline bool fc_fifo_drop_tail_byte(fc_fifo_t *rb)
+    {
+        fc_fifo_assert(rb != NULL);
+
+        if (fc_fifo_check_empty(rb))
+            return false;
+
+        rb->in--;
+        return true;
+    }
+
+    /**
+     * @brief 批量丢弃末尾数据
+     *
+     * @param rb
+     * @param size
+     * @return fc_always_inline
+     */
+    fc_always_inline size_t fc_fifo_drop_tail(fc_fifo_t *rb, size_t size)
+    {
+        fc_fifo_assert(rb != NULL);
+
+        size_t used;
+        used = rb->in - rb->out;
+        if (size > used)
+        {
+            size = used;
+        }
+
+        rb->in -= size;
+        return size;
     }
 
 #ifdef __cplusplus
