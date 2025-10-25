@@ -17,11 +17,27 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "fc_config.h"
+
 // > C/C++兼容性宏定义
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#ifndef FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
+    // 默认不启用动态内存支持
+    #define FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC 0
+#endif
+
+    typedef enum
+    {
+        FC_POOL_DYNAMIC_MALLOC,  // 分配新内存块
+        FC_POOL_DYNAMIC_FREE,    // 释放内存块
+    } fc_pool_dynamic_type_t;
+
+    typedef void *fc_pool_dynamic_mem_t;
+    typedef void (*fc_pool_dynamic_cb_t)(fc_pool_dynamic_type_t type, fc_pool_dynamic_mem_t *mem, size_t size);
 
     typedef void (*fc_pool_walker_t)(bool end, void *ptr, size_t used, void *user);
 
@@ -45,7 +61,11 @@ extern "C"
     typedef struct _fc_pool_t fc_pool_t;
     struct _fc_pool_t
     {
-        // void *mem;  // 记录原始内存地址,建议对齐sizeof(size_t)
+#if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
+        void                *mem_src;  // 记录原始内存地址,建议对齐sizeof(size_t)
+        size_t               mem_size;
+        fc_pool_dynamic_cb_t alloc;  // 内存分配回调函数,可为NULL
+#endif
 
         fc_pool_header_t list_free;  // 空闲链表
         fc_pool_header_t fifo_used;  // 已使用链表,用于fifo操作
@@ -88,6 +108,20 @@ extern "C"
     //+********************************* 提供一份默认的实现给log组件 **********************************/
 
     extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c中定义
+
+    //+*********************************  **********************************/
+
+    // 提供了一份默认的动态内存分配实现,需要开启FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC宏定义
+    extern void fc_pool_dynamic_default(fc_pool_dynamic_type_t type, fc_pool_dynamic_mem_t *mem, size_t size);
+
+    // 使用自定义的alloc回掉函数,需要开启FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC宏定义
+    void fc_pool_catch_alloc_cb(fc_pool_t *pool, fc_pool_dynamic_cb_t alloc_cb);  // 绑定用户自定义的内存分配回调函数
+
+#if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
+    #define FC_POOL_CATCH_ALLOC_CB(pool, alloc_cb) fc_pool_catch_alloc_cb(pool, alloc_cb)
+#else
+    #define FC_POOL_CATCH_ALLOC_CB(pool, alloc_cb) ((void)0)
+#endif
 
     //+********************************* 辅助宏 **********************************/
     // 最坏的情况如果定义不合理,将会浪费block_size-1字节的内存(完全没有使用),下面两个宏定义用于计算合理的内存需求

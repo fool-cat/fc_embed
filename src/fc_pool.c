@@ -11,6 +11,7 @@
 
 #include <string.h>
 
+#include "fc_compiler.h"
 #include "fc_config.h"
 #include "fc_pool.h"
 
@@ -54,7 +55,11 @@ int fc_pool_init(fc_pool_t *pool, void *mem, size_t mem_size, size_t block_size)
 
     memset(pool, 0, sizeof(fc_pool_t));
 
-    // pool->mem = mem;
+#if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
+    pool->mem_src = mem;
+    pool->mem_size = mem_size;
+    pool->alloc = fc_pool_dynamic_default;  // 绑定一份默认实现
+#endif
 
     // 如果start_addr不对齐sizeof(size_t),则对齐
     if (((size_t)start_addr) % align != 0)
@@ -101,7 +106,7 @@ int fc_pool_init(fc_pool_t *pool, void *mem, size_t mem_size, size_t block_size)
 }
 
 /**
- * @brief 内存分配,从list_free剥离,O(1)复杂度
+ * @brief 内存分配,从list_free剥离,静态内存区内O(1)复杂度
  *
  * @param pool
  * @param size
@@ -118,10 +123,12 @@ void *fc_pool_alloc(fc_pool_t *pool, size_t *size)
     FC_POOL_ATOMIC_ENTER(pool);
 
     node = pool->list_free.next;
-
     pool->list_free.next = (node) ? node->next : pool->list_free.next;  // 移动空闲链表头部
-    pool->record_lost += (node) ? 0 : 1;                                // 记录分配失败次数
     pool->list_free.pool.record_now -= (node) ? 1 : 0;                  // 统计空闲块数
+
+#if !(FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC)
+    pool->record_lost += (node) ? 0 : 1;  // 记录分配失败次数,纯静态直接在这里就知道分配是否成功了,避免后面再次进入原子操作
+#endif
 
     FC_POOL_ATOMIC_EXIT(pool);
 
@@ -142,17 +149,44 @@ void *fc_pool_alloc(fc_pool_t *pool, size_t *size)
 
         *size = pool->block_size;  // 返回可用大小
     }
+
+#if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
+    else if (pool->alloc)
+    {
+        // 调用用户自定义的内存分配回调函数
+        fc_pool_dynamic_mem_t mem = NULL;
+        pool->alloc(FC_POOL_DYNAMIC_MALLOC, &mem, (pool->block_size + sizeof(fc_pool_header_t)));
+
+        if (mem)
+        {
+            ret_ptr = (void *)((uint8_t *)mem + sizeof(fc_pool_header_t));  // 返回内存地址,跳过头部
+            *size = pool->block_size;                                       // 返回可用大小
+        }
+        else
+        {
+            // 分配失败将size置0,防止误用
+            *size = 0;  // 也可以不用管
+        }
+    }
+#endif
+
     else
     {
         // 分配失败将size置0,防止误用
         *size = 0;  // 也可以不用管
     }
 
+#if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
+    FC_POOL_ATOMIC_ENTER(pool);
+    pool->record_lost += (ret_ptr) ? 0 : 1;  // 记录分配失败次数
+    FC_POOL_ATOMIC_EXIT(pool);
+#endif
+
     return ret_ptr;
 }
 
 /**
- * @brief 释放内存,添加到list_free头部,O(n)复杂度,n为链式内存块的块数,影响非常小
+ * @brief 释放内存,添加到list_free头部,自身静态内存区内O(n)复杂度,n为链式内存块的块数,影响非常小
  *
  * @param pool
  * @param ptr
@@ -162,27 +196,92 @@ void fc_pool_free(fc_pool_t *pool, void *ptr)
     fc_assert(pool != NULL);
     fc_assert(ptr != NULL);
 
-    fc_pool_header_t *head = NULL;
-    fc_pool_header_t *tail = NULL;
-    size_t            node_count = 1;  // 至少有一个节点
+#if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
+    fc_pool_header_t *dynamic_head = NULL;
+    fc_pool_header_t *dynamic_tail = NULL;
+#endif
+
+    fc_pool_header_t *static_head = NULL;
+    fc_pool_header_t *static_tail = NULL;
+    fc_pool_header_t *node = NULL;
+    size_t            static_count = 0;
 
     // 找到头部
-    head = (fc_pool_header_t *)((uint8_t *)ptr - sizeof(fc_pool_header_t));
-    tail = head;
+    node = (fc_pool_header_t *)((uint8_t *)ptr - sizeof(fc_pool_header_t));
 
-    while (tail->next)  // 如果是链式内存块,释放整个链式内存块
+#if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
+    while (node)
     {
-        tail = tail->next;
-        node_count++;
+        // 如果内存地址不在内存池静态内存区内
+        if ((size_t)node < (size_t)pool->mem_src ||
+            (size_t)node >= ((size_t)pool->mem_src + pool->mem_size))
+        {
+            if (dynamic_head == NULL)
+            {
+                dynamic_head = node;
+                dynamic_tail = node;
+            }
+            else
+            {
+                dynamic_tail->next = node;
+                dynamic_tail = node;
+            }
+
+            node = node->next;          // node移动到下一个节点
+            dynamic_tail->next = NULL;  // 断开这个节点与后面的链接
+        }
+        else
+        {
+            if (static_head == NULL)
+            {
+                static_head = node;
+                static_tail = node;
+            }
+            else
+            {
+                static_tail->next = node;
+                static_tail = node;
+            }
+
+            static_count++;
+            node = node->next;         // node移动到下一个节点
+            static_tail->next = NULL;  // 断开这个节点与后面链接
+        }
     }
+#else
+    // 对于纯静态链来说,本身就是链好的,只需要找到最后一个节点即可
+    static_head = node;
+    static_tail = node;
+    static_count++;  // 已经存在一个节点
+    while (static_tail->next)
+    {
+        static_count++;
+        static_tail = static_tail->next;
+    }
+#endif
 
     FC_POOL_ATOMIC_ENTER(pool);
-
-    tail->next = pool->list_free.next;  // 尾部指向空闲链表头部
-    pool->list_free.next = head;        // 空闲链表头部指向新释放的内存块头部
-    pool->list_free.pool.record_now += node_count;
-
+    if (static_head)  // 静态内存释放仅仅是加入空闲链表,非常快
+    {
+        static_tail->next = pool->list_free.next;  // 尾部指向空闲链表头部
+        pool->list_free.next = static_head;        // 空闲链表头部指向新释放的内存块头部
+        pool->list_free.pool.record_now += static_count;
+    }
     FC_POOL_ATOMIC_EXIT(pool);
+
+#if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
+
+    while (dynamic_head && pool->alloc)  // 如果是动态分配的内存,调用用户自定义的内存释放回调函数释放内存
+    {
+        // 根据地址找到起始位置
+        fc_pool_dynamic_mem_t mem = (fc_pool_dynamic_mem_t)((uint8_t *)dynamic_head - sizeof(fc_pool_header_t));
+
+        pool->alloc(FC_POOL_DYNAMIC_FREE, &mem, pool->block_size + sizeof(fc_pool_header_t));  // 释放动态内存块
+
+        dynamic_head = dynamic_head->next;
+    }
+
+#endif
 }
 
 /**
@@ -305,10 +404,10 @@ void *fc_pool_malloc(fc_pool_t *pool, size_t size)
     void  *tail = NULL;
     void  *head = NULL;
     void  *ptr = NULL;
-    size_t alloc_size = 0;
+    size_t block_size = 0;
     size_t per_size = fc_pool_per_size(pool);
 
-    head = fc_pool_alloc(pool, &alloc_size);
+    head = fc_pool_alloc(pool, &block_size);
     if (head == NULL)
     {
         return NULL;  // 分配失败
@@ -325,7 +424,7 @@ void *fc_pool_malloc(fc_pool_t *pool, size_t size)
     {
         size -= per_size;
 
-        ptr = fc_pool_alloc(pool, &alloc_size);
+        ptr = fc_pool_alloc(pool, &block_size);
         if (ptr == NULL)
         {
             fc_pool_free(pool, head);  // 分配失败,释放已分配的内存
@@ -659,3 +758,38 @@ void fc_pool_fifo_walk(fc_pool_t *pool, fc_pool_walker_t walker, void *user)
         fc_pool_free(&fc_log_pool, ptr);
     }
 }
+
+//+********************************* 提供一份默认的动态内存申请 **********************************/
+
+#if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
+
+    #ifndef FC_POOL_MALLOC
+        #include <stdlib.h>
+        #define FC_POOL_MALLOC malloc
+    #endif
+
+    #ifndef FC_POOL_FREE
+        #include <stdlib.h>
+        #define FC_POOL_FREE free
+    #endif
+
+fc_weak void fc_pool_dynamic_default(fc_pool_dynamic_type_t type, fc_pool_dynamic_mem_t *mem, size_t size)
+{
+    if (type == FC_POOL_DYNAMIC_MALLOC)
+    {
+        *mem = (fc_pool_dynamic_mem_t)FC_POOL_MALLOC(size);
+    }
+    else if (type == FC_POOL_DYNAMIC_FREE)
+    {
+        FC_POOL_FREE(*mem);
+        // *mem = NULL;
+    }
+}
+
+void fc_pool_catch_alloc_cb(fc_pool_t *pool, fc_pool_dynamic_cb_t alloc_cb)
+{
+    fc_assert(pool != NULL);
+    pool->alloc = alloc_cb;
+}
+
+#endif
