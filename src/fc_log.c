@@ -352,7 +352,7 @@ fc_weak int log_write_default(void *user, const char *buf, int len)
  * @param advice_size
  * @return bool 返回值表示是否成功分配内存池
  */
-fc_weak bool log_alloc_default(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size)
+fc_weak bool log_alloc_default(fc_log_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size)
 {
     (void)alloc_type;
     (void)advice_size;
@@ -416,7 +416,7 @@ INIT_EXPORT_ENV(fc_log_pool_init, FC_LOG_INIT_ORDER - 1);  // 确保在log_init�
  * @param advice_size
  * @return fc_weak
  */
-fc_weak bool log_alloc_default(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size)
+fc_weak bool log_alloc_default(fc_log_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size)
 {
     if (FC_LOG_ALLOC_NEW == alloc_type)
     {

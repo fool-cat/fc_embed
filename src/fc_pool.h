@@ -105,11 +105,7 @@ extern "C"
 
     void fc_pool_fifo_walk(fc_pool_t *pool, fc_pool_walker_t walker, void *user);  // 遍历整个fifo used队列链表,遍历后释放内存
 
-    //+********************************* 提供一份默认的实现给log组件 **********************************/
-
-    extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c中定义
-
-    //+*********************************  **********************************/
+    //+********************************* 动态内存支持使用 **********************************/
 
     // 提供了一份默认的动态内存分配实现,需要开启FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC宏定义
     extern void fc_pool_dynamic_default(fc_pool_dynamic_type_t type, fc_pool_dynamic_mem_t *mem, size_t size);
@@ -122,6 +118,10 @@ extern "C"
 #else
     #define FC_POOL_CATCH_ALLOC_CB(pool, alloc_cb) ((void)0)
 #endif
+
+    //+********************************* 提供一份默认的实现给log组件 **********************************/
+
+    extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c中定义
 
     //+********************************* 辅助宏 **********************************/
     // 最坏的情况如果定义不合理,将会浪费block_size-1字节的内存(完全没有使用),下面两个宏定义用于计算合理的内存需求

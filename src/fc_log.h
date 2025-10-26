@@ -147,14 +147,14 @@ typedef enum
     FC_LOG_ALLOC_FREE = 0, /**< 释放内存池 */
     FC_LOG_ALLOC_NEW,      /**< 分配新内存池 */
     FC_LOG_ALLOC_REALLOC,  /**< 重新分配内存池 */
-} fc_alloc_type_t;
+} fc_log_alloc_type_t;
 
 //+********************************* 面向对象 **********************************/
 typedef struct _fc_log_t      fc_log_t;
 typedef struct _fc_log_pool_t fc_log_pool_t;
 
-typedef int (*fc_log_write_t)(void *user, const char *buf, int len);                               // 写入数据
-typedef bool (*fc_log_alloc_t)(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size);  // log内存池处理函数,返回是否成功
+typedef int (*fc_log_write_t)(void *user, const char *buf, int len);                                   // 写入数据
+typedef bool (*fc_log_alloc_t)(fc_log_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size);  // log内存池处理函数,返回是否成功
 
 struct _fc_log_pool_t
 {
@@ -195,7 +195,7 @@ extern "C"
     extern int log_write_default(void *user, const char *buf, int len);
 
     // 提供一份默认的内存池获取函数,可以在外面重写
-    extern bool log_alloc_default(fc_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size);
+    extern bool log_alloc_default(fc_log_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size);
 
     #ifdef __cplusplus
 }
