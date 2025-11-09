@@ -183,7 +183,6 @@ extern "C"
     extern void fc_log_catch            (fc_log_t *log, fc_log_write_t write, fc_log_alloc_t alloc);
     extern void fc_log_set_level        (fc_log_t *log, fc_log_level_t level);
     extern void fc_log_fprintf          (fc_log_t *log, fc_log_level_t level, const char *fmt, ...);
-    // extern void fc_log_fprintf_stack    (fc_log_t *log, fc_log_level_t level, char *stack_buf, int stack_size, const char *fmt, ...); // 废弃
     // extern void fc_log_write            (fc_log_t *log, fc_log_level_t level, const void *buff, int len); // 废弃
 
     // clang-format on
@@ -224,23 +223,23 @@ extern fc_log_t default_log;  // 默认log对象
             }
     #endif
 
-    #ifndef FC_LOG_USE_FC_POOL
-        #include "fc_pool.h"
-        #define FC_LOG_USE_FC_POOL 1 /**< 是否使用fc_poolh及fc_vsnprintf进行格式化 */
+    #include "fc_pool.h"
 
-    //! 使用fc_pool之后需要在其他地方使用以下方式讲内存池中的数据写出去
-    // void fc_log_walker(bool end, void *ptr, size_t used, void *user)
-    // {
-    //     (void)user;
-    //     (void)end;
-    //     fc_write(ptr, used);
-    // }
+//+********************************* 提供一份默认的实现给log组件 **********************************/
+extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c中定义
 
-    // if (!fc_pool_fifo_empty(&fc_log_pool))
-    // {
-    //     fc_pool_fifo_walk(&fc_log_pool, fc_log_walker, NULL);
-    // }
-    #endif
+//! 使用fc_pool之后需要在其他地方使用以下方式将内存池中的数据写出去
+// void fc_log_walker(bool end, void *ptr, size_t used, void *user)
+// {
+//     (void)user;
+//     (void)end;
+//     fc_write(ptr, used);
+// }
+
+// if (!fc_pool_fifo_empty(&fc_log_pool))
+// {
+//     fc_pool_fifo_walk(&fc_log_pool, fc_log_walker, NULL);
+// }
 
 #endif  // __FC_LOG_H__
 

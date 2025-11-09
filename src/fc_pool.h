@@ -119,23 +119,19 @@ extern "C"
     #define FC_POOL_CATCH_ALLOC_CB(pool, alloc_cb) ((void)0)
 #endif
 
-    //+********************************* 提供一份默认的实现给log组件 **********************************/
-
-    extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c中定义
-
     //+********************************* 辅助宏 **********************************/
     // 最坏的情况如果定义不合理,将会浪费block_size-1字节的内存(完全没有使用),下面两个宏定义用于计算合理的内存需求
     // 一般建议block_size为32以上且为sizeof(size_t)的整数倍
 
 /**
  * @brief 计算内存池所需内存大小的宏定义,前提是内存对齐sizeof(size_t)的情况
- * 例: size_t pool_mem(FC_CALC_POOL_MEM_SIZE(32, 10)/sizeof(size_t)); // 内存池可以支配10块32字节的内存(剔除维护消耗)
+ * 例: size_t pool_mem(FC_CALC_POOL_MEM_SIZE(32, 10)/sizeof(size_t)); // 内存池可以支配10块32字节的内存(不包括维护消耗)
  */
 #define FC_CALC_POOL_MEM_SIZE(block_size, block_count) ((block_size + sizeof(fc_pool_header_t)) * (block_count))
 
 /**
  * @brief 计算至少可支配内存大小的宏定义,前提是内存对齐sizeof(size_t)的情况
- *  例: size_t pool_size(FC_CALC_POOL_USABLE_SIZE(32,320)); //  // 内存池至少可支配320字节的内存,每块32字节(剔除维护消耗)
+ *  例: size_t pool_size(FC_CALC_POOL_USABLE_SIZE(32,320)); //  // 内存池至少可支配320字节的内存,每块32字节(不包括维护消耗)
  */
 #define FC_CALC_POOL_USABLE_SIZE(block_size, useable_size) ((useable_size + block_size - 1) / block_size * (block_size + sizeof(fc_pool_header_t)))
 

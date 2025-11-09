@@ -712,23 +712,20 @@ void fc_pool_walk(void *ptr, fc_pool_walker_t walker, void *user)
 {
     fc_assert(ptr != NULL);
 
-    if (walker == NULL)
-    {
-        return;
-    }
-
     fc_pool_header_t *node = (fc_pool_header_t *)((uint8_t *)ptr - sizeof(fc_pool_header_t));
     bool              end = false;
 
     while (node)
     {
-        end = (node->pool.tag.end == FC_POOL_TAG_END) ? true : false;
-        if (node->next == NULL)  // 理论上永远不会出现这种情况
+        if ((FC_POOL_TAG_END == node->pool.tag.end) || (NULL == node->next))
         {
             end = true;
         }
 
-        walker(end, (uint8_t *)node + sizeof(fc_pool_header_t), node->pool.tag.size, user);
+        if (walker)
+        {
+            walker(end, (uint8_t *)node + sizeof(fc_pool_header_t), node->pool.tag.size, user);
+        }
 
         if (end)
         {
@@ -755,7 +752,7 @@ void fc_pool_fifo_walk(fc_pool_t *pool, fc_pool_walker_t walker, void *user)
     {
         ptr = fc_pool_fifo_pop(pool);
         fc_pool_walk(ptr, walker, user);
-        fc_pool_free(&fc_log_pool, ptr);
+        fc_pool_free(pool, ptr);
     }
 }
 
