@@ -1,35 +1,31 @@
 {
-    "name": "C/C++ Development",
-    "image": "mcr.microsoft.com/devcontainers/cpp:0-ubuntu-22.04",
-
-    "features": {
-        "ghcr.io/devcontainers/features/cmake:1": {
-            "version": "latest"
-        },
-        "ghcr.io/devcontainers/features/docker-in-docker:1": {
-            "version": "latest",
-            "moby": true
-        }
+  "name": "C/C++ Development",
+  "image": "mcr.microsoft.com/devcontainers/cpp:0-ubuntu-22.04",
+  
+  "features": {
+    "cmake": {
+      "version": "latest"
     },
+    "docker-in-docker": {
+      "version": "latest",
+      "moby": true
+    }
+  },
 
-    "customizations": {
-        "vscode": {
-            "extensions": [
-                "ms-vscode.cpptools",
-                "ms-vscode.cpptools-extension-pack",
-                "ms-vscode.cmake-tools",
-                "twxs.cmake",
-                "eamodio.gitlens"
-            ],
-            "settings": {
-                "cmake.configureOnOpen": true
-            }
-        }
-    },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.cmake-tools",
+        "twxs.cmake"
+      ]
+    }
+  },
 
-    "remoteUser": "vscode",
-
-    "postCreateCommand": "sudo apt-get update && sudo apt-get install -y build-essential gdb",
-
-    "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"]
+  "remoteUser": "vscode",
+  
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y build-essential gdb cmake ninja-build",
+  
+  "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"]
 }
