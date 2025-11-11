@@ -73,4 +73,12 @@
     #error not supported tool chain
 #endif /* __ARMCC_VERSION */
 
+#if defined(__GNUC__) && __GNUC__ >= 3
+    #define FMT_ARG(n) __attribute__((__format_arg__(n)))
+#else
+    #define FMT_ARG(n)
+#endif
+
+
+
 #endif // __FC_COMPILER_H__
