@@ -39,27 +39,25 @@ int fc_vsnprintf(char *s, size_t n, const char *fmt, va_list ap)
 {
     FC_FILE f = {0};
 
-    if (s && n >= 2)
+    if (s && n > 0)  // 明确处理n>0的情况
     {
         f.p_now = s;
         f.p_start = s;
-        f.p_end = s + n - 1;  // 预留一个字节给\0
+        f.p_end = (n == 1) ? s : s + n - 1;  // 特殊处理n=1的情况
     }
     else
     {
-        f.p_now = NULL;  // 完全通过write函数控制
+        f.p_now = NULL;
     }
     f.io.write = __fc_vsnprintf_write;
 
     fc_vfprintf(&f, fmt, ap);
 
-    if (f.n >= n && s && n > 0)
+    if (s && n > 0)
     {
-        s[n - 1] = '\0';  // 截断
-    }
-    else if (s && f.p_now)
-    {
-        *f.p_now = '\0';  // 结尾
+        // 统一处理结尾
+        size_t pos = (f.n < n) ? f.n : n - 1;
+        s[pos] = '\0';
     }
 
     return f.n;
