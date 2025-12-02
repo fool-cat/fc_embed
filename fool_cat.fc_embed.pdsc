@@ -92,11 +92,6 @@
       <description>fc_embed Standard I/O</description>
       <require condition="Cortex-M"/>
     </condition>
-    
-    <condition id="fc_embed_StdIO_Full">
-      <description>fc_embed Standard I/O with Port Support (fc_port_vprintf)</description>
-      <require Cclass="fc_embed" Cgroup="Port"/>
-    </condition>
   </conditions>
   
   <components>
@@ -121,7 +116,7 @@
       <files>
         <file category="header" name="core/fc_compiler.h"/>
         <file category="header" name="core/fc_helper.h"/>
-        <file category="header" attr="config" name="core/fc_config.h" version="1.0.0"/>
+        <file category="header" attr="template" name="core/fc_config_template.h" select="Configuration" version="1.0.0"/>
       </files>
     </component>
     
