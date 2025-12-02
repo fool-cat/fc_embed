@@ -13,6 +13,23 @@ echo "Simplified CMSIS Pack Generation"
 echo "=========================================="
 echo ""
 
+# Check and install zip if needed
+if ! command -v zip &> /dev/null; then
+    echo "zip not found, installing..."
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y zip
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y zip
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y zip
+    else
+        echo "Error: Cannot install zip automatically. Please install it manually."
+        exit 1
+    fi
+    echo "zip installed successfully."
+    echo ""
+fi
+
 # Check if PDSC file exists
 if [ ! -f "$PDSC_FILE" ]; then
     echo "Error: $PDSC_FILE not found!"
