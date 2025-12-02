@@ -8,12 +8,12 @@ echo Generating CMSIS Pack using WSL
 echo ========================================
 echo.
 
-REM Get current directory in Windows format
-set "WIN_PATH=%~dp0"
+REM Get current directory in Windows format (parent of wsl_tools)
+set "WIN_PATH=%~dp0.."
 
 REM Convert Windows path to WSL path
 REM Remove trailing backslash
-set "WIN_PATH=%WIN_PATH:~0,-1%"
+if "%WIN_PATH:~-1%"=="\" set "WIN_PATH=%WIN_PATH:~0,-1%"
 
 REM Convert to WSL format (e.g., D:\GitHub_Clone\fc_embed -> /mnt/d/GitHub_Clone/fc_embed)
 for /f "tokens=1,* delims=:" %%a in ("%WIN_PATH%") do (
@@ -45,17 +45,17 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Running gen_pack.sh in WSL...
+echo Running gen_pack_wsl.sh in WSL...
 echo.
 
 REM Fix line endings first (CRLF to LF)
 echo Fixing line endings...
-wsl bash -c "cd '%WSL_PATH%' && sed -i 's/\r$//' gen_pack.sh"
+wsl bash -c "cd '%WSL_PATH%/wsl_tools' && sed -i 's/\r$//' gen_pack_wsl.sh"
 echo Line endings fixed.
 echo.
 
 REM Execute the script in WSL
-wsl cd "%WSL_PATH%" ^&^& bash gen_pack.sh
+wsl cd "%WSL_PATH%" ^&^& bash wsl_tools/gen_pack_wsl.sh
 
 if errorlevel 1 (
     echo.

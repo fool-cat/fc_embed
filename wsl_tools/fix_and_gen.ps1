@@ -6,12 +6,12 @@ $driveLetter = $winPath.Substring(0, 1).ToLower()
 $restOfPath = $winPath.Substring(2) -replace '\\', '/'
 $wslPath = "/mnt/$driveLetter$restOfPath"
 
-Write-Host "Fixing line endings in gen_pack.sh..." -ForegroundColor Yellow
-wsl bash -c "cd '$wslPath' && sed -i 's/\r$//' gen_pack.sh && chmod +x gen_pack.sh"
+Write-Host "Fixing line endings in gen_pack_wsl.sh..." -ForegroundColor Yellow
+wsl bash -c "cd '$wslPath/wsl_tools' && sed -i 's/\r$//' gen_pack_wsl.sh && chmod +x gen_pack_wsl.sh"
 Write-Host "Fixed!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Now generating pack..." -ForegroundColor Cyan
-wsl bash -c "cd '$wslPath' && bash gen_pack.sh"
+wsl bash -c "cd '$wslPath' && bash wsl_tools/gen_pack_wsl.sh"
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host ""

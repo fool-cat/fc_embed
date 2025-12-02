@@ -61,10 +61,10 @@ if [ -f "readme.md" ]; then
     cp "readme.md" "$BUILD_DIR/"
 fi
 
-# Copy src directory
-if [ -d "src" ]; then
-    echo "Copying src directory..."
-    cp -r "src" "$BUILD_DIR/"
+# Copy core directory
+if [ -d "core" ]; then
+    echo "Copying core directory..."
+    cp -r "core" "$BUILD_DIR/"
 fi
 
 echo ""

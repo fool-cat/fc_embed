@@ -36,21 +36,20 @@ try {
 
 Write-Host "Checking and fixing line endings..." -ForegroundColor Yellow
 
-# Convert CRLF to LF for gen_pack.sh if needed
-$genPackScript = Join-Path $currentDir "gen_pack.sh"
+# Convert CRLF to LF for gen_pack_wsl.sh if needed
+$genPackScript = Join-Path $currentDir "wsl_tools\gen_pack_wsl.sh"
 if (Test-Path $genPackScript) {
     # Use WSL dos2unix or sed to fix line endings
-    wsl bash -c "cd '$wslPath' && sed -i 's/\r$//' gen_pack.sh"
+    wsl bash -c "cd '$wslPath/wsl_tools' && sed -i 's/\r$//' gen_pack_wsl.sh"
     Write-Host "Line endings fixed." -ForegroundColor Green
 }
 
 Write-Host ""
-Write-Host "Running gen_pack.sh in WSL..." -ForegroundColor Green
-Write-Host "Note: First run will download required libraries (may take a moment)..." -ForegroundColor Cyan
+Write-Host "Running gen_pack_wsl.sh in WSL..." -ForegroundColor Green
 Write-Host ""
 
 # Execute the script in WSL
-wsl bash -c "cd '$wslPath' && bash gen_pack.sh"
+wsl bash -c "cd '$wslPath' && bash wsl_tools/gen_pack_wsl.sh"
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host ""
