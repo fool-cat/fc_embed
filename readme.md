@@ -1,3 +1,10 @@
+# 暂时使用AI生成,仅供参考
+
+
+
+
+
+
 # fc_embed
 
 > 个人嵌入式开发库 - 提供轻量级、高性能的嵌入式系统基础组件
@@ -301,12 +308,6 @@ FC_LOG_V()  // VERBOSE - 详细
 ## 📄 许可证
 
 本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
-
-## 📮 联系方式
-
-- **作者**: fool_cat
-- **邮箱**: 2696652257@qq.com
-- **GitHub**: [fool-cat/fc_embed](https://github.com/fool-cat/fc_embed)
 
 ## ⚠️ 注意事项
 
