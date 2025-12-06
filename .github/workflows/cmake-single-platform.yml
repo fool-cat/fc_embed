@@ -2,9 +2,9 @@ name: Build documentation and pack
 on:
   workflow_dispatch:
   push:
-    branches: [ CMSIS-Pack ]
+    branches: [ develop ]
   pull_request:
-    branches: [ CMSIS-Pack ]
+    branches: [ develop ]
   release:
     types: [published]
 jobs:
@@ -31,3 +31,24 @@ jobs:
           packchk-version: 1.3.96
           gen-pack-script: ./gen_pack.sh
           gen-pack-output: ./output
+
+      - name: Copy pack to cmsis-pack directory
+        run: |
+          mkdir -p cmsis-pack
+          cp -v ./output/*.pack cmsis-pack/ || true
+
+      - name: Upload pack artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: cmsis-pack
+          path: cmsis-pack/*.pack
+          if-no-files-found: warn
+
+      - name: Commit pack to repository
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add cmsis-pack/*.pack
+          git diff --staged --quiet || git commit -m "chore: Update CMSIS pack files [skip ci]"
+          git push
