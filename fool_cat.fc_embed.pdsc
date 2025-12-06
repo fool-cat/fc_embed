@@ -102,6 +102,7 @@
         #define RTE_FC_EMBED_AUTO_INIT         /* fc_embed Auto Init */
       </RTE_Components_h>
       <files>
+<<<<<<< HEAD
         <file category="source" name="core/fc_auto_init.c"/>
         <file category="header" name="core/fc_auto_init.h"/>
       </files>
@@ -117,6 +118,11 @@
         <file category="header" name="core/fc_compiler.h"/>
         <file category="header" name="core/fc_helper.h"/>
         <file category="header" attr="template" name="core/fc_config_template.h" select="Configuration" version="1.0.0"/>
+=======
+        <file category="header" attr="config" name="core/fc_config.h"/>
+        <file category="source" name="core/fc_auto_init.c"/>
+        <file category="header" attr="template" name="core/fc_auto_init.h"/>
+>>>>>>> develop
       </files>
     </component>
     
@@ -127,8 +133,14 @@
         #define RTE_FC_EMBED_POOL              /* FC Embed Memory Pool */
       </RTE_Components_h>
       <files>
+<<<<<<< HEAD
         <file category="source" name="core/fc_pool.c"/>
         <file category="header" name="core/fc_pool.h"/>
+=======
+        <file category="header" attr="config" name="core/fc_config.h"/>
+        <file category="source" name="core/fc_pool.c"/>
+        <file category="header" attr="template" name="core/fc_pool.h"/>
+>>>>>>> develop
       </files>
     </component>
     
@@ -139,9 +151,16 @@
         #define RTE_FC_EMBED_PORT              /* fc_embed Port Layer */
       </RTE_Components_h>
       <files>
+<<<<<<< HEAD
         <file category="header" name="core/fc_fifo.h"/>
         <file category="source" name="core/fc_port.c"/>
         <file category="header" name="core/fc_port.h"/>
+=======
+        <file category="header" attr="config" name="core/fc_config.h"/>
+        <file category="header" attr="template" name="core/fc_fifo.h"/>
+        <file category="source" name="core/fc_port.c"/>
+        <file category="header" attr="template" name="core/fc_port.h"/>
+>>>>>>> develop
       </files>
     </component>
     
@@ -152,9 +171,16 @@
         #define RTE_FC_EMBED_TRANSPORT         /* fc_embed Transport */
       </RTE_Components_h>
       <files>
+<<<<<<< HEAD
         <file category="header" name="core/fc_fifo.h"/>
         <file category="source" name="core/fc_trans.c"/>
         <file category="header" name="core/fc_trans.h"/>
+=======
+        <file category="header" attr="config" name="core/fc_config.h"/>
+        <file category="header" attr="template" name="core/fc_fifo.h"/>
+        <file category="source" name="core/fc_trans.c"/>
+        <file category="header" attr="template" name="core/fc_trans.h"/>
+>>>>>>> develop
       </files>
     </component>
     
@@ -165,9 +191,16 @@
         #define RTE_FC_EMBED_STDIO             /* FC Embed Standard I/O */
       </RTE_Components_h>
       <files>
+<<<<<<< HEAD
         <!-- Main stdio implementation (includes all utils/*.c internally) -->
         <file category="source" name="core/fc_stdio.c"/>
         <file category="header" name="core/fc_stdio.h"/>
+=======
+        <file category="header" attr="config" name="core/fc_config.h"/>
+        <!-- Main stdio implementation (includes all utils/*.c internally) -->
+        <file category="source" name="core/fc_stdio.c"/>
+        <file category="header" attr="template" name="core/fc_stdio.h"/>
+>>>>>>> develop
         <file category="doc" name="core/utils/readme.md"/>
       </files>
     </component>
@@ -179,8 +212,14 @@
         #define RTE_FC_EMBED_LOGGER            /* FC Embed Logger */
       </RTE_Components_h>
       <files>
+<<<<<<< HEAD
         <file category="source" name="core/fc_log.c"/>
         <file category="header" name="core/fc_log.h"/>
+=======
+        <file category="header" attr="config" name="core/fc_config.h"/>
+        <file category="source" name="core/fc_log.c"/>
+        <file category="header" attr="template" name="core/fc_log.h"/>
+>>>>>>> develop
       </files>
     </component>
   </components>

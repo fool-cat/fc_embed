@@ -24,6 +24,26 @@
 
 // clang-format off
 
+//+********************************* GNU Extension Check **********************************/
+/**
+ * @brief Check if GNU extensions are enabled
+ * @note fc_embed requires GNU extensions for __attribute__, typeof, etc.
+ * 
+ * For ARM Compiler 5 (AC5):
+ *   Project Options -> C/C++ -> Check "Use MicroLIB" or enable GNU extensions
+ * 
+ * For ARM Compiler 6 (AC6):
+ *   Project Options -> C/C++ -> Language C -> Select GNU dialect (e.g., gnu11, gnu99)
+ * 
+ * For GCC/Clang:
+ *   GNU extensions are enabled by default
+ */
+#if defined(__ARMCC_VERSION)
+    #if !defined(__GNUC__)
+        #error "fc_embed requires GNU extensions! Please enable GNU dialect in Keil Project Options -> C/C++ settings."
+    #endif
+#endif
+
 #if defined(__ARMCC_VERSION)        /* ARM Compiler */
 #define fc_section(x)               __attribute__((section(x)))
 #define fc_used                     __attribute__((used))
