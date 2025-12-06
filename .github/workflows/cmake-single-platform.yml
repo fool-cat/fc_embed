@@ -2,9 +2,9 @@ name: Build documentation and pack
 on:
   workflow_dispatch:
   push:
-    branches: [ develop, CMSIS-Pack ]
+    branches: [ develop ]
   pull_request:
-    branches: [ develop, CMSIS-Pack ]
+    branches: [ develop ]
   release:
     types: [published]
 jobs:
