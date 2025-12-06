@@ -2,9 +2,9 @@ name: Build documentation and pack
 on:
   workflow_dispatch:
   push:
-    branches: [ develop ]
+    branches: [ develop, CMSIS-Pack ]
   pull_request:
-    branches: [ develop ]
+    branches: [ develop, CMSIS-Pack ]
   release:
     types: [published]
 jobs:
@@ -48,12 +48,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Commit pack to repository
-        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/CMSIS-Pack'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add cmsis-pack/*.pack
           if ! git diff --staged --quiet; then
             git commit -m "chore: Update CMSIS pack files [skip ci]"
-            git push origin HEAD:develop
+            git push origin HEAD:CMSIS-Pack
           fi
