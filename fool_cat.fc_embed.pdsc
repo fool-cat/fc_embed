@@ -8,8 +8,8 @@
   <license>LICENSE</license>
   
   <releases>
-    <release version="1.0.0" date="2025-12-02">
-      Initial release of fc_embed library with accurate dependency analysis
+    <release version="1.0.0" date="2025-12-06">
+      Production release with CMSIS Pack compliance fixes
       
       Components Overview:
       - Core: Compiler abstraction (ARM/IAR/GCC/MSVC), helpers, auto-init framework
@@ -21,20 +21,23 @@
       - Logger: Multi-level logging with color and RTT support
       
       Dependency Chain:
-      Core (base) �?FIFO (header-only)
-                 �?Memory Pool
+      Core (base) → FIFO (header-only)
+                 → Memory Pool
       
-      FIFO �?Port (multi-buffer I/O)
+      FIFO → Port (multi-buffer I/O)
       
-      Port + FIFO �?Transport (multiplexing)
+      Port + FIFO → Transport (multiplexing)
       
-      Core + Memory Pool + StdIO �?Logger (logging system)
+      Core + Memory Pool + StdIO → Logger (logging system)
       
-      Notes:
-      - FIFO is header-only, no source compilation needed
-      - fc_port_vprintf.c in StdIO requires Port for full functionality
-      - Logger requires both Memory Pool (for buffer management) and StdIO (for formatting)
-      - Auto-init framework supports 4 initialization stages with priority ordering
+      Fixes:
+      - Added version attributes to config files
+      - Added select attributes to template files
+      - Fixed GitHub Actions permissions
+      - Added cmsis-pack directory for automated pack storage
+    </release>
+    <release version="0.9.0" date="2025-12-02">
+      Initial development release with core functionality
     </release>
   </releases>
   
