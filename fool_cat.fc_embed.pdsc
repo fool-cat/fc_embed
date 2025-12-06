@@ -212,14 +212,9 @@
         #define RTE_FC_EMBED_LOGGER            /* FC Embed Logger */
       </RTE_Components_h>
       <files>
-<<<<<<< HEAD
-        <file category="source" name="core/fc_log.c"/>
-        <file category="header" name="core/fc_log.h"/>
-=======
         <file category="header" attr="config" name="core/fc_config.h"/>
         <file category="source" name="core/fc_log.c"/>
         <file category="header" attr="template" name="core/fc_log.h"/>
->>>>>>> develop
       </files>
     </component>
   </components>
