@@ -38,8 +38,11 @@
     #endif
 
     #ifndef FC_LOG_USING_COLOR
-        #define FC_LOG_CSI_END ""
         #define FC_LOG_USING_COLOR 1 /**< 是否使用颜色 */
+    #endif
+
+    #ifndef FC_LOG_FMT_END
+        #define FC_LOG_FMT_END "" /**< 每句log格式结尾部分 */
     #endif
 
     // 宏展开辅助宏
@@ -115,17 +118,17 @@
      * log级别字符(包含颜色)
      */
     #if FC_LOG_USING_COLOR == 1
-        #define FC_ERROR_TEXT      CSI(31) FC_LOG_ERROR_HEAD    FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 错误标签 */
-        #define FC_WARNING_TEXT    CSI(33) FC_LOG_WARNING_HEAD  FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 警告标签 */
-        #define FC_INFO_TEXT       CSI(32) FC_LOG_INFO_HEAD     FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 信息标签 */
-        #define FC_DEBUG_TEXT      CSI(34) FC_LOG_DEBUG_HEAD    FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 调试标签 */
-        #define FC_VERBOSE_TEXT    CSI(36) FC_LOG_VERBOSE_HEAD  FC_LOG_PREFIX_FMT CSI(39) FC_LOG_CSI_END    /**< 冗余信息标签 */
+        #define FC_ERROR_TEXT      CSI(31) FC_LOG_ERROR_HEAD    FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 错误标签 */
+        #define FC_WARNING_TEXT    CSI(33) FC_LOG_WARNING_HEAD  FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 警告标签 */
+        #define FC_INFO_TEXT       CSI(32) FC_LOG_INFO_HEAD     FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 信息标签 */
+        #define FC_DEBUG_TEXT      CSI(34) FC_LOG_DEBUG_HEAD    FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 调试标签 */
+        #define FC_VERBOSE_TEXT    CSI(36) FC_LOG_VERBOSE_HEAD  FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 冗余信息标签 */
     #else
-        #define FC_ERROR_TEXT       FC_LOG_ERROR_HEAD       FC_LOG_PREFIX_FMT
-        #define FC_WARNING_TEXT     FC_LOG_WARNING_HEAD     FC_LOG_PREFIX_FMT
-        #define FC_INFO_TEXT        FC_LOG_INFO_HEAD        FC_LOG_PREFIX_FMT
-        #define FC_DEBUG_TEXT       FC_LOG_DEBUG_HEAD       FC_LOG_PREFIX_FMT
-        #define FC_VERBOSE_TEXT     FC_LOG_VERBOSE_HEAD     FC_LOG_PREFIX_FMT
+        #define FC_ERROR_TEXT       FC_LOG_ERROR_HEAD       FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
+        #define FC_WARNING_TEXT     FC_LOG_WARNING_HEAD     FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
+        #define FC_INFO_TEXT        FC_LOG_INFO_HEAD        FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
+        #define FC_DEBUG_TEXT       FC_LOG_DEBUG_HEAD       FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
+        #define FC_VERBOSE_TEXT     FC_LOG_VERBOSE_HEAD     FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
     #endif
 
     typedef enum
