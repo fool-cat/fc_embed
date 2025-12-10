@@ -17,5 +17,5 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.GITEE_PRIVATE_KEY }}
         with:
-          source-repo: git@github.com:fool-cat/fc_embed.git
+          source-repo: https://github.com/fool-cat/fc_embed.git
           destination-repo: git@gitee.com:lord-it-over-a-district/fc_embed.git
