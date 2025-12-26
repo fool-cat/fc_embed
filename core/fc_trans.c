@@ -126,7 +126,7 @@ void fc_receiver_monitor(fc_receiver_t *receiver)
     {
         len_total = fc_fifo_get_used(rb);  // 更新现存数据量
         p_start = (char *)fc_fifo_linear_read_setup(rb, &len);
-        p_end = memchr(p_start, head[0], len);  // 查找是否可能存在分页信息
+        p_end = (char*)memchr(p_start, head[0], len);  // 查找是否可能存在分页信息
 
         if (NULL == p_end)  // 不存在分页信息
         {

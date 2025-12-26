@@ -29,6 +29,10 @@
         #define FC_LOG_ENABLE 1 /**< 使能log */
     #endif
 
+    #ifndef FC_LOG_ENABLE_ALLOC_FAIL_HANDLE
+        #define FC_LOG_ENABLE_ALLOC_FAIL_HANDLE 1 /**< 使能内存分配失败处理 */
+    #endif
+
     #ifndef FC_LOG_LINE_SIZE
         #define FC_LOG_LINE_SIZE 128 /**< log行缓冲大小 */
     #endif
@@ -191,7 +195,7 @@ extern "C"
     // clang-format on
 
     // 提供一份默认的弱函数log写丢失数据钩子,可以在外面重写
-    extern int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len);
+    extern int fc_log_write_lose_hook(fc_log_t *log, int len);
 
     // 提供一份默认的log写函数,可以在外面重写
     extern int log_write_default(void *user, const char *buf, int len);
@@ -218,11 +222,11 @@ extern fc_log_t default_log;  // 默认log对象
         }
 
     #ifndef FC_LOG_LOSE_HOOK
-        /* #define FC_LOG_LOSE_HOOK(exp, log, buf, len) (void)(0) */
-        #define FC_LOG_LOSE_HOOK(exp, log, buf, len)   \
-            if (!(exp))                                \
-            {                                          \
-                fc_log_write_lose_hook(log, buf, len); \
+        /* #define FC_LOG_LOSE_HOOK(exp, log, len) (void)(0) */
+        #define FC_LOG_LOSE_HOOK(exp, log, len)   \
+            if (!(exp))                           \
+            {                                     \
+                fc_log_write_lose_hook(log, len); \
             }
     #endif
 
@@ -345,3 +349,6 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 #endif
 
 // clang-format on
+
+// 除了 FC_LOG_FMT_END 定义结尾外,还可以使用如下宏在每句log后面添加特定内容如换行
+// #define user_printf(fmt, ...) fc_log_printf(fmt "\r\n", ##__VA_ARGS__)

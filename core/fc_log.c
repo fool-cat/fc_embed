@@ -111,39 +111,51 @@ fc_weak void fc_log_fprintf(fc_log_t *log, fc_log_level_t level, const char *fmt
 
     if (log->level >= level)
     {
-        int           len = 0;
         fc_log_pool_t pool = {0};
-        if (false == log->alloc(FC_LOG_ALLOC_NEW, &pool, FC_LOG_LINE_SIZE))  // 分配内存池
+        int           len = 0;
+
+        // 分配内存池
+        if (false == log->alloc(FC_LOG_ALLOC_NEW, &pool, FC_LOG_LINE_SIZE))
         {
-            return;  // 这里丢失由内存池分配函数alloc记录
-        }
-
-        fc_log_file_user_t user = {0};
-        {
-            user.log = log;
-            user.pool = &pool;
-            user.start_pool = pool.buff;
-
-            FC_FILE f = {0};
-
-            {  // 线性读写
-                f.p_now = pool.buff;
-                f.p_start = pool.buff;
-                f.p_end = pool.buff + pool.size;
-            }
-
-            f.user = (void *)&user;
-            f.io.write = __fc_log_alloc_write;
-
+#if FC_LOG_ENABLE_ALLOC_FAIL_HANDLE
             va_list vargs;
             va_start(vargs, fmt);
-            len = fc_vfprintf(&f, fmt, vargs);
+            len = fc_vsnprintf(NULL, 0, fmt, vargs);
             va_end(vargs);
+
+            // 调用钩子记录丢失的日志长度
+            FC_LOG_LOSE_HOOK(0 == len, log, len);
+#else
+            (void)fmt;  // 避免未使用参数警告
+#endif
+            return;
         }
 
-        len -= log->write((void *)&user, user.start_pool, len);  // 写入数据
-        FC_LOG_LOSE_HOOK(0 == len, log, pool.buff, len);
-        log->alloc(FC_LOG_ALLOC_FREE, &pool, 0);  // 释放内存池
+        fc_log_file_user_t user = {
+            .log = log,
+            .pool = &pool,
+            .start_pool = pool.buff,
+            .write_size = 0};
+
+        // 直接在栈上构造FC_FILE，避免额外的初始化开销
+        FC_FILE f = {
+            .p_now = pool.buff,
+            .p_start = pool.buff,
+            .p_end = pool.buff + pool.size,
+            .user = (void *)&user,
+            .io.write = __fc_log_alloc_write};
+
+        va_list vargs;
+        va_start(vargs, fmt);
+        len = fc_vfprintf(&f, fmt, vargs);
+        va_end(vargs);
+
+        // 写入数据并处理丢失
+        len -= log->write((void *)&user, user.start_pool, len);
+        FC_LOG_LOSE_HOOK(0 == len, log, len);
+
+        // 释放内存池
+        log->alloc(FC_LOG_ALLOC_FREE, &pool, 0);
     }
 }
 
@@ -165,7 +177,7 @@ void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len
     {
         len -= log->write(buff, len);
 
-        FC_LOG_LOSE_HOOK(0 == len, log, buff, len);
+        FC_LOG_LOSE_HOOK(0 == len, log, len);
     }
 }
 #endif
@@ -176,14 +188,12 @@ void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len
  * @brief log写入丢失钩子,弱函数,定义了自己的fc_log对象可以重写
  *  记得在宏FC_LOG_LOSE_HOOK里面去开启,默认是关闭了的
  * @param log
- * @param buff 有可能是NULL
  * @param len buff为NULL时表示内存池分配失败截断丢弃的长度
  * @return int 弱函数,可以在外面重写
  */
-fc_weak int fc_log_write_lose_hook(fc_log_t *log, const void *buff, int len)
+fc_weak int fc_log_write_lose_hook(fc_log_t *log, int len)
 {
     (void)log;
-    (void)buff;
     (void)len;
 
     int count = 0;
