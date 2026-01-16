@@ -53,20 +53,30 @@ void fc_log_set_level(fc_log_t *log, fc_log_level_t level)
     log->level = level;
 }
 
-// 传递给write函数的用户数据
-typedef struct _fc_log_file_user_t fc_log_file_user_t;
-struct _fc_log_file_user_t
+/**
+ * @brief 能到这个函数表明一定出现了内存分配失败,后续所有的记录都没有意义,记录丢失就好
+ *
+ * @param f
+ * @param buf
+ * @param len 每次只会写入1字节,结尾会调用一次0长度的写入
+ * @return int
+ */
+static int __fc_log_fail_record_write(FC_FILE *f, const void *buf, int len)
 {
-    fc_log_t      *log;         // 关联的log对象
-    fc_log_pool_t *pool;        // 第一块内存池
-    void          *start_pool;  // 记录第一块内存地址
-    size_t         write_size;  // 已写入的大小
-};
+    if (len >= FC_IO_SWAP)
+    {
+        fc_log_file_user_t *user = (fc_log_file_user_t *)f->user;
+        // 调用钩子记录丢失的日志长度
+        FC_LOG_LOSE_HOOK(false, user->log, len);
+    }
+
+    return len;
+}
 
 /**
  * @brief 具体查看vfprintf.c中_write_ch函数
  *
- *
+ * @param f
  * @param buf
  * @param len 每次只会写入1字节,结尾会调用一次0长度的写入
  * @return int
@@ -78,19 +88,24 @@ static int __fc_log_alloc_write(FC_FILE *f, const void *buf, int len)
     {
         fc_log_file_user_t *user = (fc_log_file_user_t *)f->user;
 
-        fc_log_t      *log = user->log;
-        fc_log_pool_t *pool = user->pool;
-        user->write_size += pool->size;
-        if (false == log->alloc(FC_LOG_ALLOC_NEW, pool, FC_LOG_LINE_SIZE))
+        fc_log_t     *log = user->log;
+        fc_log_mem_t *mem = &(user->mem);
+        user->block_write += mem->size;
+        if (false == log->alloc(FC_LOG_ALLOC_NEW, mem, FC_LOG_LINE_SIZE))
         {
+#if FC_LOG_ENABLE_ALLOC_FAIL_HANDLE
+            f->io.write = __fc_log_fail_record_write;  // 改变下一次进来的函数,后续只做丢失记录
+            return len;
+#else
             // 结束序列化
-            return -1;  // 这里丢失由内存池分配函数alloc记录
+            return FC_IO_EOF;  // 这里丢失由内存池分配函数alloc记录
+#endif
         }
 
         // 切换到新的内存块
-        f->p_now = pool->buff;
-        f->p_start = pool->buff;
-        f->p_end = (char *)((uint8_t *)(pool->buff) + pool->size);
+        f->p_now = mem->buff;
+        f->p_start = mem->buff;
+        f->p_end = (char *)((uint8_t *)(mem->buff) + mem->size);
     }
 
     return len;
@@ -111,51 +126,67 @@ fc_weak void fc_log_fprintf(fc_log_t *log, fc_log_level_t level, const char *fmt
 
     if (log->level >= level)
     {
-        fc_log_pool_t pool = {0};
-        int           len = 0;
+        FC_FILE            temp_f = {0};
+        fc_log_file_user_t temp_user = {0};
 
-        // 分配内存池
-        if (false == log->alloc(FC_LOG_ALLOC_NEW, &pool, FC_LOG_LINE_SIZE))
+        FC_FILE            *f = &temp_f;
+        fc_log_file_user_t *user = &temp_user;
+
+        if (log->merge)  // 推迟输出,使用对象自身的f和user
         {
+            f = &log->f;
+            user = &log->file_user;
+        }
+
+        if (!user->mem.buff)  // 还没有分配过内存
+        {
+            // 分配内存池
+            if (false == log->alloc(FC_LOG_ALLOC_NEW, &(user->mem), FC_LOG_LINE_SIZE))
+            {
 #if FC_LOG_ENABLE_ALLOC_FAIL_HANDLE
+                va_list vargs;
+                va_start(vargs, fmt);
+                user->total_write = fc_vsnprintf(NULL, 0, fmt, vargs);
+                va_end(vargs);
+
+                // 调用钩子记录丢失的日志长度
+                FC_LOG_LOSE_HOOK(0 == user->total_write, log, user->total_write);
+#endif
+                return;
+            }
+
+            user->log = log;
+            user->mem_chain = user->mem.buff;
+            // user->block_write = 0;
+
+            f->p_now = user->mem.buff;
+            f->p_start = user->mem.buff;
+            f->p_end = user->mem.buff + user->mem.size;
+            f->user = (void *)user;
+            f->io.write = __fc_log_alloc_write;
+        }
+
+        {
             va_list vargs;
             va_start(vargs, fmt);
-            len = fc_vsnprintf(NULL, 0, fmt, vargs);
+            user->total_write = fc_vfprintf(f, fmt, vargs);
             va_end(vargs);
+        }
 
-            // 调用钩子记录丢失的日志长度
-            FC_LOG_LOSE_HOOK(0 == len, log, len);
-#else
-            (void)fmt;  // 避免未使用参数警告
-#endif
+        if (log->merge)
+        {
             return;
         }
 
-        fc_log_file_user_t user = {
-            .log = log,
-            .pool = &pool,
-            .start_pool = pool.buff,
-            .write_size = 0};
+        // fc_log_fflush();
+        {  // 内联展开
+            // 写入数据并处理丢失
+            user->total_write -= log->write(user);
+            FC_LOG_LOSE_HOOK(0 == user->total_write, log, user->total_write);
 
-        // 直接在栈上构造FC_FILE，避免额外的初始化开销
-        FC_FILE f = {
-            .p_now = pool.buff,
-            .p_start = pool.buff,
-            .p_end = pool.buff + pool.size,
-            .user = (void *)&user,
-            .io.write = __fc_log_alloc_write};
-
-        va_list vargs;
-        va_start(vargs, fmt);
-        len = fc_vfprintf(&f, fmt, vargs);
-        va_end(vargs);
-
-        // 写入数据并处理丢失
-        len -= log->write((void *)&user, user.start_pool, len);
-        FC_LOG_LOSE_HOOK(0 == len, log, len);
-
-        // 释放内存池
-        log->alloc(FC_LOG_ALLOC_FREE, &pool, 0);
+            // 释放内存池
+            log->alloc(FC_LOG_ALLOC_FREE, &(user->mem), 0);
+        }
     }
 }
 
@@ -182,45 +213,58 @@ void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len
 }
 #endif
 
+/**
+ * @brief 缓冲区输出,一般不需要专门调用,只有临时对象使用到合并输出的时候才需要调用
+ *
+ * @param log
+ */
+void fc_log_fflush(fc_log_t *log)
+{
+    fc_assert(log != NULL);
+
+    fc_log_file_user_t *user = &log->file_user;
+
+    // 写入数据并处理丢失
+    user->total_write -= log->write(user);
+    FC_LOG_LOSE_HOOK(0 == user->total_write, log, user->total_write);
+
+    // 释放内存池
+    log->alloc(FC_LOG_ALLOC_FREE, &(user->mem), 0);
+}
+
 //+********************************* 写入丢失记录 **********************************/
 
 /**
- * @brief log写入丢失钩子,弱函数,定义了自己的fc_log对象可以重写
+ * @brief log写入丢失钩子,弱函数
  *  记得在宏FC_LOG_LOSE_HOOK里面去开启,默认是关闭了的
  * @param log
  * @param len buff为NULL时表示内存池分配失败截断丢弃的长度
- * @return int 弱函数,可以在外面重写
+ * @return size_t 弱函数,可以在外面重写
  */
-fc_weak int fc_log_write_lose_hook(fc_log_t *log, int len)
+fc_weak size_t fc_log_write_lose_hook(fc_log_t *log, int len)
 {
     (void)log;
     (void)len;
 
-    int count = 0;
+    log->lose_count += len;
 
-    if (log == &default_log)
-    {
-        static volatile int lose_count = 0;
-        lose_count += len;
-        count = lose_count;
-    }
-    else
-    {
-        fc_assert(log != NULL);
-    }
-
-    return count;
+    return log->lose_count;
 }
 
 //+********************************* 提供一份默认log对象 **********************************/
 
 // 默认实例化对象
-FC_LOG_IMPL(default_log, FC_LOG_ALL, log_write_default, log_alloc_default);
+fc_log_t default_log = {
+    .level = FC_LOG_ALL,
+    .write = log_write_default,
+    .alloc = log_alloc_default,
+    .file_user = {0},  // 临时对象中才会用到这个内存,其他都不用
+    .merge = false,    // 默认不需要推迟输出
+};
+
+fc_log_t const *scope_log_ptr = NULL;  // 设置为空指针!!!
 
 //+********************************* 使用fc_pool进行管理 **********************************/
-
-#include "fc_auto_init.h"
-#include "fc_pool.h"
 
 fc_pool_t fc_log_pool;  // log组件使用的内存池
 
@@ -236,34 +280,37 @@ fc_pool_t fc_log_pool;  // log组件使用的内存池
 
 void fc_log_pool_init(void)
 {
-    // static size_t log_pool_mem[FC_LOG_POOL_TOTAL_SIZE / sizeof(size_t)];  // 内存池
     // static size_t log_pool_mem[FC_CALC_POOL_MEM_SIZE(FC_LOG_ALLOC_BLOCK_SIZE, 64) / sizeof(size_t)];                         // 内存池,64块内存,每块FC_LOG_ALLOC_BLOCK_SIZE字节
     static size_t log_pool_mem[FC_CALC_POOL_USABLE_SIZE(FC_LOG_ALLOC_BLOCK_SIZE, FC_LOG_POOL_TOTAL_SIZE) / sizeof(size_t)];  // 内存池,每块FC_LOG_ALLOC_BLOCK_SIZE字节,至少包含FC_LOG_POOL_TOTAL_SIZE字节的内存
     fc_pool_init(&fc_log_pool, log_pool_mem, sizeof(log_pool_mem), FC_LOG_ALLOC_BLOCK_SIZE);
 }
+
+#include "fc_auto_init.h"
+#if USE_FC_AUTO_INIT
 INIT_EXPORT_ENV(fc_log_pool_init, FC_LOG_INIT_ORDER - 1);  // 确保在log_init之前初始化
+#endif
 
 /**
  * @brief
  *
  * @param alloc_type
- * @param pool
+ * @param mem
  * @param advice_size
  * @return fc_weak
  */
-fc_weak bool log_alloc_default(fc_log_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size)
+fc_weak bool log_alloc_default(fc_log_alloc_type_t alloc_type, fc_log_mem_t *mem, int advice_size)
 {
     if (FC_LOG_ALLOC_NEW == alloc_type)
     {
-        void *new_buff = fc_pool_alloc(&fc_log_pool, &(pool->size));
+        void *new_buff = fc_pool_alloc(&fc_log_pool, &(mem->size));
 
         if (new_buff)
         {
-            if (pool->buff)  // 不是第一次分配
+            if (mem->buff)  // 不是第一次分配
             {
-                fc_pool_link(pool->buff, new_buff);  // 链接起来
+                fc_pool_link(mem->buff, new_buff);  // 链接起来
             }
-            pool->buff = new_buff;  // 切换到新内存块
+            mem->buff = new_buff;  // 切换到新内存块
             return true;
         }
     }
@@ -271,7 +318,7 @@ fc_weak bool log_alloc_default(fc_log_alloc_type_t alloc_type, fc_log_pool_t *po
     {
         // 交给write的时候push,可以知道实际用到了多少内存
         // push到used_list尾部
-        // fc_mempool_fifo_push(&g_mempool, pool->buff);
+        // fc_mempool_fifo_push(&g_mempool, mem->buff);
     }
 
     return false;
@@ -280,24 +327,20 @@ fc_weak bool log_alloc_default(fc_log_alloc_type_t alloc_type, fc_log_pool_t *po
 /**
  * @brief
  *
- * @param user
- * @param buf
- * @param len
+ * @param file_user
  * @return fc_weak
  */
-fc_weak int log_write_default(void *user, const char *buf, int len)
+fc_weak size_t log_write_default(fc_log_file_user_t *file_user)
 {
-    if (buf == NULL || len <= 0)
+    if (file_user == NULL)
     {
         return 0;
     }
 
-    fc_log_file_user_t *file_user = (fc_log_file_user_t *)user;
-
     // 标记最后一块已使用大小
-    fc_pool_mark_used((void *)(file_user->pool->buff), len - file_user->write_size);
+    fc_pool_mark_used((void *)(file_user->mem.buff), file_user->total_write - file_user->block_write);
 
-    fc_pool_fifo_push(&fc_log_pool, (void *)buf);  // 压入fifo
+    fc_pool_fifo_push(&fc_log_pool, (void *)file_user->mem_chain);  // 压入fifo
 
-    return len;
+    return file_user->total_write;
 }

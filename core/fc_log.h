@@ -20,6 +20,8 @@
 
     #include "fc_config.h"
     #include "fc_helper.h"
+    #include "fc_pool.h"
+    #include "fc_stdio.h"
 
     #ifndef FC_LOG_NOPREFIX_API
         #define FC_LOG_NOPREFIX_API 1 /**< 提供不带(fc_)前缀的log宏API */
@@ -37,10 +39,6 @@
         #define FC_LOG_LINE_SIZE 128 /**< log行缓冲大小 */
     #endif
 
-    #ifndef FC_LOG_STACK_LINE_SIZE
-        #define FC_LOG_STACK_LINE_SIZE (FC_LOG_LINE_SIZE) /**< log使用栈时在栈上使用的缓冲大小 */
-    #endif
-
     #ifndef FC_LOG_USING_COLOR
         #define FC_LOG_USING_COLOR 1 /**< 是否使用颜色 */
     #endif
@@ -55,15 +53,15 @@
 
     //! 格式需要转义的数量和格式内容的数量/类型必须匹配
     #ifndef FC_LOG_PREFIX_FMT
-        #define FC_LOG_PREFIX_FMT "(%d)%s:" /**< 默认输出时间和当前函数名 */
+        #define FC_LOG_PREFIX_FMT ":%s->%d:\t" /**< 默认设置为函数名和行号 */
     #endif
 
     #ifndef FC_LOG_PREFIX_CONTENT
-        #define FC_LOG_PREFIX_CONTENT __FC_LOG_MACRO_EXPANDING((uint32_t)666, __FUNCTION__)
+        #define FC_LOG_PREFIX_CONTENT __FC_LOG_MACRO_EXPANDING(__FUNCTION__, (uint32_t)__LINE__)
 
     // #include <stdint.h>
-    // extern uint32_t HAL_GetTick(void);
-    //     #define FC_LOG_PREFIX_CONTENT __FC_LOG_MACRO_EXPANDING((uint32_t)HAL_GetTick(), __FUNCTION__)
+    // extern uint32_t HAL_GetTick(void);  //"[时间]函数->行号:"([%d]%s->%d)这种格式的log比较常见
+    // #define FC_LOG_PREFIX_CONTENT __FC_LOG_MACRO_EXPANDING(__FUNCTION__, (uint32_t)HAL_GetTick())
     #endif
 
     #ifndef FC_LOG_END
@@ -137,7 +135,7 @@
 
     typedef enum
     {
-        FC_LOG_NONE     = 0,    /**< 屏蔽所有 */
+        FC_LOG_NONE     = 0,    /**< 屏蔽所有/无视等级 */
         FC_LOG_ERROR    = 1,    /**< 错误 */
         FC_LOG_WRANING  = 2,    /**< 警告 */
         FC_LOG_INFO     = 3,    /**< 消息 */
@@ -157,25 +155,42 @@ typedef enum
 } fc_log_alloc_type_t;
 
 //+********************************* 面向对象 **********************************/
-typedef struct _fc_log_t      fc_log_t;
-typedef struct _fc_log_pool_t fc_log_pool_t;
+typedef struct _fc_log_t           fc_log_t;
+typedef struct _fc_log_mem_t       fc_log_mem_t;
+typedef struct _fc_log_file_user_t fc_log_file_user_t;  // 传递给write函数的用户数据
 
-typedef int (*fc_log_write_t)(void *user, const char *buf, int len);                                   // 写入数据
-typedef bool (*fc_log_alloc_t)(fc_log_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size);  // log内存池处理函数,返回是否成功
+typedef size_t (*fc_log_write_t)(fc_log_file_user_t *file_user);                                     // 写入数据
+typedef bool (*fc_log_alloc_t)(fc_log_alloc_type_t alloc_type, fc_log_mem_t *mem, int advice_size);  // log内存管理函数,返回是否成功
 
-struct _fc_log_pool_t
+struct _fc_log_mem_t
 {
-    size_t size; /**< 内存池大小 */
-    char  *buff; /**< 内存池 */
+    size_t size; /**< 内存大小 */
+    char  *buff; /**< 内存地址 */
     // void *user; /**< 用户自定义数据 */
+};
+
+struct _fc_log_file_user_t
+{
+    fc_log_t    *log;          // 关联的log对象
+    fc_log_mem_t mem;          // 正在使用的内存块
+    size_t       block_write;  // 完整内存块写入的大小
+    size_t       total_write;  // 总共写入的大小
+
+    void *mem_chain;  // 内存链,使用自定义的方式保证内存能够链式的管理,这里用到了fc_pool_t来管理,只需要记录第一块内存地址即可
 };
 
 struct _fc_log_t
 {
-    fc_log_level_t level;
-
-    fc_log_write_t write;
     fc_log_alloc_t alloc;
+    fc_log_write_t write;
+
+    fc_log_file_user_t file_user;  // 缓冲输出的临时对象中才会使用
+    FC_FILE            f;          // 输出对象,同样只在临时对象中才会使用
+
+    size_t lose_count;  // 丢失计数
+
+    fc_log_level_t level;
+    bool           merge; /**< 是否合并日志一并输出 */
 
     // void *user;  // 自定义数据
 };
@@ -194,32 +209,30 @@ extern "C"
 
     // clang-format on
 
+    extern void fc_log_fflush(fc_log_t *log);  // 输出缓冲区
+    // extern size_t fc_log_lose(fc_log_t *log, int len);  // 获取丢失日志长度
+
     // 提供一份默认的弱函数log写丢失数据钩子,可以在外面重写
-    extern int fc_log_write_lose_hook(fc_log_t *log, int len);
+    extern size_t fc_log_write_lose_hook(fc_log_t *log, int len);
 
     // 提供一份默认的log写函数,可以在外面重写
-    extern int log_write_default(void *user, const char *buf, int len);
+    extern size_t log_write_default(fc_log_file_user_t *file_user);
 
     // 提供一份默认的内存池获取函数,可以在外面重写
-    extern bool log_alloc_default(fc_log_alloc_type_t alloc_type, fc_log_pool_t *pool, int advice_size);
+    extern bool log_alloc_default(fc_log_alloc_type_t alloc_type, fc_log_mem_t *mem, int advice_size);
 
     #ifdef __cplusplus
 }
     #endif
 
 //+********************************* 实例化 **********************************/
+extern fc_log_t default_log;  // 默认log对象
 
     #ifndef FC_LOG_OBJ
-extern fc_log_t default_log;  // 默认log对象
-        #define FC_LOG_OBJ (&default_log)
+        #define FC_LOG_OBJ (default_log)
     #endif
 
-    #define FC_LOG_IMPL(obj_name, _level, _write, _alloc) \
-        fc_log_t obj_name = {                             \
-            .level = _level, /* 日志级别 */               \
-            .write = _write, /* 写入函数 */               \
-            .alloc = _alloc, /* 内存池获取函数 */         \
-        }
+extern fc_log_t const *scope_log_ptr;  // 设置为空指针!!!
 
     #ifndef FC_LOG_LOSE_HOOK
         /* #define FC_LOG_LOSE_HOOK(exp, log, len) (void)(0) */
@@ -229,8 +242,6 @@ extern fc_log_t default_log;  // 默认log对象
                 fc_log_write_lose_hook(log, len); \
             }
     #endif
-
-    #include "fc_pool.h"
 
 //+********************************* 提供一份默认的实现给log组件 **********************************/
 extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c中定义
@@ -251,6 +262,9 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 #endif  // __FC_LOG_H__
 
 //+********************************* 以下部分允许重入 **********************************/
+#undef fc_log_level
+
+#undef fc_log_merge
 #undef fc_log_format
 
 #undef fc_log_error
@@ -258,26 +272,30 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 #undef fc_log_info
 #undef fc_log_debug
 #undef fc_log_verbose
-#undef fc_log_printf
-#undef fc_log_assert
 
-#undef fc_log_level
+#undef fc_log_printf
+#undef fc_log_printf_lv
+
+#undef fc_log_assert
 
 //+********************************* 宏API **********************************/
 
-// 切换log等级,使用宏API,无需显示指定对象名称
-#define fc_log_level(_level)                  \
-    do                                        \
-    {                                         \
-        fc_log_set_level(FC_LOG_OBJ, _level); \
+// 切换log等级,使用宏API,无需显示指定对象名称,注意使用的时候作用域对象
+#define fc_log_level(_level)                                                                 \
+    do                                                                                       \
+    {                                                                                        \
+        fc_log_set_level((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), _level); \
     } while (0)
 
 #if FC_LOG_ENABLE
 
-    #define fc_log_format(text, _level, fmt, ...)                                                                \
-        do                                                                                                       \
-        {                                                                                                        \
-            fc_log_fprintf(FC_LOG_OBJ, _level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+    #define fc_log_merge() \
+        using(fc_log_t SAFE_NAME(log_obj) = FC_LOG_OBJ, *scope_log_ptr = &SAFE_NAME(log_obj), { SAFE_NAME(log_obj).merge = true; }, { fc_log_fflush(&SAFE_NAME(log_obj)); })
+
+    #define fc_log_format(text, _level, fmt, ...)                                                                                                               \
+        do                                                                                                                                                      \
+        {                                                                                                                                                       \
+            fc_log_fprintf((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), _level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
         } while (0)
 
     //+********************************* 期望使用 **********************************/
@@ -299,6 +317,9 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
     #define fc_log_printf(fmt, ...) \
         fc_log_format("", FC_LOG_NONE, fmt, ##__VA_ARGS__)
 
+    #define fc_log_printf_lv(_level, fmt, ...) \
+        fc_log_format("", _level, fmt, ##__VA_ARGS__)
+
     #define fc_log_assert(expr, ...)                                                                   \
         if (!(expr))                                                                                   \
         {                                                                                              \
@@ -307,6 +328,8 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
         }
 
 #else
+
+    #define fc_log_merge()  // 空定义即可
 
 // clang-format off
 
@@ -318,6 +341,7 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
     #define fc_log_verbose  (fmt, ...)              do {} while(0)
 
     #define fc_log_printf   (fmt, ...)              do {} while(0)
+    #define fc_log_printf_lv(_level, fmt, ...)      do {} while(0)
 // clang-format on
 
 // 一般在断言中只进行变量比较等操作,通常来说取消断言后效果需要等效完全注释掉
@@ -337,6 +361,9 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 // 去掉fc_前缀的log宏API
 #if FC_LOG_NOPREFIX_API
     #define log_level       fc_log_level
+
+    #define log_merge       fc_log_merge
+
     #define log_error       fc_log_error
     #define log_warning     fc_log_warning
     #define log_info        fc_log_info
@@ -344,6 +371,7 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
     #define log_verbose     fc_log_verbose
 
     #define log_printf      fc_log_printf
+    #define log_printf_lv   fc_log_printf_lv
 
     #define log_assert      fc_log_assert
 #endif
