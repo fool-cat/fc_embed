@@ -290,7 +290,7 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 #if FC_LOG_ENABLE
 
     #define fc_log_merge() \
-        using(fc_log_t SAFE_NAME(log_obj) = FC_LOG_OBJ, *scope_log_ptr = &SAFE_NAME(log_obj), { SAFE_NAME(log_obj).merge = true; }, { fc_log_fflush(&SAFE_NAME(log_obj)); })
+        fc_using(fc_log_t SAFE_NAME(log_obj) = FC_LOG_OBJ, *scope_log_ptr = &SAFE_NAME(log_obj), { SAFE_NAME(log_obj).merge = true; }, { fc_log_fflush(&SAFE_NAME(log_obj)); })
 
     #define fc_log_format(text, _level, fmt, ...)                                                                                                               \
         do                                                                                                                                                      \
