@@ -561,6 +561,9 @@ extern "C"
     fc_always_inline size_t fc_fifo_linear_write_done(fc_fifo_t *rb, size_t size)
     {
         fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(size <= rb->linear_size_write);
+
+        // size = (size <= rb->linear_size_write) ? size : rb->linear_size_write;
 
         rb->in += size;
         rb->linear_size_write = 0;  // 此次连续写入完成,重置为0清除忙状态
@@ -576,6 +579,9 @@ extern "C"
     fc_always_inline size_t fc_fifo_linear_read_done(fc_fifo_t *rb, size_t size)
     {
         fc_fifo_assert(rb != NULL);
+        fc_fifo_assert(size <= rb->linear_size_read);
+
+        // size = (size <= rb->linear_size_read) ? size : rb->linear_size_read;
 
         rb->out += size;
         rb->linear_size_read = 0;  // 此次连续读取完成,重置为0清除忙状态

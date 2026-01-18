@@ -43,20 +43,20 @@ extern "C"
 #define FC_STRINGFY(x) __FC_STRINGFY(x)
 
 #if defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000) /* ARM Compiler */
-    #define SECTION_EXTERN(section_name)                   \
-        extern const size_t CONNECT(section_name, $$Base); \
-        extern const size_t CONNECT(section_name, $$Limit)
+    #define SECTION_EXTERN(section_name)                      \
+        extern const size_t FC_CONNECT(section_name, $$Base); \
+        extern const size_t FC_CONNECT(section_name, $$Limit)
 
     #define ELEM_EXPORT(section_name, elem) \
-        static const fc_typeof(elem) fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = elem
+        static const fc_typeof(elem) fc_used fc_section(FC_STRINGFY(section_name)) FC_CONNECT(section_name, _, elem, _, __LINE__) = elem
 
     #define ELEM_EXPORT_PTR(section_name, elem) \
-        static const fc_typeof(&elem) fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = &elem
+        static const fc_typeof(&elem) fc_used fc_section(FC_STRINGFY(section_name)) FC_CONNECT(section_name, _, elem, _, __LINE__) = &elem
 
-    #define section_info(section_name, type_ptr, count)                   \
-        SECTION_EXTERN(section_name);                                     \
-        type_ptr = (fc_typeof(type_ptr))(&CONNECT(section_name, $$Base)); \
-        count = ((size_t)&CONNECT(section_name, $$Limit) - (size_t)&CONNECT(section_name, $$Base)) / sizeof(fc_typeof(*type_ptr))
+    #define section_info(section_name, type_ptr, count)                      \
+        SECTION_EXTERN(section_name);                                        \
+        type_ptr = (fc_typeof(type_ptr))(&FC_CONNECT(section_name, $$Base)); \
+        count = ((size_t)&FC_CONNECT(section_name, $$Limit) - (size_t)&FC_CONNECT(section_name, $$Base)) / sizeof(fc_typeof(*type_ptr))
 
 #elif defined(__IAR_SYSTEMS_ICC__) || defined(__ICCARM__) || defined(__ICCRX__) /* for IAR Compiler */
 
@@ -66,34 +66,34 @@ extern "C"
         PRAGMA(section = FC_STRINGFY(section_name))
 
     #define ELEM_EXPORT(section_name, elem) \
-        static const fc_typeof(elem) fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = elem
+        static const fc_typeof(elem) fc_used fc_section(FC_STRINGFY(section_name)) FC_CONNECT(section_name, _, elem, _, __LINE__) = elem
 
     #define ELEM_EXPORT_PTR(section_name, elem) \
-        static const fc_typeof(&elem) fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = &elem
+        static const fc_typeof(&elem) fc_used fc_section(FC_STRINGFY(section_name)) FC_CONNECT(section_name, _, elem, _, __LINE__) = &elem
 
-    #define section_info(section_name, type_ptr, count)                   \
-        SECTION_EXTERN(section_name);                                     \
-        type_ptr = (fc_typeof(type_ptr))(&CONNECT(section_name, $$Base)); \
-        count = ((size_t)&CONNECT(section_name, $$Limit) - (size_t)&CONNECT(section_name, $$Base)) / sizeof(fc_typeof(*type_ptr))
+    #define section_info(section_name, type_ptr, count)                      \
+        SECTION_EXTERN(section_name);                                        \
+        type_ptr = (fc_typeof(type_ptr))(&FC_CONNECT(section_name, $$Base)); \
+        count = ((size_t)&FC_CONNECT(section_name, $$Limit) - (size_t)&FC_CONNECT(section_name, $$Base)) / sizeof(fc_typeof(*type_ptr))
 
 #elif defined(__GNUC__) /* GNU GCC Compiler */
 
     #warning "GNU GCC Compiler need test"
 
-    #define SECTION_EXTERN(section_name)                     \
-        extern const size_t CONNECT(__start_, section_name); \
-        extern const size_t CONNECT(__stop_, section_name)
+    #define SECTION_EXTERN(section_name)                        \
+        extern const size_t FC_CONNECT(__start_, section_name); \
+        extern const size_t FC_CONNECT(__stop_, section_name)
 
     #define ELEM_EXPORT(section_name, elem) \
-        static const fc_typeof(elem) fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = elem
+        static const fc_typeof(elem) fc_used fc_section(FC_STRINGFY(section_name)) FC_CONNECT(section_name, _, elem, _, __LINE__) = elem
 
     #define ELEM_EXPORT_PTR(section_name, elem) \
-        static const fc_typeof(&elem) fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = &elem
+        static const fc_typeof(&elem) fc_used fc_section(FC_STRINGFY(section_name)) FC_CONNECT(section_name, _, elem, _, __LINE__) = &elem
 
-    #define section_info(section_name, type_ptr, count)                   \
-        SECTION_EXTERN(section_name);                                     \
-        type_ptr = (fc_typeof(type_ptr))(&CONNECT(section_name, $$Base)); \
-        count = ((size_t)&CONNECT(section_name, $$Limit) - (size_t)&CONNECT(section_name, $$Base)) / sizeof(fc_typeof(*type_ptr))
+    #define section_info(section_name, type_ptr, count)                        \
+        SECTION_EXTERN(section_name);                                          \
+        type_ptr = (fc_typeof(type_ptr))(&FC_CONNECT(__start_, section_name)); \
+        count = ((size_t)&FC_CONNECT(__stop_, section_name) - (size_t)&FC_CONNECT(__start_, section_name)) / sizeof(fc_typeof(*type_ptr))
 
 #else /* Unkown Compiler */
     #error not supported tool chain
@@ -110,7 +110,7 @@ extern "C"
 
 // 参考上面ELEM_EXPORT宏的写法
 #define FC_INIT_EXPORT(section_name, func, order) \
-    static const fc_auto_init_elem_t fc_used fc_section(FC_STRINGFY(section_name)) CONNECT(section_name, _, elem, _, __LINE__) = {&func, order}
+    static const fc_auto_init_elem_t fc_used fc_section(FC_STRINGFY(section_name)) FC_CONNECT(section_name, _, elem, _, __LINE__) = {&func, order}
 
     // clang-format off
 #define INIT_EXPORT_3(num, func, order) FC_INIT_EXPORT(fc_section_##num, func, order)
@@ -161,13 +161,13 @@ extern "C"
      * INIT_EXPORT_ENV(func, 100); // 优先级100
      */
 
-#define INIT_EXPORT_ENV(...) CONNECT(_INIT_EXPORT_ENV_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define INIT_EXPORT_ENV(...) FC_CONNECT(_INIT_EXPORT_ENV_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
-#define INIT_EXPORT_CLOCK(...) CONNECT(_INIT_EXPORT_CLOCK_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define INIT_EXPORT_CLOCK(...) FC_CONNECT(_INIT_EXPORT_CLOCK_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
-#define INIT_EXPORT_DEVICE(...) CONNECT(_INIT_EXPORT_DEVICE_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define INIT_EXPORT_DEVICE(...) FC_CONNECT(_INIT_EXPORT_DEVICE_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
-#define INIT_EXPORT_APP(...) CONNECT(_INIT_EXPORT_APP_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define INIT_EXPORT_APP(...) FC_CONNECT(_INIT_EXPORT_APP_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
 #ifdef __cplusplus
 }

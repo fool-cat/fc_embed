@@ -20,6 +20,7 @@
  * @author fool-cat (2696652257@qq.com)
  * @brief 部分辅助定义,大量使用PLOOC(https://github.com/GorgonMeducer/PLOOC)和perf_counter(https://github.com/GorgonMeducer/perf_counter)的源码
  * 强烈推荐作者的微信公众号(裸机思维)<为宏正名>系列文章,需开启GNU C99支持
+ * 更新到perf_counter的@tag v2.5.4版本
  * @version 1.0
  * @date 2025-01-30
  *
@@ -35,67 +36,66 @@
 
 #include "fc_compiler.h"
 
+/*============================ MACROS ========================================*/
+/*!
+ * \addtogroup gHelper 4 Helper
+ * @{
+ */
+
 // for IAR
-#undef __IS_COMPILER_IAR__
 #if defined(__IAR_SYSTEMS_ICC__)
+    #undef __IS_COMPILER_IAR__
     #define __IS_COMPILER_IAR__ 1
-#endif
+
+// TI Arm Compiler (armcl)
+#elif defined(__TI_ARM__)
+    #undef __IS_COMPILER_TI_ARM__
+    #define __IS_COMPILER_TI_ARM__ 1
+
+// TASKING Compiler
+#elif defined(__TASKING__)
+    #undef __IS_COMPLER_TASKING__
+    #define __IS_COMPLER_TASKING__ 1
+
+// COSMIC Compiler
+#elif defined(__CSMC__)
+    #undef __IS_COMPILER_COSMIC__
+    #define __IS_COMPILER_COSMIC__ 1
 
 // for arm compiler 5
-#undef __IS_COMPILER_ARM_COMPILER_5__
-#if ((__ARMCC_VERSION >= 5000000) && (__ARMCC_VERSION < 6000000))
+#elif ((__ARMCC_VERSION >= 5000000) && (__ARMCC_VERSION < 6000000))
+    #undef __IS_COMPILER_ARM_COMPILER_5__
     #define __IS_COMPILER_ARM_COMPILER_5__ 1
-#endif
 
 // for arm compiler 6
-
-#undef __IS_COMPILER_ARM_COMPILER_6__
-#if defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
+#elif defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
+    #undef __IS_COMPILER_ARM_COMPILER_6__
     #define __IS_COMPILER_ARM_COMPILER_6__ 1
-#endif
-#undef __IS_COMPILER_ARM_COMPILER__
-#if defined(__IS_COMPILER_ARM_COMPILER_5__) && __IS_COMPILER_ARM_COMPILER_5__ || defined(__IS_COMPILER_ARM_COMPILER_6__) && __IS_COMPILER_ARM_COMPILER_6__
-    #define __IS_COMPILER_ARM_COMPILER__ 1
-#endif
 
-// for clang
-#undef __IS_COMPILER_LLVM__
-#if defined(__clang__) && !__IS_COMPILER_ARM_COMPILER_6__
-    #define __IS_COMPILER_LLVM__ 1
+// TI Arm Clang Compiler (tiarmclang)
+#elif defined(__ti__)
+    #undef __IS_COMPILER_TI_ARM_CLANG__
+    #define __IS_COMPILER_TI_ARM_CLANG__ 1
 #else
 
+    // for other clang
+    #if defined(__clang__) &&              \
+        !__IS_COMPILER_ARM_COMPILER_6__ && \
+        !__IS_COMPILER_TI_ARM_CLANG__
+        #undef __IS_COMPILER_LLVM__
+        #define __IS_COMPILER_LLVM__ 1
+
     // for gcc
-    #undef __IS_COMPILER_GCC__
-    #if defined(__GNUC__) && !(defined(__IS_COMPILER_ARM_COMPILER__) || defined(__IS_COMPILER_LLVM__) || defined(__IS_COMPILER_IAR__))
+    #elif defined(__GNUC__) && !(defined(__IS_COMPILER_ARM_COMPILER__) || defined(__IS_COMPILER_LLVM__) || defined(__IS_COMPILER_IAR__))
+        #undef __IS_COMPILER_GCC__
         #define __IS_COMPILER_GCC__ 1
     #endif
 
 #endif
 
-#ifdef __PERF_COUNT_PLATFORM_SPECIFIC_HEADER__
-    #include __PERF_COUNT_PLATFORM_SPECIFIC_HEADER__
-#endif
-
-#if defined(__clang__)
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wunknown-warning-option"
-    #pragma clang diagnostic ignored "-Wreserved-identifier"
-    #pragma clang diagnostic ignored "-Wdeclaration-after-statement"
-    #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-    #pragma clang diagnostic ignored "-Wgnu-statement-expression"
-    #pragma clang diagnostic ignored "-Wunused-but-set-variable"
-    #pragma clang diagnostic ignored "-Wshadow"
-    #pragma clang diagnostic ignored "-Wshorten-64-to-32"
-    #pragma clang diagnostic ignored "-Wcompound-token-split-by-macro"
-    #pragma clang diagnostic ignored "-Wunsafe-buffer-usage"
-#elif defined(__IS_COMPILER_ARM_COMPILER_5__)
-    #pragma diag_suppress 550
-#elif defined(__IS_COMPILER_GCC__)
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wpedantic"
-    #pragma GCC diagnostic ignored "-Wunused-variable"
-    #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-    #pragma GCC diagnostic ignored "-Wformat="
+#undef __IS_COMPILER_ARM_COMPILER__
+#if defined(__IS_COMPILER_ARM_COMPILER_5__) && __IS_COMPILER_ARM_COMPILER_5__ || defined(__IS_COMPILER_ARM_COMPILER_6__) && __IS_COMPILER_ARM_COMPILER_6__
+    #define __IS_COMPILER_ARM_COMPILER__ 1
 #endif
 
 #ifndef __PLOOC_VA_NUM_ARGS_IMPL
@@ -109,157 +109,197 @@
                                  8, 7, 6, 5, 4, 3, 2, 1, 0)
 #endif
 
-#if __PLOOC_VA_NUM_ARGS() != 0
-    #error Please enable GNU extensions!
+#undef __COMPILER_HAS_GNU_EXTENSIONS__
+#if __PLOOC_VA_NUM_ARGS() == 0
+    #define __COMPILER_HAS_GNU_EXTENSIONS__ 1
 #endif
 
-#if __PLOOC_VA_NUM_ARGS(1, 2, 3) != 3
-    #error Please enable GNU extensions!
+#if !__COMPILER_HAS_GNU_EXTENSIONS__
+    #warning Please enable GNU extensions!
 #endif
 
-// clang-format off
-#undef __CONNECT2
-#undef __CONNECT3
-#undef __CONNECT4
-#undef __CONNECT5
-#undef __CONNECT6
-#undef __CONNECT7
-#undef __CONNECT8
-#undef __CONNECT9
-
-#undef CONNECT2
-#undef CONNECT3
-#undef CONNECT4
-#undef CONNECT5
-#undef CONNECT6
-#undef CONNECT7
-#undef CONNECT8
-#undef CONNECT9
-
-#define __CONNECT2(__A, __B)                        __A##__B
-#define __CONNECT3(__A, __B, __C)                   __A##__B##__C
-#define __CONNECT4(__A, __B, __C, __D)              __A##__B##__C##__D
-#define __CONNECT5(__A, __B, __C, __D, __E)         __A##__B##__C##__D##__E
-#define __CONNECT6(__A, __B, __C, __D, __E, __F)    __A##__B##__C##__D##__E##__F
-#define __CONNECT7(__A, __B, __C, __D, __E, __F, __G)                           \
-                                                    __A##__B##__C##__D##__E##__F##__G
-#define __CONNECT8(__A, __B, __C, __D, __E, __F, __G, __H)                      \
-                                                    __A##__B##__C##__D##__E##__F##__G##__H
-#define __CONNECT9(__A, __B, __C, __D, __E, __F, __G, __H, __I)                 \
-                                                    __A##__B##__C##__D##__E##__F##__G##__H##__I
-
-#define ALT_CONNECT2(__A, __B)              __CONNECT2(__A, __B)
-#define CONNECT2(__A, __B)                  __CONNECT2(__A, __B)
-#define CONNECT3(__A, __B, __C)             __CONNECT3(__A, __B, __C)
-#define CONNECT4(__A, __B, __C, __D)        __CONNECT4(__A, __B, __C, __D)
-#define CONNECT5(__A, __B, __C, __D, __E)   __CONNECT5(__A, __B, __C, __D, __E)
-#define CONNECT6(__A, __B, __C, __D, __E, __F)                                  \
-                                            __CONNECT6(__A, __B, __C, __D, __E, __F)
-#define CONNECT7(__A, __B, __C, __D, __E, __F, __G)                             \
-                                            __CONNECT7(__A, __B, __C, __D, __E, __F, __G)
-#define CONNECT8(__A, __B, __C, __D, __E, __F, __G, __H)                        \
-                                            __CONNECT8(__A, __B, __C, __D, __E, __F, __G, __H)
-#define CONNECT9(__A, __B, __C, __D, __E, __F, __G, __H, __I)                   \
-                                            __CONNECT9(__A, __B, __C, __D, __E, __F, __G, __H, __I)
-
-/* link symbol */
-#ifndef CONNECT
-    #define CONNECT(...)                                                        \
-            ALT_CONNECT2(CONNECT, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#undef __IS_COMPILER_SUPPORT_C99__
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define __IS_COMPILER_SUPPORT_C99__ 1
 #endif
 
-#undef __using1
-#undef __using2
-#undef __using3
-#undef __using4
-#undef using
+#undef __IS_COMPILER_SUPPORT_C11__
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ > 199901L
+    #define __IS_COMPILER_SUPPORT_C11__ 1
+#endif
 
-#define __using1(__declare)                                                     \
-            for (__declare, *CONNECT3(__using_, __LINE__,_ptr) = NULL;          \
-                 CONNECT3(__using_, __LINE__,_ptr)++ == NULL;                   \
-                )
+#if defined(__clang__)
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wunknown-warning-option"
+    #pragma clang diagnostic ignored "-Wreserved-identifier"
+    #pragma clang diagnostic ignored "-Wtypedef-redefinition"
+    #pragma clang diagnostic ignored "-Wmissing-declarations"
+    #pragma clang diagnostic ignored "-Wempty-body"
+    #pragma clang diagnostic ignored "-Wmicrosoft-anon-tag"
+    #pragma clang diagnostic ignored "-Wmissing-field-initializers"
+    #pragma clang diagnostic ignored "-Wmissing-declarations"
+    #pragma clang diagnostic ignored "-Wmissing-braces"
+#elif __IS_COMPILER_ARM_COMPILER_5__
+    /*! arm compiler 5 */
+    #pragma push
+    #pragma diag_suppress 1, 64, 174, 177, 188, 68, 513, 144, 2525
+#elif __IS_COMPILER_IAR__
+/*! IAR */
+#elif __IS_COMPILER_GCC__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wmissing-declarations"
+    #pragma GCC diagnostic ignored "-Wempty-body"
+    #pragma GCC diagnostic ignored "-Wpragmas"
+    #pragma GCC diagnostic ignored "-Wformat="
+    #pragma GCC diagnostic ignored "-Wmissing-braces"
+    #pragma GCC diagnostic ignored "-Wmissing-declarations"
+#endif
 
-#define __using2(__declare, __on_leave_expr)                                    \
-            for (__declare, *CONNECT3(__using_, __LINE__,_ptr) = NULL;          \
-                 CONNECT3(__using_, __LINE__,_ptr)++ == NULL;                   \
-                 (__on_leave_expr)                                              \
-                )
-
-#define __using3(__declare, __on_enter_expr, __on_leave_expr)                   \
-            for (__declare, *CONNECT3(__using_, __LINE__,_ptr) = NULL;          \
-                 CONNECT3(__using_, __LINE__,_ptr)++ == NULL ?                  \
-                    ((__on_enter_expr),1) : 0;                                  \
-                 (__on_leave_expr)                                              \
-                )
-
-#define __using4(__dcl1, __dcl2, __on_enter_expr, __on_leave_expr)              \
-            for (__dcl1, __dcl2, *CONNECT3(__using_, __LINE__,_ptr) = NULL;     \
-                 CONNECT3(__using_, __LINE__,_ptr)++ == NULL ?                  \
-                    ((__on_enter_expr),1) : 0;                                  \
-                 (__on_leave_expr)                                              \
-                )
-
-/* single cycle */
-#define using(...)                                                              \
-                CONNECT2(__using, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
-
-#undef __with1
-#undef __with2
-#undef __with3
-#undef with
-
-#define __with1(__addr)                                                         \
-            using(__typeof__(*__addr) *_=(__addr))
-#define __with2(__type, __addr)                                                 \
-            using(__type *_=(__addr))
-#define __with3(__type, __addr, __item)                                         \
-            using(__type *_=(__addr), *__item = _, _=_,_=_ )
-
-/* Utilities */
-#define with(...)                                                               \
-            CONNECT2(__with, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
-
+// clang-format on
+/*----------------------------------------------------------------------------*
+ * Helpers                                                                    *
+ *----------------------------------------------------------------------------*/
 #undef _
 
-/* Utilities */
-#ifndef dimof
-    #define dimof(__array)          (sizeof(__array)/sizeof(__array[0]))
-#endif
+#undef __FC_CONNECT2
+#undef __FC_CONNECT3
+#undef __FC_CONNECT4
+#undef __FC_CONNECT5
+#undef __FC_CONNECT6
+#undef __FC_CONNECT7
+#undef __FC_CONNECT8
+#undef __FC_CONNECT9
 
-/* Utilities */
-#ifndef SAFE_NAME
-    #define SAFE_NAME(__NAME)   CONNECT3(__,__NAME,__LINE__)
-#endif
+#undef FC_CONNECT2
+#undef FC_CONNECT3
+#undef FC_CONNECT4
+#undef FC_CONNECT5
+#undef FC_CONNECT6
+#undef FC_CONNECT7
+#undef FC_CONNECT8
+#undef FC_CONNECT9
+#undef ALT_FC_CONNECT2
 
-#undef foreach1
-#undef foreach2
-#undef foreach3
-#undef foreach
+#undef SAFE_NAME
+#undef FC_SAFE_NAME
 
-#define foreach1(__array)                                                       \
-            using(__typeof__(__array[0]) *_ = __array)                          \
-            for (   uint_fast32_t SAFE_NAME(count) = dimof(__array);            \
-                    SAFE_NAME(count) > 0;                                       \
-                    _++, SAFE_NAME(count)--                                     \
-                )
+#undef FC_CONNECT
 
-#define foreach2(__type, __array)                                               \
-            using(__type *_ = __array)                                          \
-            for (   uint_fast32_t SAFE_NAME(count) = dimof(__array);            \
-                    SAFE_NAME(count) > 0;                                       \
-                    _++, SAFE_NAME(count)--                                     \
-                )
+#undef __MACRO_EXPANDING
+#define __MACRO_EXPANDING(...) __VA_ARGS__
 
-#define foreach3(__type, __array, __item)                                       \
-            using(__type *_ = __array, *__item = _, _ = _, _ = _ )              \
-            for (   uint_fast32_t SAFE_NAME(count) = dimof(__array);            \
-                    SAFE_NAME(count) > 0;                                       \
-                    _++, __item = _, SAFE_NAME(count)--                         \
-                )
+#define __FC_CONNECT2(__A, __B) __A##__B
+#define __FC_CONNECT3(__A, __B, __C) __A##__B##__C
+#define __FC_CONNECT4(__A, __B, __C, __D) __A##__B##__C##__D
+#define __FC_CONNECT5(__A, __B, __C, __D, __E) \
+    __A##__B##__C##__D##__E
+#define __FC_CONNECT6(__A, __B, __C, __D, __E, __F) \
+    __A##__B##__C##__D##__E##__F
+#define __FC_CONNECT7(__A, __B, __C, __D, __E, __F, __G) \
+    __A##__B##__C##__D##__E##__F##__G
+#define __FC_CONNECT8(__A, __B, __C, __D, __E, __F, __G, __H) \
+    __A##__B##__C##__D##__E##__F##__G##__H
+#define __FC_CONNECT9(__A, __B, __C, __D, __E, __F, __G, __H, __I) \
+    __A##__B##__C##__D##__E##__F##__G##__H##__I
 
-/* Utilities */
-#define foreach(...)                                                            \
-            CONNECT2(foreach, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define ALT_FC_CONNECT2(__A, __B) __FC_CONNECT2(__A, __B)
+#define FC_CONNECT2(__A, __B) __FC_CONNECT2(__A, __B)
+#define FC_CONNECT3(__A, __B, __C) __FC_CONNECT3(__A, __B, __C)
+#define FC_CONNECT4(__A, __B, __C, __D) \
+    __FC_CONNECT4(__A, __B, __C, __D)
+#define FC_CONNECT5(__A, __B, __C, __D, __E) \
+    __FC_CONNECT5(__A, __B, __C, __D, __E)
+#define FC_CONNECT6(__A, __B, __C, __D, __E, __F) \
+    __FC_CONNECT6(__A, __B, __C, __D, __E, __F)
+#define FC_CONNECT7(__A, __B, __C, __D, __E, __F, __G) \
+    __FC_CONNECT7(__A, __B, __C, __D, __E, __F, __G)
+#define FC_CONNECT8(__A, __B, __C, __D, __E, __F, __G, __H) \
+    __FC_CONNECT8(__A, __B, __C, __D, __E, __F, __G, __H)
+#define FC_CONNECT9(__A, __B, __C, __D, __E, __F, __G, __H, __I) \
+    __FC_CONNECT9(__A, __B, __C, __D, __E, __F, __G, __H, __I)
+
+#define FC_CONNECT(...)         \
+    ALT_FC_CONNECT2(FC_CONNECT, \
+                    __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
+
+#define SAFE_NAME(__NAME) FC_CONNECT3(__, __NAME, __LINE__)
+#define FC_SAFE_NAME(__name) FC_CONNECT3(__, __name, __LINE__)
+
+#undef __fc_using1
+#undef __fc_using2
+#undef __fc_using3
+#undef __fc_using4
+#undef fc_using
+
+#define __fc_using1(__declare)                             \
+    for (__declare,                                        \
+         *FC_CONNECT3(__fc_using_, __LINE__, _ptr) = NULL; \
+         FC_CONNECT3(__fc_using_, __LINE__, _ptr)++ == NULL;)
+
+#define __fc_using2(__declare, __on_leave_expr)              \
+    for (__declare,                                          \
+         *FC_CONNECT3(__fc_using_, __LINE__, _ptr) = NULL;   \
+         FC_CONNECT3(__fc_using_, __LINE__, _ptr)++ == NULL; \
+         (__on_leave_expr))
+
+#define __fc_using3(__declare, __on_enter_expr, __on_leave_expr)                          \
+    for (__declare,                                                                       \
+         *FC_CONNECT3(__fc_using_, __LINE__, _ptr) = NULL;                                \
+         FC_CONNECT3(__fc_using_, __LINE__, _ptr)++ == NULL ? ((__on_enter_expr), 1) : 0; \
+         (__on_leave_expr))
+
+#define __fc_using4(__dcl1, __dcl2, __on_enter_expr, __on_leave_expr)                     \
+    for (__dcl1, __dcl2,                                                                  \
+         *FC_CONNECT3(__fc_using_, __LINE__, _ptr) = NULL;                                \
+         FC_CONNECT3(__fc_using_, __LINE__, _ptr)++ == NULL ? ((__on_enter_expr), 1) : 0; \
+         (__on_leave_expr))
+
+#define fc_using(...)                             \
+    FC_CONNECT2(__fc_using,                       \
+                __PLOOC_VA_NUM_ARGS(__VA_ARGS__)) \
+    (__VA_ARGS__)
+
+#undef __fc_with2
+#undef __fc_fc_with3
+#undef fc_with
+
+#define __fc_with1(__addr) \
+    fc_using(__typeof__(*__addr) *_ = (__addr))
+
+#define __fc_with2(__type, __addr) \
+    fc_using(__type *_ = (__addr))
+#define __fc_with3(__type, __addr, __item) \
+    fc_using(__type *_ = (__addr), *__item = _, _ = _, _ = _)
+
+#define fc_with(...)                              \
+    FC_CONNECT2(__fc_with,                        \
+                __PLOOC_VA_NUM_ARGS(__VA_ARGS__)) \
+    (__VA_ARGS__)
+
+#undef fc_foreach2
+#undef fc_foreach3
+#undef fc_foreach
+
+#define fc_foreach1(__array)                                                                               \
+    fc_using(__typeof__(__array[0]) *_ = __array) for (uint_fast32_t FC_SAFE_NAME(count) = dimof(__array); \
+                                                       FC_SAFE_NAME(count) > 0;                            \
+                                                       _++, FC_SAFE_NAME(count)--)
+
+#define fc_foreach2(__type, __array)                                                       \
+    fc_using(__type *_ = __array) for (uint_fast32_t FC_SAFE_NAME(count) = dimof(__array); \
+                                       FC_SAFE_NAME(count) > 0;                            \
+                                       _++, FC_SAFE_NAME(count)--)
+
+#define fc_foreach3(__type, __array, __item)                                                                          \
+    fc_using(__type *_ = __array, *__item = _, _ = _, _ = _) for (uint_fast32_t FC_SAFE_NAME(count) = dimof(__array); \
+                                                                  FC_SAFE_NAME(count) > 0;                            \
+                                                                  _++, __item = _, FC_SAFE_NAME(count)--)
+
+#define fc_foreach(...)                           \
+    FC_CONNECT2(fc_foreach,                       \
+                __PLOOC_VA_NUM_ARGS(__VA_ARGS__)) \
+    (__VA_ARGS__)
+
 // clang-format on
 
 #endif  // __FC_HELPER_H__
