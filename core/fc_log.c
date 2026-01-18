@@ -93,13 +93,8 @@ static int __fc_log_alloc_write(FC_FILE *f, const void *buf, int len)
         user->block_write += mem->size;
         if (false == log->alloc(FC_LOG_ALLOC_NEW, mem, FC_LOG_LINE_SIZE))
         {
-#if FC_LOG_ENABLE_ALLOC_FAIL_HANDLE
             f->io.write = __fc_log_fail_record_write;  // 改变下一次进来的函数,后续只做丢失记录
             return len;
-#else
-            // 结束序列化
-            return FC_IO_EOF;  // 这里丢失由内存池分配函数alloc记录
-#endif
         }
 
         // 切换到新的内存块
@@ -138,12 +133,11 @@ fc_weak void fc_log_fprintf(fc_log_t *log, fc_log_level_t level, const char *fmt
             user = &log->file_user;
         }
 
-        if (!user->mem.buff)  // 还没有分配过内存
+        if (!user->mem.buff && NULL == f->io.write)  // 还没有分配过内存并设置write指针(第一次进入)
         {
             // 分配内存池
             if (false == log->alloc(FC_LOG_ALLOC_NEW, &(user->mem), FC_LOG_LINE_SIZE))
             {
-#if FC_LOG_ENABLE_ALLOC_FAIL_HANDLE
                 va_list vargs;
                 va_start(vargs, fmt);
                 user->total_write = fc_vsnprintf(NULL, 0, fmt, vargs);
@@ -151,7 +145,9 @@ fc_weak void fc_log_fprintf(fc_log_t *log, fc_log_level_t level, const char *fmt
 
                 // 调用钩子记录丢失的日志长度
                 FC_LOG_LOSE_HOOK(0 == user->total_write, log, user->total_write);
-#endif
+
+                f->io.write = __fc_log_fail_record_write;  // 改变下一次进来的函数,后续只做丢失记录,一次失败后续连续失败,避免一个段内的日志存在中间丢失两边存在的情况
+
                 return;
             }
 
@@ -173,16 +169,13 @@ fc_weak void fc_log_fprintf(fc_log_t *log, fc_log_level_t level, const char *fmt
             va_end(vargs);
         }
 
-        if (log->merge)
+        if (!log->merge)
         {
-            return;
-        }
+            // 这里必须展开调用,使用的是栈对象
+            //  fc_log_fflush(log);
 
-        // fc_log_fflush();
-        {  // 内联展开
-            // 写入数据并处理丢失
-            user->total_write -= log->write(user);
-            FC_LOG_LOSE_HOOK(0 == user->total_write, log, user->total_write);
+            // 写入数据,数据早已写入,这里是将内存块链入fifo
+            log->write(user);
 
             // 释放内存池
             log->alloc(FC_LOG_ALLOC_FREE, &(user->mem), 0);
@@ -190,8 +183,53 @@ fc_weak void fc_log_fprintf(fc_log_t *log, fc_log_level_t level, const char *fmt
     }
 }
 
-#if 0
-// 废弃
+/**
+ * @brief 从fc_vfprintf中提取出来的写入单个字符函数
+ *
+ * @param f
+ * @param ch
+ * @return true
+ * @return false
+ */
+static inline bool _write_ch(FC_FILE *f, char ch)
+{
+    if (f->p_now)
+    {
+        *f->p_now++ = (char)ch;
+        f->n++;
+        if ((size_t)f->p_now >= (size_t)f->p_end)
+        {
+            f->p_now = NULL;
+            if (f->io.write)
+            {
+                // 准备交换(重新设置)缓冲区
+                if ((int)FC_IO_SWAP != f->io.write(f, f->p_now, (int)FC_IO_SWAP))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
+    else if (f->io.write)
+    {
+        if (1 != f->io.write(f, &ch, 1))
+        {
+            return false;
+        }
+        f->n++;
+    }
+    else
+    {
+        return false;
+    }
+
+    return true;
+}
+
 /**
  * @brief
  *
@@ -199,22 +237,89 @@ fc_weak void fc_log_fprintf(fc_log_t *log, fc_log_level_t level, const char *fmt
  * @param level
  * @param buff
  * @param len
+ * @return int
  */
-void fc_log_write(fc_log_t *log, fc_log_level_t level, const void *buff, int len)
+int fc_log_fwrite(fc_log_t *log, fc_log_level_t level, const void *buff, int len)
 {
     fc_assert(log != NULL);
 
     if (log->level >= level)
     {
-        len -= log->write(buff, len);
+        FC_FILE            temp_f = {0};
+        fc_log_file_user_t temp_user = {0};
 
-        FC_LOG_LOSE_HOOK(0 == len, log, len);
+        FC_FILE            *f = &temp_f;
+        fc_log_file_user_t *user = &temp_user;
+
+        if (log->merge)  // 推迟输出,使用对象自身的f和user
+        {
+            f = &log->f;
+            user = &log->file_user;
+        }
+
+        user->total_write = len;
+
+        if (!user->mem.buff && NULL == f->io.write)  // 还没有分配过内存并设置write指针(第一次进入)
+        {
+            // 分配内存池
+            if (false == log->alloc(FC_LOG_ALLOC_NEW, &(user->mem), FC_LOG_LINE_SIZE))
+            {
+                // 调用钩子记录丢失的日志长度
+                FC_LOG_LOSE_HOOK(false, log, len);
+
+                f->io.write = __fc_log_fail_record_write;  // 改变下一次进来的函数,后续只做丢失记录,一次失败后续连续失败,避免一个段内的日志存在中间丢失两边存在的情况
+
+                return 0;
+            }
+
+            user->log = log;
+            user->mem_chain = user->mem.buff;
+            // user->block_write = 0;
+
+            // 保持跟fprintf一样
+            f->p_now = user->mem.buff;
+            f->p_start = user->mem.buff;
+            f->p_end = user->mem.buff + user->mem.size;
+            f->user = (void *)user;
+            f->io.write = __fc_log_alloc_write;
+        }
+
+        {
+            char *this_buff = (char *)buff;
+            do
+            {
+                if (!_write_ch(f, *this_buff))
+                    break;
+                this_buff++;
+                len--;
+            } while (len > 0);
+
+            if (f->io.write)
+            {
+                f->io.write(f, f->p_now, (int)FC_IO_EOF);  // 结束
+            }
+        }
+
+        if (!log->merge)
+        {
+            // 这里必须展开调用,使用的是栈对象
+            //  fc_log_fflush(log);
+
+            // 写入数据,数据早已写入,这里是将内存块链入fifo
+            log->write(user);
+
+            // 释放内存池
+            log->alloc(FC_LOG_ALLOC_FREE, &(user->mem), 0);
+        }
+
+        return (int)(user->total_write - len);
     }
+
+    return 0;
 }
-#endif
 
 /**
- * @brief 缓冲区输出,一般不需要专门调用,只有临时对象使用到合并输出的时候才需要调用
+ * @brief 缓冲区输出
  *
  * @param log
  */
@@ -222,14 +327,16 @@ void fc_log_fflush(fc_log_t *log)
 {
     fc_assert(log != NULL);
 
-    fc_log_file_user_t *user = &log->file_user;
+    if (log->merge)
+    {
+        fc_log_file_user_t *user = &log->file_user;
 
-    // 写入数据并处理丢失
-    user->total_write -= log->write(user);
-    FC_LOG_LOSE_HOOK(0 == user->total_write, log, user->total_write);
+        // 写入数据,数据早已写入,这里是将内存块链入fifo
+        log->write(user);
 
-    // 释放内存池
-    log->alloc(FC_LOG_ALLOC_FREE, &(user->mem), 0);
+        // 释放内存池
+        log->alloc(FC_LOG_ALLOC_FREE, &(user->mem), 0);
+    }
 }
 
 //+********************************* 写入丢失记录 **********************************/

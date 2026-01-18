@@ -31,10 +31,6 @@
         #define FC_LOG_ENABLE 1 /**< 使能log */
     #endif
 
-    #ifndef FC_LOG_ENABLE_ALLOC_FAIL_HANDLE
-        #define FC_LOG_ENABLE_ALLOC_FAIL_HANDLE 1 /**< 使能内存分配失败处理 */
-    #endif
-
     #ifndef FC_LOG_LINE_SIZE
         #define FC_LOG_LINE_SIZE 128 /**< log行缓冲大小 */
     #endif
@@ -187,7 +183,7 @@ struct _fc_log_t
     fc_log_file_user_t file_user;  // 缓冲输出的临时对象中才会使用
     FC_FILE            f;          // 输出对象,同样只在临时对象中才会使用
 
-    size_t lose_count;  // 丢失计数
+    size_t lose_count;  // 丢失计数,可能存在多线程竞争问题,仅供参考
 
     fc_log_level_t level;
     bool           merge; /**< 是否合并日志一并输出 */
@@ -205,11 +201,11 @@ extern "C"
     extern void fc_log_catch            (fc_log_t *log, fc_log_write_t write, fc_log_alloc_t alloc);
     extern void fc_log_set_level        (fc_log_t *log, fc_log_level_t level);
     extern void fc_log_fprintf          (fc_log_t *log, fc_log_level_t level, const char *fmt, ...);
-    // extern void fc_log_write            (fc_log_t *log, fc_log_level_t level, const void *buff, int len); // 废弃
+    extern int  fc_log_fwrite           (fc_log_t *log, fc_log_level_t level, const void *buff, int len);
 
     // clang-format on
 
-    extern void fc_log_fflush(fc_log_t *log);  // 输出缓冲区
+    void fc_log_fflush(fc_log_t *log);  // 输出缓冲区
     // extern size_t fc_log_lose(fc_log_t *log, int len);  // 获取丢失日志长度
 
     // 提供一份默认的弱函数log写丢失数据钩子,可以在外面重写
@@ -278,6 +274,9 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 
 #undef fc_log_assert
 
+#undef fc_log_write
+#undef fc_log_write_lv
+
 //+********************************* 宏API **********************************/
 
 // 切换log等级,使用宏API,无需显示指定对象名称,注意使用的时候作用域对象
@@ -289,8 +288,20 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 
 #if FC_LOG_ENABLE
 
-    #define fc_log_merge() \
-        fc_using(fc_log_t SAFE_NAME(log_obj) = FC_LOG_OBJ, *scope_log_ptr = &SAFE_NAME(log_obj), { SAFE_NAME(log_obj).merge = true; }, { fc_log_fflush(&SAFE_NAME(log_obj)); })
+    #undef fc_log_merge_2
+    #define fc_log_merge_2(inter_expr, leave_expr) \
+        fc_using(fc_log_t SAFE_NAME(log_obj) = FC_LOG_OBJ, *scope_log_ptr = &SAFE_NAME(log_obj), { SAFE_NAME(log_obj).merge = true; inter_expr; }, { fc_log_fflush(&SAFE_NAME(log_obj)); leave_expr; })
+
+    #undef fc_log_merge_1
+    #define fc_log_merge_1(inter_expr) \
+        fc_log_merge_2(inter_expr, { (void)0; })
+
+    #undef fc_log_merge_0
+    #define fc_log_merge_0() \
+        fc_log_merge_1({ (void)0; })
+
+    #define fc_log_merge(...) \
+        FC_CONNECT2(fc_log_merge_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
     #define fc_log_format(text, _level, fmt, ...)                                                                                                               \
         do                                                                                                                                                      \
@@ -327,9 +338,15 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
             __VA_ARGS__;                                                                               \
         }
 
+    #define fc_log_write(buf, len) \
+        fc_log_fwrite((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), FC_LOG_NONE, buf, len)
+
+    #define fc_log_write_lv(_level, buf, len) \
+        fc_log_fwrite((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), _level, buf, len)
+
 #else
 
-    #define fc_log_merge()  // 空定义即可
+    #define fc_log_merge(...)  // 空定义即可
 
 // clang-format off
 
@@ -342,6 +359,9 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 
     #define fc_log_printf   (fmt, ...)              do {} while(0)
     #define fc_log_printf_lv(_level, fmt, ...)      do {} while(0)
+
+    #define fc_log_write    (buf, len)              do {} while(0)
+    #define fc_log_write_lv (_level, buf, len)      do {} while(0)
 // clang-format on
 
 // 一般在断言中只进行变量比较等操作,通常来说取消断言后效果需要等效完全注释掉
@@ -374,6 +394,9 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
     #define log_printf_lv   fc_log_printf_lv
 
     #define log_assert      fc_log_assert
+
+    #define log_write       fc_log_write
+    #define log_write_lv    fc_log_write_lv
 #endif
 
 // clang-format on
