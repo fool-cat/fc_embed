@@ -177,14 +177,15 @@ struct _fc_log_file_user_t
 
 struct _fc_log_t
 {
+    size_t lose_count;  // 丢失计数,可能存在多线程竞争问题,仅供参考
+
     fc_log_alloc_t alloc;
     fc_log_write_t write;
 
     fc_log_file_user_t file_user;  // 缓冲输出的临时对象中才会使用
     FC_FILE            f;          // 输出对象,同样只在临时对象中才会使用
 
-    size_t lose_count;  // 丢失计数,可能存在多线程竞争问题,仅供参考
-
+    fc_log_level_t last_level;  // 记录log输出等级
     fc_log_level_t level;
     bool           merge; /**< 是否合并日志一并输出 */
 
@@ -260,6 +261,10 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 //+********************************* 以下部分允许重入 **********************************/
 #undef fc_log_level
 
+#undef fc_log_merge_2
+#undef fc_log_merge_1
+#undef fc_log_merge_0
+
 #undef fc_log_merge
 #undef fc_log_format
 
@@ -288,15 +293,12 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 
 #if FC_LOG_ENABLE
 
-    #undef fc_log_merge_2
-    #define fc_log_merge_2(inter_expr, leave_expr) \
-        fc_using(fc_log_t SAFE_NAME(log_obj) = FC_LOG_OBJ, *scope_log_ptr = &SAFE_NAME(log_obj), { SAFE_NAME(log_obj).merge = true; inter_expr; }, { fc_log_fflush(&SAFE_NAME(log_obj)); leave_expr; })
+    #define fc_log_merge_2(enter_expr, leave_expr) \
+        fc_using(fc_log_t SAFE_NAME(log_obj) = FC_LOG_OBJ, *scope_log_ptr = &SAFE_NAME(log_obj), { SAFE_NAME(log_obj).merge = true; enter_expr; }, {leave_expr; fc_log_fflush(&SAFE_NAME(log_obj)); })
 
-    #undef fc_log_merge_1
-    #define fc_log_merge_1(inter_expr) \
-        fc_log_merge_2(inter_expr, { (void)0; })
+    #define fc_log_merge_1(enter_expr) \
+        fc_log_merge_2(enter_expr, { (void)0; })
 
-    #undef fc_log_merge_0
     #define fc_log_merge_0() \
         fc_log_merge_1({ (void)0; })
 
@@ -338,13 +340,27 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
             __VA_ARGS__;                                                                               \
         }
 
-    #define fc_log_write(buf, len) \
-        fc_log_fwrite((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), FC_LOG_NONE, buf, len)
+    /**
+     * @brief fc_log_write如果是全局的则强制以最高等级输出,如果是fc_log_merge作用域内,则上一条log什么等级,接下来的write就以什么等级输出
+     *
+     */
+    #define fc_log_write(buf, len)                                                                         \
+        do                                                                                                 \
+        {                                                                                                  \
+            fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ); \
+            fc_log_fwrite(SAFE_NAME(log_temp_ptr), SAFE_NAME(log_temp_ptr)->last_level, buf, len);         \
+        } while (0)
 
-    #define fc_log_write_lv(_level, buf, len) \
-        fc_log_fwrite((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), _level, buf, len)
+    #define fc_log_write_lv(_level, buf, len)                                                           \
+        do                                                                                              \
+        {                                                                                               \
+            fc_log_fwrite((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), _level, buf, len); \
+        } while (0)
 
 #else
+    #define fc_log_merge_2(enter_expr, leave_expr)
+    #define fc_log_merge_1(enter_expr)
+    #define fc_log_merge_0()
 
     #define fc_log_merge(...)  // 空定义即可
 
