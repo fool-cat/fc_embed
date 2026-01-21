@@ -366,18 +366,18 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 
 // clang-format off
 
-    #define fc_log_format   (text, level, fmt, ...) do {} while(0)
-    #define fc_log_error    (fmt, ...)              do {} while(0)
-    #define fc_log_warning  (fmt, ...)              do {} while(0)
-    #define fc_log_info     (fmt, ...)              do {} while(0)
-    #define fc_log_debug    (fmt, ...)              do {} while(0)
-    #define fc_log_verbose  (fmt, ...)              do {} while(0)
+    #define fc_log_format(text, level, fmt, ...)    ((void)0)
+    #define fc_log_error(fmt, ...)                  ((void)0)
+    #define fc_log_warning(fmt, ...)                ((void)0)
+    #define fc_log_info(fmt, ...)                   ((void)0)
+    #define fc_log_debug(fmt, ...)                  ((void)0)
+    #define fc_log_verbose(fmt, ...)                ((void)0) 
 
-    #define fc_log_printf   (fmt, ...)              do {} while(0)
-    #define fc_log_printf_lv(_level, fmt, ...)      do {} while(0)
+    #define fc_log_printf(fmt, ...)                 ((void)0)
+    #define fc_log_printf_lv(_level, fmt, ...)      ((void)0)
 
-    #define fc_log_write    (buf, len)              do {} while(0)
-    #define fc_log_write_lv (_level, buf, len)      do {} while(0)
+    #define fc_log_write(buf, len)                  ((void)0)
+    #define fc_log_write_lv(_level, buf, len)       ((void)0)
 // clang-format on
 
 // 一般在断言中只进行变量比较等操作,通常来说取消断言后效果需要等效完全注释掉
@@ -388,7 +388,7 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
             __VA_ARGS__;             \
         }
 
-// #define fc_log_assert(expr, ...) do {} while(0)
+// #define fc_log_assert(expr, ...)     ((void)0)
 
 #endif
 
