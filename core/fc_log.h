@@ -167,7 +167,7 @@ struct _fc_log_mem_t
 
 struct _fc_log_file_user_t
 {
-    fc_log_t    *log;          // 关联的log对象
+    fc_log_t    *log;          // 指向根对象,根对象初始化的时候必须赋值为自身
     fc_log_mem_t mem;          // 正在使用的内存块
     size_t       block_write;  // 完整内存块写入的大小
     size_t       total_write;  // 总共写入的大小
@@ -177,15 +177,13 @@ struct _fc_log_file_user_t
 
 struct _fc_log_t
 {
-    size_t lose_count;  // 丢失计数,可能存在多线程竞争问题,仅供参考
-
     fc_log_alloc_t alloc;
     fc_log_write_t write;
 
-    fc_log_file_user_t file_user;  // 缓冲输出的临时对象中才会使用
-    FC_FILE            f;          // 输出对象,同样只在临时对象中才会使用
+    fc_log_file_user_t file_user;   // 缓冲输出的临时对象中才会使用
+    FC_FILE            f;           // 输出对象,同样只在临时对象中才会使用
+    fc_log_level_t     last_level;  // 记录上次临时log对象输出等级
 
-    fc_log_level_t last_level;  // 记录log输出等级
     fc_log_level_t level;
     bool           merge; /**< 是否合并日志一并输出 */
 

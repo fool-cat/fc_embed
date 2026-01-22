@@ -18,9 +18,15 @@
 #include "fc_log.h"
 #include "fc_port.h"
 
+#include "fc_arch.h"
+
 #ifndef fc_assert
     #define fc_assert(x) ((void)(0))
 #endif  //\ fc_assert
+
+#ifndef FC_ATOMIC_SCOPE
+    #define FC_ATOMIC_SCOPE
+#endif
 
 //+*********************************  **********************************/
 /**
@@ -156,7 +162,7 @@ fc_weak void fc_log_fprintf(fc_log_t *log, fc_log_level_t level, const char *fmt
                 return;
             }
 
-            user->log = log;
+            user->log = (log->file_user.log) ? log->file_user.log : log;  // 始终指向其根对象,如果根对象没有赋值的话就指向当前log对象(代价是日志丢失没有记录)
             user->mem_chain = user->mem.buff;
             // user->block_write = 0;
 
@@ -363,16 +369,28 @@ fc_weak size_t fc_log_write_lose_hook(fc_log_t *log, int len)
     (void)log;
     (void)len;
 
-    log->lose_count += len;
+    size_t lose_count = 0;
 
-    return log->lose_count;
+    if (log == &default_log)
+    {
+        static size_t default_lose_count = 0;
+        FC_ATOMIC_SCOPE
+        {
+            default_lose_count += len;
+        }
+        lose_count = default_lose_count;
+    }
+    else
+    {
+    }
+
+    return lose_count;
 }
 
 //+********************************* 提供一份默认log对象 **********************************/
 
 // 默认实例化对象
 fc_log_t default_log = {
-    .lose_count = 0,
     .write = log_write_default,
     .alloc = log_alloc_default,
     .file_user = {0},  // 临时对象中才会用到这个内存,其他都不用
@@ -400,6 +418,8 @@ fc_pool_t fc_log_pool;  // log组件使用的内存池
 
 void fc_log_pool_init(void)
 {
+    default_log.file_user.log = &default_log;  // 根对象初始化的时候必须将此指针指向自身!!!
+
     // static size_t log_pool_mem[FC_CALC_POOL_MEM_SIZE(FC_LOG_ALLOC_BLOCK_SIZE, 64) / sizeof(size_t)];                         // 内存池,64块内存,每块FC_LOG_ALLOC_BLOCK_SIZE字节
     static size_t log_pool_mem[FC_CALC_POOL_USABLE_SIZE(FC_LOG_ALLOC_BLOCK_SIZE, FC_LOG_POOL_TOTAL_SIZE) / sizeof(size_t)];  // 内存池,每块FC_LOG_ALLOC_BLOCK_SIZE字节,至少包含FC_LOG_POOL_TOTAL_SIZE字节的内存
     fc_pool_init(&fc_log_pool, log_pool_mem, sizeof(log_pool_mem), FC_LOG_ALLOC_BLOCK_SIZE);
