@@ -126,7 +126,7 @@ void fc_receiver_monitor(fc_receiver_t *receiver)
     {
         len_total = fc_fifo_get_used(rb);  // 更新现存数据量
         p_start = (char *)fc_fifo_linear_read_setup(rb, &len);
-        p_end = (char*)memchr(p_start, head[0], len);  // 查找是否可能存在分页信息
+        p_end = (char *)memchr(p_start, head[0], len);  // 查找是否可能存在分页信息
 
         if (NULL == p_end)  // 不存在分页信息
         {
@@ -458,9 +458,8 @@ extern "C"
 }
 #endif  //\ __cplusplus
 
-//+********************************* 自动注册初始化 **********************************/
+//+********************************* 注册到ENV段中 **********************************/
 #include "fc_auto_init.h"
-#if USE_FC_AUTO_INIT
 static void _fc_trans_auto_init(void)
 {
     fc_receiver_init(&fc_receiver, fc_stdin.rb[0]);  // 初始化接收器
@@ -468,4 +467,3 @@ static void _fc_trans_auto_init(void)
 }
 // 等级比默认的1000优先级更高,但是低于port层的默认初始化,纯数据结构无外部依赖
 INIT_EXPORT_ENV(_fc_trans_auto_init, FC_TRANS_INIT_ORDER);
-#endif

@@ -416,7 +416,7 @@ fc_pool_t fc_log_pool;  // log组件使用的内存池
     #define FC_LOG_ALLOC_BLOCK_SIZE FC_LOG_LINE_SIZE /* 128的话满足大多数情况下日志需求,减少内存分配次数 */
 #endif
 
-void fc_log_pool_init(void)
+void fc_log_init(void)
 {
     default_log.file_user.log = &default_log;  // 根对象初始化的时候必须将此指针指向自身!!!
 
@@ -424,11 +424,6 @@ void fc_log_pool_init(void)
     static size_t log_pool_mem[FC_CALC_POOL_USABLE_SIZE(FC_LOG_ALLOC_BLOCK_SIZE, FC_LOG_POOL_TOTAL_SIZE) / sizeof(size_t)];  // 内存池,每块FC_LOG_ALLOC_BLOCK_SIZE字节,至少包含FC_LOG_POOL_TOTAL_SIZE字节的内存
     fc_pool_init(&fc_log_pool, log_pool_mem, sizeof(log_pool_mem), FC_LOG_ALLOC_BLOCK_SIZE);
 }
-
-#include "fc_auto_init.h"
-#if USE_FC_AUTO_INIT
-INIT_EXPORT_ENV(fc_log_pool_init, FC_LOG_INIT_ORDER - 1);  // 确保在log_init之前初始化
-#endif
 
 /**
  * @brief
@@ -484,3 +479,7 @@ fc_weak size_t log_write_default(fc_log_file_user_t *file_user)
 
     return file_user->total_write;
 }
+
+//+********************************* 注册到ENV段中 **********************************/
+#include "fc_auto_init.h"
+INIT_EXPORT_ENV(fc_log_init, FC_LOG_INIT_ORDER);
