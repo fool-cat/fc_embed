@@ -70,9 +70,8 @@ extern "C"
         fc_pool_header_t list_free;  // 空闲链表
         fc_pool_header_t fifo_used;  // 已使用链表,用于fifo操作
 
-        size_t block_size;   // 每块内存大小(字节)
-        size_t record_min;   // 最小记录(剩余块)
-        size_t record_lost;  // 丢失记录(分配失败次数)
+        size_t block_size;  // 每块内存大小(字节)
+        size_t record_min;  // 最小记录(剩余块)
     };
 
     int fc_pool_init(fc_pool_t *pool, void *mem, size_t mem_size, size_t block_size);
@@ -80,10 +79,9 @@ extern "C"
     void *fc_pool_alloc(fc_pool_t *pool, size_t *size);  // 区别于malloc,传入size的指针,返回实际分配的大小,O(1)复杂度
     void  fc_pool_free(fc_pool_t *pool, void *ptr);      // 如果是链式非连续内存块,会将整个链式内存块释放掉,O(n)复杂度,n为链式内存块的块数
 
-    size_t fc_pool_per_size(fc_pool_t *pool);     // 每块内存大小(字节)
-    size_t fc_pool_record_min(fc_pool_t *pool);   // 内存池最小记录(剩余块)
-    size_t fc_pool_record_now(fc_pool_t *pool);   // 内存池当前记录(剩余块)
-    size_t fc_pool_record_lost(fc_pool_t *pool);  // 内存池丢失记录(分配失败次数)
+    size_t fc_pool_per_size(fc_pool_t *pool);    // 每块内存大小(字节)
+    size_t fc_pool_record_min(fc_pool_t *pool);  // 内存池最小记录(剩余块)
+    size_t fc_pool_record_now(fc_pool_t *pool);  // 内存池当前记录(剩余块)
 
     void fc_pool_mark_used(void *ptr, size_t used_size);                // 标记给定内存块的已使用大小
     void fc_pool_end(void *ptr);                                        // 给指定链式内存块的最后一块做标记,创建的时候默认已经标记
@@ -96,7 +94,7 @@ extern "C"
     size_t fc_pool_write(fc_pool_t *pool, void *ptr, size_t offset, size_t write_size);  // 写入数据到链式非连续内存块,offset为用户层面的偏移量,返回实际写入的字节数
     size_t fc_pool_read(fc_pool_t *pool, void *ptr, size_t offset, size_t read_size);    // 从链式非连续内存块读取数据,offset为用户层面的偏移量,返回实际读取的字节数
     size_t fc_pool_strip_size(fc_pool_t *pool, void *ptr);                               // 获取链式非连续内存块的总大小(字节),ptr为链式非连续内存块的头部
-    // size_t fc_pool_strip_used(fc_pool_t *pool, void *ptr);                               // 获取链式非连续内存块的已使用大小(字节),ptr为链式非连续内存块的头部
+    size_t fc_pool_strip_used(fc_pool_t *pool, void *ptr);                               // 获取链式非连续内存块的已使用大小(字节),ptr为链式非连续内存块的头部
 
     //+********************************* 进阶使用API **********************************/
     bool  fc_pool_fifo_empty(fc_pool_t *pool);                 // fifo used链表是否为空
@@ -110,7 +108,7 @@ extern "C"
     // 提供了一份默认的动态内存分配实现,需要开启FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC宏定义
     extern void fc_pool_dynamic_default(fc_pool_dynamic_type_t type, fc_pool_dynamic_mem_t *mem, size_t size);
 
-    // 使用自定义的alloc回掉函数,需要开启FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC宏定义
+    // 使用自定义的alloc回调函数,需要开启FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC宏定义
     void fc_pool_catch_alloc_cb(fc_pool_t *pool, fc_pool_dynamic_cb_t alloc_cb);  // 绑定用户自定义的内存分配回调函数
 
 #if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC

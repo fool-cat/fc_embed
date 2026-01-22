@@ -260,7 +260,7 @@
     (__VA_ARGS__)
 
 #undef __fc_with2
-#undef __fc_fc_with3
+#undef __fc_with3
 #undef fc_with
 
 #define __fc_with1(__addr) \

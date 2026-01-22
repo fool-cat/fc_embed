@@ -15,6 +15,8 @@
 #include "fc_config.h"
 #include "fc_pool.h"
 
+#include "fc_arch.h"  //提供原子操作
+
 //+********************************* 可配置项 **********************************/
 #ifndef fc_assert
     #define fc_assert(x) ((void)(0))
@@ -23,13 +25,22 @@
 // #define FC_POOL_MAGIC_NUM 0xAA
 #define FC_POOL_TAG_END 0x1
 
-// 建议支持递归加解锁
-#ifndef FC_POOL_ATOMIC_ENTER
-    #define FC_POOL_ATOMIC_ENTER(obj)
+#ifndef FC_LIB_MALLOC
+    #include <stdlib.h>
+    #define FC_LIB_MALLOC malloc
 #endif
 
-#ifndef FC_POOL_ATOMIC_EXIT
-    #define FC_POOL_ATOMIC_EXIT(obj)
+#ifndef FC_LIB_FREE
+    #include <stdlib.h>
+    #define FC_LIB_FREE free
+#endif
+
+#ifndef FC_ATOMIC_SCOPE
+    #define FC_ATOMIC_SCOPE
+#endif
+
+#ifndef FC_POOL_ALLOC_FAIL_HOOK
+    #define FC_POOL_ALLOC_FAIL_HOOK(pool) ((void)(0))
 #endif
 
 //+*********************************  **********************************/
@@ -58,7 +69,7 @@ int fc_pool_init(fc_pool_t *pool, void *mem, size_t mem_size, size_t block_size)
 #if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
     pool->mem_src = mem;
     pool->mem_size = mem_size;
-    pool->alloc = fc_pool_dynamic_default;  // 绑定一份默认实现
+    pool->alloc = NULL;  // 默认不绑定,需要外部调用FC_POOL_CATCH_ALLOC_CB进行绑定
 #endif
 
     // 如果start_addr不对齐sizeof(size_t),则对齐
@@ -100,7 +111,6 @@ int fc_pool_init(fc_pool_t *pool, void *mem, size_t mem_size, size_t block_size)
     }
 
     pool->record_min = pool->list_free.pool.record_now;
-    pool->record_lost = 0;
 
     return ((int)pool->list_free.pool.record_now);
 }
@@ -120,17 +130,12 @@ void *fc_pool_alloc(fc_pool_t *pool, size_t *size)
     void             *ret_ptr = NULL;
     fc_pool_header_t *node = NULL;
 
-    FC_POOL_ATOMIC_ENTER(pool);
-
-    node = pool->list_free.next;
-    pool->list_free.next = (node) ? node->next : pool->list_free.next;  // 移动空闲链表头部
-    pool->list_free.pool.record_now -= (node) ? 1 : 0;                  // 统计空闲块数
-
-#if !(FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC)
-    pool->record_lost += (node) ? 0 : 1;  // 记录分配失败次数,纯静态直接在这里就知道分配是否成功了,避免后面再次进入原子操作
-#endif
-
-    FC_POOL_ATOMIC_EXIT(pool);
+    FC_ATOMIC_SCOPE
+    {
+        node = pool->list_free.next;
+        pool->list_free.next = (node) ? node->next : pool->list_free.next;  // 移动空闲链表头部
+        pool->list_free.pool.record_now -= (node) ? 1 : 0;                  // 统计空闲块数
+    }
 
     if (node)  // 有空闲内存
     {
@@ -172,15 +177,11 @@ void *fc_pool_alloc(fc_pool_t *pool, size_t *size)
 
     else
     {
+        FC_POOL_ALLOC_FAIL_HOOK(pool);
+
         // 分配失败将size置0,防止误用
         *size = 0;  // 也可以不用管
     }
-
-#if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
-    FC_POOL_ATOMIC_ENTER(pool);
-    pool->record_lost += (ret_ptr) ? 0 : 1;  // 记录分配失败次数
-    FC_POOL_ATOMIC_EXIT(pool);
-#endif
 
     return ret_ptr;
 }
@@ -260,14 +261,15 @@ void fc_pool_free(fc_pool_t *pool, void *ptr)
     }
 #endif
 
-    FC_POOL_ATOMIC_ENTER(pool);
-    if (static_head)  // 静态内存释放仅仅是加入空闲链表,非常快
+    FC_ATOMIC_SCOPE
     {
-        static_tail->next = pool->list_free.next;  // 尾部指向空闲链表头部
-        pool->list_free.next = static_head;        // 空闲链表头部指向新释放的内存块头部
-        pool->list_free.pool.record_now += static_count;
+        if (static_head)  // 静态内存释放仅仅是加入空闲链表,非常快
+        {
+            static_tail->next = pool->list_free.next;  // 尾部指向空闲链表头部
+            pool->list_free.next = static_head;        // 空闲链表头部指向新释放的内存块头部
+            pool->list_free.pool.record_now += static_count;
+        }
     }
-    FC_POOL_ATOMIC_EXIT(pool);
 
 #if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
 
@@ -376,18 +378,6 @@ size_t fc_pool_record_now(fc_pool_t *pool)
 {
     fc_assert(pool != NULL);
     return pool->list_free.pool.record_now;
-}
-
-/**
- * @brief 获取内存池丢失记录(分配失败次数)
- *
- * @param pool
- * @return size_t
- */
-size_t fc_pool_record_lost(fc_pool_t *pool)
-{
-    fc_assert(pool != NULL);
-    return pool->record_lost;
 }
 
 /**
@@ -595,6 +585,36 @@ size_t fc_pool_strip_size(fc_pool_t *pool, void *ptr)
     return total_size;
 }
 
+/**
+ * @brief 获取链式非连续内存块的已使用大小(字节)
+ *
+ * @param pool
+ * @param ptr
+ * @return size_t
+ */
+size_t fc_pool_strip_used(fc_pool_t *pool, void *ptr)
+{
+    fc_assert(pool != NULL);
+    fc_assert(ptr != NULL);
+
+    fc_pool_header_t *node = (fc_pool_header_t *)((uint8_t *)ptr - sizeof(fc_pool_header_t));
+    size_t            total_used_size = 0;
+
+    while (node)
+    {
+        total_used_size += node->pool.tag.size;
+
+        if (node->pool.tag.end == FC_POOL_TAG_END)  // 找到这一次链式内存块的最后一块
+        {
+            break;
+        }
+
+        node = node->next;
+    }
+
+    return total_used_size;
+}
+
 //+********************************* 进阶API **********************************/
 
 /**
@@ -624,32 +644,32 @@ void fc_pool_fifo_push(fc_pool_t *pool, void *head_ptr)
     // 找到头部
     fc_pool_header_t *node = (fc_pool_header_t *)((uint8_t *)head_ptr - sizeof(fc_pool_header_t));
 
-    FC_POOL_ATOMIC_ENTER(pool);
-
-    // 如果头部为空,则头部也需要指向新节点
-    if (pool->fifo_used.next == NULL)
+    FC_ATOMIC_SCOPE
     {
-        pool->fifo_used.next = node;
-        pool->fifo_used.pool.tail = node;
-    }
-    else
-    {
-        pool->fifo_used.pool.tail->next = node;  // 尾部块指向新节点
-    }
-
-    do
-    {
-        if (node->next == NULL)  // 找到这一次链式内存块的最后一块
+        // 如果头部为空,则头部也需要指向新节点
+        if (pool->fifo_used.next == NULL)
         {
-            break;
+            pool->fifo_used.next = node;
+            pool->fifo_used.pool.tail = node;
         }
-        node = node->next;
-    } while (node);
-    pool->fifo_used.pool.tail = node;  // 更新尾部
+        else
+        {
+            pool->fifo_used.pool.tail->next = node;  // 尾部块指向新节点
+        }
 
-    // 无需标记,默认创建的时候已经标记
-    // fc_pool_end((void *)((uint8_t *)node + sizeof(fc_pool_header_t)));  // 标记最后一块
-    FC_POOL_ATOMIC_EXIT(pool);
+        do
+        {
+            if (node->next == NULL)  // 找到这一次链式内存块的最后一块
+            {
+                break;
+            }
+            node = node->next;
+        } while (node);
+        pool->fifo_used.pool.tail = node;  // 更新尾部
+
+        // 无需标记,默认创建的时候已经标记
+        // fc_pool_end((void *)((uint8_t *)node + sizeof(fc_pool_header_t)));  // 标记最后一块
+    }
 }
 
 /**
@@ -670,33 +690,33 @@ void *fc_pool_fifo_pop(fc_pool_t *pool)
     fc_pool_header_t *node = NULL;
     fc_pool_header_t *tail = NULL;
 
-    FC_POOL_ATOMIC_ENTER(pool);
-
-    node = pool->fifo_used.next;
-    tail = node;
-    do
+    FC_ATOMIC_SCOPE
     {
-        if (tail->pool.tag.end == FC_POOL_TAG_END)  // 找到这一次链式内存块的最后一块
+        node = pool->fifo_used.next;
+        tail = node;
+        do
         {
-            break;
+            if (tail->pool.tag.end == FC_POOL_TAG_END)  // 找到这一次链式内存块的最后一块
+            {
+                break;
+            }
+
+            if (tail->next == NULL)  // 理论上不可能出现这种情况,前一个判断就会退出
+            {
+                break;
+            }
+
+            tail = tail->next;
+        } while (tail);
+
+        pool->fifo_used.next = tail->next;  // 更新头部
+        if (pool->fifo_used.next == NULL)   // 如果头部为空,则尾部也需要置空
+        {
+            pool->fifo_used.pool.tail = NULL;
         }
 
-        if (tail->next == NULL)  // 理论上不可能出现这种情况,前一个判断就会退出
-        {
-            break;
-        }
-
-        tail = tail->next;
-    } while (tail);
-
-    pool->fifo_used.next = tail->next;  // 更新头部
-    if (pool->fifo_used.next == NULL)   // 如果头部为空,则尾部也需要置空
-    {
-        pool->fifo_used.pool.tail = NULL;
+        tail->next = NULL;  // 断开链式内存块
     }
-
-    tail->next = NULL;  // 断开链式内存块
-    FC_POOL_ATOMIC_EXIT(pool);
 
     return (void *)(node ? (uint8_t *)node + sizeof(fc_pool_header_t) : NULL);
 }
@@ -758,30 +778,20 @@ void fc_pool_fifo_walk(fc_pool_t *pool, fc_pool_walker_t walker, void *user)
 
 //+********************************* 提供一份默认的动态内存申请 **********************************/
 
-#if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
-
-    #ifndef FC_POOL_MALLOC
-        #include <stdlib.h>
-        #define FC_POOL_MALLOC malloc
-    #endif
-
-    #ifndef FC_POOL_FREE
-        #include <stdlib.h>
-        #define FC_POOL_FREE free
-    #endif
-
 fc_weak void fc_pool_dynamic_default(fc_pool_dynamic_type_t type, fc_pool_dynamic_mem_t *mem, size_t size)
 {
     if (type == FC_POOL_DYNAMIC_MALLOC)
     {
-        *mem = (fc_pool_dynamic_mem_t)FC_POOL_MALLOC(size);
+        *mem = (fc_pool_dynamic_mem_t)FC_LIB_MALLOC(size);
     }
     else if (type == FC_POOL_DYNAMIC_FREE)
     {
-        FC_POOL_FREE(*mem);
+        FC_LIB_FREE(*mem);
         // *mem = NULL;
     }
 }
+
+#if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
 
 void fc_pool_catch_alloc_cb(fc_pool_t *pool, fc_pool_dynamic_cb_t alloc_cb)
 {
