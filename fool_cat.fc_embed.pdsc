@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<package schemaVersion="1.7.7" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="https://raw.githubusercontent.com/Open-CMSIS-Pack/Open-CMSIS-Pack-Spec/v1.7.7/schema/PACK.xsd">
+<package schemaVersion="1.7.7" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance"
+  xs:noNamespaceSchemaLocation="https://raw.githubusercontent.com/Open-CMSIS-Pack/Open-CMSIS-Pack-Spec/v1.7.7/schema/PACK.xsd">
   <vendor>fool_cat</vendor>
   <name>fc_embed</name>
   <description>fool_cat Embedded Library - A personal embedded system library with utilities, logging, memory pool, and more</description>
   <url>https://github.com/fool-cat/fc_embed/releases/download/</url>
   <supportContact>https://github.com/fool-cat/fc_embed</supportContact>
   <license>LICENSE</license>
-  
+
   <releases>
     <release version="1.0.0" date="2025-12-06">
       Production release with CMSIS Pack compliance fixes
@@ -40,7 +41,7 @@
       Initial development release with core functionality
     </release>
   </releases>
-  
+
   <keywords>
     <keyword>Embedded</keyword>
     <keyword>RTOS</keyword>
@@ -49,140 +50,147 @@
     <keyword>Memory Pool</keyword>
     <keyword>FIFO</keyword>
   </keywords>
-  
+
   <conditions>
     <condition id="Cortex-M">
       <description>Cortex-M based device</description>
-      <accept Dcore="Cortex-M0"/>
-      <accept Dcore="Cortex-M0+"/>
-      <accept Dcore="Cortex-M3"/>
-      <accept Dcore="Cortex-M4"/>
-      <accept Dcore="Cortex-M7"/>
-      <accept Dcore="Cortex-M23"/>
-      <accept Dcore="Cortex-M33"/>
-      <accept Dcore="Cortex-M35P"/>
-      <accept Dcore="Cortex-M55"/>
-      <accept Dcore="Cortex-M85"/>
+      <accept Dcore="Cortex-M0" />
+      <accept Dcore="Cortex-M0+" />
+      <accept Dcore="Cortex-M3" />
+      <accept Dcore="Cortex-M4" />
+      <accept Dcore="Cortex-M7" />
+      <accept Dcore="Cortex-M23" />
+      <accept Dcore="Cortex-M33" />
+      <accept Dcore="Cortex-M35P" />
+      <accept Dcore="Cortex-M55" />
+      <accept Dcore="Cortex-M85" />
     </condition>
-    
-    <condition id="fc_embed_Auto_Init">
+
+    <condition id="fc_embed_init">
       <description>fc_embed Auto Init Framework (Required)</description>
-      <require condition="Cortex-M"/>
+      <require condition="Cortex-M" />
     </condition>
-    
-    <condition id="fc_embed_Pool">
+
+    <condition id="fc_embed_pool">
       <description>fc_embed Memory Pool</description>
-      <require condition="Cortex-M"/>
+      <require condition="Cortex-M" />
     </condition>
-    
-    <condition id="fc_embed_Port">
-      <description>fc_embed Port Layer</description>
-      <require condition="Cortex-M"/>
+
+    <condition id="fc_embed_port">
+      <description>fc_embed Port Layer (Requires StdIO)</description>
+      <require condition="Cortex-M" />
+      <require Cclass="fc_embed" Cgroup="stdio" />
     </condition>
-    
-    <condition id="fc_embed_Transport">
+
+    <condition id="fc_embed_trans">
       <description>fc_embed Transport Layer (Requires Port)</description>
-      <require Cclass="fc_embed" Cgroup="Port"/>
+      <require Cclass="fc_embed" Cgroup="port" />
     </condition>
-    
-    <condition id="fc_embed_Logger">
+
+    <condition id="fc_embed_log">
       <description>fc_embed Logger (Requires Pool and StdIO)</description>
-      <require Cclass="fc_embed" Cgroup="Memory_Pool"/>
-      <require Cclass="fc_embed" Cgroup="StdIO"/>
+      <require Cclass="fc_embed" Cgroup="pool" />
+      <require Cclass="fc_embed" Cgroup="stdio" />
     </condition>
-    
-    <condition id="fc_embed_StdIO">
+
+    <condition id="fc_embed_stdio">
       <description>fc_embed Standard I/O</description>
-      <require condition="Cortex-M"/>
+      <require condition="Cortex-M" />
     </condition>
   </conditions>
-  
+
   <components>
     <!-- fc_embed Auto Init Framework (Optional) -->
-    <component Cclass="fc_embed" Cgroup="Auto_Init" Cversion="1.0.0" condition="fc_embed_Auto_Init">
+    <component Cclass="fc_embed" Cgroup="auto_init" Cversion="1.0.0" condition="fc_embed_init">
       <description>Optional auto-initialization framework with 4-stage priority-based init (ENV/CLOCK/DEVICE/APP). Enable USE_FC_AUTO_INIT in fc_config.h to use. Without this, manually call init functions.</description>
       <RTE_Components_h>
-        #define RTE_FC_EMBED_AUTO_INIT         /* fc_embed Auto Init */
+        #define RTE_FC_EMBED_INIT              /* fc_embed Auto Init */
       </RTE_Components_h>
       <files>
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h" select="Config Template"/>
-        <file category="source" name="core/fc_auto_init.c"/>
-        <file category="header" attr="template" select="Auto Init Header" name="core/fc_auto_init.h"/>
+        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+          select="Config Template" />
+        <file category="source" name="core/fc_auto_init.c" />
+        <file category="header" attr="template" select="Auto Init Header" name="core/fc_auto_init.h" />
       </files>
     </component>
-    
+
     <!-- fc_embed Memory Pool -->
-    <component Cclass="fc_embed" Cgroup="Memory_Pool" Cversion="1.0.0" condition="fc_embed_Pool">
+    <component Cclass="fc_embed" Cgroup="pool" Cversion="1.0.0" condition="fc_embed_pool">
       <description>O(1) complexity fixed-size memory pool manager with linked-chain support for non-contiguous memory blocks. Supports optional dynamic allocation.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_POOL              /* FC Embed Memory Pool */
       </RTE_Components_h>
       <files>
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h" select="Config Template"/>
-        <file category="source" name="core/fc_pool.c"/>
-        <file category="header" attr="template" select="Memory Pool Header" name="core/fc_pool.h"/>
+        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+          select="Config Template" />
+        <file category="source" name="core/fc_pool.c" />
+        <file category="header" attr="template" select="Memory Pool Header" name="core/fc_pool.h" />
       </files>
     </component>
-    
+
     <!-- fc_embed Port Layer -->
-    <component Cclass="fc_embed" Cgroup="Port" Cversion="1.0.0" condition="fc_embed_Port">
+    <component Cclass="fc_embed" Cgroup="port" Cversion="1.0.0" condition="fc_embed_port">
       <description>Port abstraction layer with multi-buffer ring buffer support (similar to SEGGER RTT). Provides standard I/O redirection with configurable buffer sizes. Includes FIFO header.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_PORT              /* fc_embed Port Layer */
       </RTE_Components_h>
       <files>
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h" select="Config Template"/>
-        <file category="header" attr="template" select="FIFO Header" name="core/fc_fifo.h"/>
-        <file category="source" name="core/fc_port.c"/>
-        <file category="header" attr="template" select="Port Header" name="core/fc_port.h"/>
+        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+          select="Config Template" />
+        <file category="header" attr="template" select="FIFO Header" name="core/fc_fifo.h" />
+        <file category="source" name="core/fc_port.c" />
+        <file category="header" attr="template" select="Port Header" name="core/fc_port.h" />
       </files>
     </component>
-    
-    <!-- fc_embed Transport -->
-    <component Cclass="fc_embed" Cgroup="Transport" Cversion="1.0.0" condition="fc_embed_Transport">
+
+    <!-- fc_embed Trans -->
+    <component Cclass="fc_embed" Cgroup="trans" Cversion="1.0.0" condition="fc_embed_trans">
       <description>Transport layer with paging mechanism for multiplexed channel transmission over a single physical channel. Uses ANSI escape sequences for channel switching. Includes FIFO header.</description>
       <RTE_Components_h>
-        #define RTE_FC_EMBED_TRANSPORT         /* fc_embed Transport */
+        #define RTE_FC_EMBED_TRANS             /* fc_embed Transport */
       </RTE_Components_h>
       <files>
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h" select="Config Template"/>
-        <file category="header" attr="template" select="FIFO Header" name="core/fc_fifo.h"/>
-        <file category="source" name="core/fc_trans.c"/>
-        <file category="header" attr="template" select="Transport Header" name="core/fc_trans.h"/>
+        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+          select="Config Template" />
+        <file category="header" attr="template" select="FIFO Header" name="core/fc_fifo.h" />
+        <file category="source" name="core/fc_trans.c" />
+        <file category="header" attr="template" select="Transport Header" name="core/fc_trans.h" />
       </files>
     </component>
-    
+
     <!-- fc_embed Standard I/O -->
-    <component Cclass="fc_embed" Cgroup="StdIO" Cversion="1.0.0" condition="fc_embed_StdIO">
+    <component Cclass="fc_embed" Cgroup="stdio" Cversion="1.0.0" condition="fc_embed_stdio">
       <description>Simplified standard I/O implementation with printf family functions (sprintf, snprintf, fprintf, etc.). Based on xprintf. Note: fc_port_vprintf.c requires Port component for full functionality.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_STDIO             /* FC Embed Standard I/O */
       </RTE_Components_h>
       <files>
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h" select="Config Template"/>
+        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+          select="Config Template" />
         <!-- Main stdio implementation (includes all utils/*.c internally) -->
-        <file category="source" name="core/fc_stdio.c"/>
-        <file category="header" attr="template" select="StdIO Header" name="core/fc_stdio.h"/>
-        <file category="doc" name="core/utils/readme.md"/>
+        <file category="source" name="core/fc_stdio.c" />
+        <file category="header" attr="template" select="StdIO Header" name="core/fc_stdio.h" />
+        <file category="doc" name="core/utils/readme.md" />
       </files>
     </component>
-    
+
     <!-- fc_embed Logger -->
-    <component Cclass="fc_embed" Cgroup="Logger" Cversion="1.0.0" condition="fc_embed_Logger">
+    <component Cclass="fc_embed" Cgroup="log" Cversion="1.0.0" condition="fc_embed_log">
       <description>Lightweight logging system with multiple log levels, color support, and RTT integration. Uses memory pool for efficient buffer management. Depends on StdIO and Memory Pool.</description>
       <RTE_Components_h>
-        #define RTE_FC_EMBED_LOGGER            /* FC Embed Logger */
+        #define RTE_FC_EMBED_LOG               /* FC Embed Logger */
       </RTE_Components_h>
       <files>
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h" select="Config Template"/>
-        <file category="source" name="core/fc_log.c"/>
-        <file category="header" attr="template" select="Logger Header" name="core/fc_log.h"/>
+        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+          select="Config Template" />
+        <file category="source" name="core/fc_log.c" />
+        <file category="header" attr="template" select="Logger Header" name="core/fc_log.h" />
       </files>
     </component>
   </components>
-  
+
   <taxonomy>
     <description Cclass="fc_embed">Fool Cat Embedded Library - Lightweight embedded system utilities</description>
   </taxonomy>
-  
+
 </package>

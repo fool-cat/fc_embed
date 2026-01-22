@@ -143,7 +143,7 @@ fc_pool_free(&pool, ptr);
 #include "fc_log.h"
 
 // 初始化日志（使用自动初始化时无需手动调用）
-fc_log_pool_init();
+fc_log_init();
 
 // 使用日志
 FC_LOG_I("系统启动");

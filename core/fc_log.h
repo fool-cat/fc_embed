@@ -216,6 +216,9 @@ extern "C"
     // 提供一份默认的内存池获取函数,可以在外面重写
     extern bool log_alloc_default(fc_log_alloc_type_t alloc_type, fc_log_mem_t *mem, int advice_size);
 
+    // 使用log之前需要调用一次默认初始化,已注册到ENV中
+    extern void fc_log_init(void);
+
     #ifdef __cplusplus
 }
     #endif

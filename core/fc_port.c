@@ -600,13 +600,7 @@ extern "C"
 }
 #endif  //\ __cplusplus
 
-//+********************************* 自动注册初始化 **********************************/
+//+********************************* 注册到ENV段中 **********************************/
 #include "fc_auto_init.h"
-#if USE_FC_AUTO_INIT
-static void _fc_port_auto_init(void)
-{
-    fc_default_port_init();  // 纯内存结构初始化,可以放在constructor的时候就初始化
-}
 // 等级比默认的1000优先级更高,纯数据结构无外部依赖
-INIT_EXPORT_ENV(_fc_port_auto_init, FC_PORT_INIT_ORDER);
-#endif
+INIT_EXPORT_ENV(fc_default_port_init, FC_PORT_INIT_ORDER);
