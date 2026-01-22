@@ -5,7 +5,7 @@
 set -e
 
 PDSC_FILE="fool_cat.fc_embed.pdsc"
-OUTPUT_DIR="output"
+OUTPUT_DIR="cmsis-pack"
 BUILD_DIR="build"
 
 echo "=========================================="
@@ -106,5 +106,10 @@ if [ -f "$OUTPUT_DIR/$PACK_NAME" ]; then
     SIZE=$(du -h "$OUTPUT_DIR/$PACK_NAME" | cut -f1)
     echo "Pack size: $SIZE"
 fi
+
+# Clean up build directory
+echo ""
+echo "Cleaning up temporary files..."
+rm -rf "$BUILD_DIR"
 
 exit 0

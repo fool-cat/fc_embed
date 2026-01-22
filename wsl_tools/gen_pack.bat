@@ -56,9 +56,9 @@ if errorlevel 1 (
     echo Generation successful!
     echo ========================================
     echo.
-    echo Output files are in the output directory:
-    if exist "%PROJECT_DIR%\output\*.pack" (
-        dir /b "%PROJECT_DIR%\output\*.pack"
+    echo Output files are in the cmsis-pack directory:
+    if exist "%PROJECT_DIR%\cmsis-pack\*.pack" (
+        dir /b "%PROJECT_DIR%\cmsis-pack\*.pack"
     )
 )
 
