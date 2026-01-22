@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - develop
-      - main
+      - CMSIS-Pack
   workflow_dispatch:
 
 jobs:
