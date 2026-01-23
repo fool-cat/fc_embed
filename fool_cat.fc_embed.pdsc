@@ -111,6 +111,7 @@
           select="Config Template" />
         <file category="source" name="core/fc_auto_init.c" />
         <file category="header" attr="template" select="Auto Init Header" name="core/fc_auto_init.h" />
+        <file category="include" name="core/" />
       </files>
     </component>
 
@@ -125,6 +126,7 @@
           select="Config Template" />
         <file category="source" name="core/fc_pool.c" />
         <file category="header" attr="template" select="Memory Pool Header" name="core/fc_pool.h" />
+        <file category="include" name="core/" />
       </files>
     </component>
 
@@ -140,6 +142,7 @@
         <file category="header" attr="template" select="FIFO Header" name="core/fc_fifo.h" />
         <file category="source" name="core/fc_port.c" />
         <file category="header" attr="template" select="Port Header" name="core/fc_port.h" />
+        <file category="include" name="core/" />
       </files>
     </component>
 
@@ -155,6 +158,7 @@
         <file category="header" attr="template" select="FIFO Header" name="core/fc_fifo.h" />
         <file category="source" name="core/fc_trans.c" />
         <file category="header" attr="template" select="Transport Header" name="core/fc_trans.h" />
+        <file category="include" name="core/" />
       </files>
     </component>
 
@@ -171,6 +175,7 @@
         <file category="source" name="core/fc_stdio.c" />
         <file category="header" attr="template" select="StdIO Header" name="core/fc_stdio.h" />
         <file category="doc" name="core/utils/readme.md" />
+        <file category="include" name="core/" />
       </files>
     </component>
 
@@ -185,6 +190,7 @@
           select="Config Template" />
         <file category="source" name="core/fc_log.c" />
         <file category="header" attr="template" select="Logger Header" name="core/fc_log.h" />
+        <file category="include" name="core/" />
       </files>
     </component>
   </components>
