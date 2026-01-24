@@ -23,12 +23,36 @@
     #include "fc_pool.h"
     #include "fc_stdio.h"
 
-    #ifndef FC_LOG_NOPREFIX_API
-        #define FC_LOG_NOPREFIX_API 1 /**< 提供不带(fc_)前缀的log宏API */
-    #endif
-
     #ifndef FC_LOG_ENABLE
         #define FC_LOG_ENABLE 1 /**< 使能log */
+    #endif
+
+// clang-format off
+
+    #undef FC_LOG_LEVEL_NONE
+    #undef FC_LOG_LEVEL_ERROR
+    #undef FC_LOG_LEVEL_WARNING
+    #undef FC_LOG_LEVEL_INFO
+    #undef FC_LOG_LEVEL_DEBUG
+    #undef FC_LOG_LEVEL_VERBOSE
+    #undef FC_LOG_LEVEL_ALL
+
+    #define FC_LOG_LEVEL_NONE       0  /**< 屏蔽所有/无视等级 */
+    #define FC_LOG_LEVEL_ERROR      1  /**< 错误 */
+    #define FC_LOG_LEVEL_WARNING    2  /**< 警告 */
+    #define FC_LOG_LEVEL_INFO       3  /**< 消息 */
+    #define FC_LOG_LEVEL_DEBUG      4  /**< 调试 */
+    #define FC_LOG_LEVEL_VERBOSE    5  /**< 冗余 */
+    #define FC_LOG_LEVEL_ALL        6  /**< 所有日志 */
+
+// clang-format on
+
+    #ifndef FC_LOG_FILE_LEVEL
+        #define FC_LOG_FILE_LEVEL FC_LOG_LEVEL_ALL /**< 所在文件允许输出log等级 */
+    #endif
+
+    #ifndef FC_LOG_NOPREFIX_API
+        #define FC_LOG_NOPREFIX_API 1 /**< 提供不带(fc_)前缀的log宏API */
     #endif
 
     #ifndef FC_LOG_LINE_SIZE
@@ -129,17 +153,6 @@
         #define FC_VERBOSE_TEXT     FC_LOG_VERBOSE_HEAD     FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
     #endif
 
-    typedef enum
-    {
-        FC_LOG_NONE     = 0,    /**< 屏蔽所有/无视等级 */
-        FC_LOG_ERROR    = 1,    /**< 错误 */
-        FC_LOG_WRANING  = 2,    /**< 警告 */
-        FC_LOG_INFO     = 3,    /**< 消息 */
-        FC_LOG_DEBUG    = 4,    /**< 调试 */
-        FC_LOG_VERBOSE  = 5,    /**< 冗余 */
-        FC_LOG_ALL      = 6,    /**< 所有日志 */
-    } fc_log_level_t;
-
 // clang-format on
 
 // 存在多次获取,但是释放仅释放一次
@@ -151,6 +164,7 @@ typedef enum
 } fc_log_alloc_type_t;
 
 //+********************************* 面向对象 **********************************/
+typedef uint8_t                    fc_log_level_t;  // log等级类型
 typedef struct _fc_log_t           fc_log_t;
 typedef struct _fc_log_mem_t       fc_log_mem_t;
 typedef struct _fc_log_file_user_t fc_log_file_user_t;  // 传递给write函数的用户数据
@@ -230,7 +244,7 @@ extern fc_log_t default_log;  // 默认log对象
         #define FC_LOG_OBJ (default_log)
     #endif
 
-extern fc_log_t const *scope_log_ptr;  // 设置为空指针!!!
+static fc_log_t const *const scope_log_ptr = NULL;  // 强制空指针!!!,强烈建议O1及以上优化可以省非常多空间
 
     #ifndef FC_LOG_LOSE_HOOK
         /* #define FC_LOG_LOSE_HOOK(exp, log, len) (void)(0) */
@@ -303,36 +317,43 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
     #define fc_log_merge_0() \
         fc_log_merge_1({ (void)0; })
 
+// 根据参数展开为0/1/2个参数的版本,超过2将报错,可以用复合语句{exp1;exp2...expN}算一个参数
     #define fc_log_merge(...) \
         FC_CONNECT2(fc_log_merge_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
-    #define fc_log_format(text, _level, fmt, ...)                                                                                                               \
-        do                                                                                                                                                      \
-        {                                                                                                                                                       \
-            fc_log_fprintf((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), _level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+    #define fc_log_format(text, _level, fmt, ...)                                                                                                                   \
+        do                                                                                                                                                          \
+        {                                                                                                                                                           \
+            if (_level <= FC_LOG_FILE_LEVEL)                                                                                                                        \
+                fc_log_fprintf((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), _level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+            if (scope_log_ptr)                                                                                                                                      \
+            {                                                                                                                                                       \
+                fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)scope_log_ptr;                                                                                      \
+                SAFE_NAME(log_temp_ptr)->last_level = _level; /* 临时对象实体记录临时等级 */                                                                        \
+            }                                                                                                                                                       \
         } while (0)
 
-    //+********************************* 期望使用 **********************************/
+//+********************************* 期望使用 **********************************/
     #define fc_log_error(fmt, ...) \
-        fc_log_format(FC_ERROR_TEXT, FC_LOG_ERROR, fmt, ##__VA_ARGS__)
+        fc_log_format(FC_ERROR_TEXT, FC_LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
 
     #define fc_log_warning(fmt, ...) \
-        fc_log_format(FC_WARNING_TEXT, FC_LOG_WRANING, fmt, ##__VA_ARGS__)
+        fc_log_format(FC_WARNING_TEXT, FC_LOG_LEVEL_WARNING, fmt, ##__VA_ARGS__)
 
     #define fc_log_info(fmt, ...) \
-        fc_log_format(FC_INFO_TEXT, FC_LOG_INFO, fmt, ##__VA_ARGS__)
+        fc_log_format(FC_INFO_TEXT, FC_LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
 
     #define fc_log_debug(fmt, ...) \
-        fc_log_format(FC_DEBUG_TEXT, FC_LOG_DEBUG, fmt, ##__VA_ARGS__)
+        fc_log_format(FC_DEBUG_TEXT, FC_LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
 
     #define fc_log_verbose(fmt, ...) \
-        fc_log_format(FC_VERBOSE_TEXT, FC_LOG_VERBOSE, fmt, ##__VA_ARGS__)
+        fc_log_format(FC_VERBOSE_TEXT, FC_LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
 
     #define fc_log_printf(fmt, ...) \
-        fc_log_format("", FC_LOG_NONE, fmt, ##__VA_ARGS__)
+        fc_log_format("", (scope_log_ptr ? scope_log_ptr->last_level : FC_LOG_LEVEL_NONE), fmt, ##__VA_ARGS__);
 
     #define fc_log_printf_lv(_level, fmt, ...) \
-        fc_log_format("", _level, fmt, ##__VA_ARGS__)
+        fc_log_format("", _level, fmt, ##__VA_ARGS__);
 
     #define fc_log_assert(expr, ...)                                                                   \
         if (!(expr))                                                                                   \
@@ -352,10 +373,11 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
             fc_log_fwrite(SAFE_NAME(log_temp_ptr), SAFE_NAME(log_temp_ptr)->last_level, buf, len);         \
         } while (0)
 
-    #define fc_log_write_lv(_level, buf, len)                                                           \
-        do                                                                                              \
-        {                                                                                               \
-            fc_log_fwrite((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), _level, buf, len); \
+    #define fc_log_write_lv(_level, buf, len)                                                               \
+        do                                                                                                  \
+        {                                                                                                   \
+            if (_level <= FC_LOG_FILE_LEVEL)                                                                \
+                fc_log_fwrite((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), _level, buf, len); \
         } while (0)
 
 #else
@@ -420,3 +442,4 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 
 // 除了 FC_LOG_FMT_END 定义结尾外,还可以使用如下宏在每句log后面添加特定内容如换行
 // #define user_printf(fmt, ...) fc_log_printf(fmt "\r\n", ##__VA_ARGS__)
+// #define info_printf(fmt, ...) fc_log_info(fmt "\r\n", ##__VA_ARGS__)

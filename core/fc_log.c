@@ -125,11 +125,6 @@ fc_weak void fc_log_fprintf(fc_log_t *log, fc_log_level_t level, const char *fmt
     fc_assert(log != NULL);
     fc_assert(log->alloc != NULL);
 
-    if (log->merge)
-    {
-        log->last_level = level;  // 记录临时等级
-    }
-
     if (log->level >= level)
     {
         FC_FILE            temp_f = {0};
@@ -253,11 +248,6 @@ static inline bool _write_ch(FC_FILE *f, char ch)
 int fc_log_fwrite(fc_log_t *log, fc_log_level_t level, const void *buff, int len)
 {
     fc_assert(log != NULL);
-
-    if (log->merge)
-    {
-        log->last_level = level;  // 记录临时等级
-    }
 
     if (log->level >= level)
     {
@@ -395,12 +385,12 @@ fc_log_t default_log = {
     .alloc = log_alloc_default,
     .file_user = {0},  // 临时对象中才会用到这个内存,其他都不用
     .f = {0},
-    .level = FC_LOG_ALL,
-    .last_level = FC_LOG_NONE,  // 不限制
-    .merge = false,             // 默认不需要推迟输出
+    .level = FC_LOG_LEVEL_ALL,
+    .last_level = FC_LOG_LEVEL_NONE,  // 不限制,使用write的时候会继承这个等级
+    .merge = false,                   // 默认不需要推迟输出
 };
 
-fc_log_t const *scope_log_ptr = NULL;  // 设置为空指针!!!
+// fc_log_t const *scope_log_ptr = NULL;  // 设置为空指针!!!
 
 //+********************************* 使用fc_pool进行管理 **********************************/
 
