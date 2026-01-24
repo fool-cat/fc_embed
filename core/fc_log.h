@@ -317,6 +317,7 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
     #define fc_log_merge_0() \
         fc_log_merge_1({ (void)0; })
 
+// 根据参数展开为0/1/2个参数的版本,超过2将报错,可以用复合语句{exp1;exp2...expN}算一个参数
     #define fc_log_merge(...) \
         FC_CONNECT2(fc_log_merge_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
@@ -325,98 +326,34 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
         {                                                                                                                                                           \
             if (_level <= FC_LOG_FILE_LEVEL)                                                                                                                        \
                 fc_log_fprintf((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), _level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
+            if (scope_log_ptr)                                                                                                                                      \
+            {                                                                                                                                                       \
+                fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)scope_log_ptr;                                                                                      \
+                SAFE_NAME(log_temp_ptr)->last_level = _level; /* 临时对象实体记录临时等级 */                                                                        \
+            }                                                                                                                                                       \
         } while (0)
 
-    //+********************************* 期望使用 **********************************/
-    #if FC_LOG_FILE_LEVEL >= FC_LOG_LEVEL_ERROR
-        #define fc_log_error(fmt, ...) \
-            fc_log_format(FC_ERROR_TEXT, FC_LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
-    #else
-        #define fc_log_error(fmt, ...)                                                                       \
-            do                                                                                               \
-            {                                                                                                \
-                if (scope_log_ptr)                                                                           \
-                {                                                                                            \
-                    fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)scope_log_ptr;                           \
-                    SAFE_NAME(log_temp_ptr)->last_level = FC_LOG_LEVEL_ERROR; /* 临时对象实体记录临时等级 */ \
-                }                                                                                            \
-            } while (0);
-    #endif
+//+********************************* 期望使用 **********************************/
+    #define fc_log_error(fmt, ...) \
+        fc_log_format(FC_ERROR_TEXT, FC_LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
 
-    #if FC_LOG_FILE_LEVEL >= FC_LOG_LEVEL_WARNING
-        #define fc_log_warning(fmt, ...) \
-            fc_log_format(FC_WARNING_TEXT, FC_LOG_LEVEL_WARNING, fmt, ##__VA_ARGS__)
-    #else
-        #define fc_log_warning(fmt, ...)                                                                       \
-            do                                                                                                 \
-            {                                                                                                  \
-                if (scope_log_ptr)                                                                             \
-                {                                                                                              \
-                    fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)scope_log_ptr;                             \
-                    SAFE_NAME(log_temp_ptr)->last_level = FC_LOG_LEVEL_WARNING; /* 临时对象实体记录临时等级 */ \
-                }                                                                                              \
-            } while (0);
-    #endif
+    #define fc_log_warning(fmt, ...) \
+        fc_log_format(FC_WARNING_TEXT, FC_LOG_LEVEL_WARNING, fmt, ##__VA_ARGS__)
 
-    #if FC_LOG_FILE_LEVEL >= FC_LOG_LEVEL_INFO
-        #define fc_log_info(fmt, ...) \
-            fc_log_format(FC_INFO_TEXT, FC_LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
-    #else
-        #define fc_log_info(fmt, ...)                                                                       \
-            do                                                                                              \
-            {                                                                                               \
-                if (scope_log_ptr)                                                                          \
-                {                                                                                           \
-                    fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)scope_log_ptr;                          \
-                    SAFE_NAME(log_temp_ptr)->last_level = FC_LOG_LEVEL_INFO; /* 临时对象实体记录临时等级 */ \
-                }                                                                                           \
-            } while (0);
-    #endif
+    #define fc_log_info(fmt, ...) \
+        fc_log_format(FC_INFO_TEXT, FC_LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
 
-    #if FC_LOG_FILE_LEVEL >= FC_LOG_LEVEL_DEBUG
-        #define fc_log_debug(fmt, ...) \
-            fc_log_format(FC_DEBUG_TEXT, FC_LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
-    #else
-        #define fc_log_debug(fmt, ...)                                                                       \
-            do                                                                                               \
-            {                                                                                                \
-                if (scope_log_ptr)                                                                           \
-                {                                                                                            \
-                    fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)scope_log_ptr;                           \
-                    SAFE_NAME(log_temp_ptr)->last_level = FC_LOG_LEVEL_DEBUG; /* 临时对象实体记录临时等级 */ \
-                }                                                                                            \
-            } while (0);
-    #endif
+    #define fc_log_debug(fmt, ...) \
+        fc_log_format(FC_DEBUG_TEXT, FC_LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
 
-    #if FC_LOG_FILE_LEVEL >= FC_LOG_LEVEL_VERBOSE
-        #define fc_log_verbose(fmt, ...) \
-            fc_log_format(FC_VERBOSE_TEXT, FC_LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
-    #else
-        #define fc_log_verbose(fmt, ...)                                                                       \
-            do                                                                                                 \
-            {                                                                                                  \
-                if (scope_log_ptr)                                                                             \
-                {                                                                                              \
-                    fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)scope_log_ptr;                             \
-                    SAFE_NAME(log_temp_ptr)->last_level = FC_LOG_LEVEL_VERBOSE; /* 临时对象实体记录临时等级 */ \
-                }                                                                                              \
-            } while (0);
-    #endif
+    #define fc_log_verbose(fmt, ...) \
+        fc_log_format(FC_VERBOSE_TEXT, FC_LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
 
-    #define fc_log_printf(fmt, ...)                                                                        \
-        do                                                                                                 \
-        {                                                                                                  \
-            fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ); \
-            if (SAFE_NAME(log_temp_ptr)->last_level <= FC_LOG_FILE_LEVEL)                                  \
-                fc_log_format("", SAFE_NAME(log_temp_ptr)->last_level, fmt, ##__VA_ARGS__);                \
-        } while (0)
+    #define fc_log_printf(fmt, ...) \
+        fc_log_format("", (scope_log_ptr ? scope_log_ptr->last_level : FC_LOG_LEVEL_NONE), fmt, ##__VA_ARGS__);
 
-    #define fc_log_printf_lv(_level, fmt, ...)                 \
-        do                                                     \
-        {                                                      \
-            if (_level <= FC_LOG_FILE_LEVEL)                   \
-                fc_log_format("", _level, fmt, ##__VA_ARGS__); \
-        } while (0)
+    #define fc_log_printf_lv(_level, fmt, ...) \
+        fc_log_format("", _level, fmt, ##__VA_ARGS__);
 
     #define fc_log_assert(expr, ...)                                                                   \
         if (!(expr))                                                                                   \
