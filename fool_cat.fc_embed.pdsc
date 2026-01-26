@@ -175,7 +175,6 @@
         <!-- Main stdio implementation (includes all utils/*.c internally) -->
         <file category="source" name="core/fc_stdio.c" />
         <file category="header" attr="template" select="StdIO Header" name="core/fc_stdio.h" />
-        <file category="doc" name="core/utils/readme.md" />
         <file category="include" name="core/" />
       </files>
     </component>
