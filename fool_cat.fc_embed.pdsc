@@ -124,6 +124,7 @@
       <files>
         <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
           select="Config Template" />
+        <file category="header" attr="config" select="Architecture Header" name="core/fc_arch.h" />
         <file category="source" name="core/fc_pool.c" />
         <file category="header" attr="template" select="Memory Pool Header" name="core/fc_pool.h" />
         <file category="include" name="core/" />
@@ -188,6 +189,7 @@
       <files>
         <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
           select="Config Template" />
+        <file category="header" attr="config" select="Architecture Header" name="core/fc_arch.h" />
         <file category="source" name="core/fc_log.c" />
         <file category="header" attr="template" select="Logger Header" name="core/fc_log.h" />
         <file category="include" name="core/" />

@@ -35,6 +35,9 @@ extern "C"
      *
      */
     typedef struct _FC_FILE FC_FILE;
+    typedef int (*fc_file_write_t)(FC_FILE *f, const void *buf, int len);
+    typedef int (*fc_file_read_t)(FC_FILE *f, void *buf, int len);
+
     struct _FC_FILE
     {
         char  *p_start;
@@ -47,13 +50,10 @@ extern "C"
         union
         {
             // write和read函数传入为FC_IO_EOF或FC_IO_SWAP或大于0的长度
-            int (*write)(FC_FILE *f, const void *buf, int len);  // 返回实际写入的长度,实际每次只会写入1字节,返回值通常等于len,否则表示结束写入
-            int (*read)(FC_FILE *f, void *buf, int len);         // 返回实际读取的长度,实际每次只会读取1字节,暂时废弃不实现scanf相关API
+            fc_file_write_t write;  // 返回实际写入的长度,实际每次只会写入1字节,返回值通常等于len,否则表示结束写入
+            fc_file_read_t  read;   // 返回实际读取的长度,实际每次只会读取1字节,暂时废弃不实现scanf相关API
         } io;
     };
-
-    typedef int (*fc_file_write_t)(FC_FILE *f, const void *buf, int len);
-    typedef int (*fc_file_read_t)(FC_FILE *f, void *buf, int len);
 
     //+********************************* 格式化API **********************************/
 

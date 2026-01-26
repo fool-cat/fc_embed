@@ -110,10 +110,13 @@
 // <h> Logger Configuration
 // <i> Logger component configuration
 
-//   <q> FC_LOG_ENABLE - Enable Logger
-//   <i> Enable logging functionality
-//   <i> Default: 1 (Enabled)
-    #define FC_LOG_ENABLE 1
+    #ifndef FC_LOG_ENABLE
+        #define FC_LOG_ENABLE 1
+    #endif
+
+    #ifndef FC_LOG_FILE_LEVEL
+        #define FC_LOG_FILE_LEVEL FC_LOG_LEVEL_ALL /**< 所在文件允许输出log等级 */
+    #endif
 
     //   <o> FC_LOG_LINE_SIZE - Log Line Buffer Size <32-512:8>
     //   <i> Log line buffer size in bytes
