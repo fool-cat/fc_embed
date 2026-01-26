@@ -63,6 +63,15 @@
         #define FC_LOG_USING_COLOR 1 /**< 是否使用颜色 */
     #endif
 
+    #ifndef FC_LOG_POOL_FAIL_RECORD
+        #define FC_LOG_POOL_FAIL_RECORD 0 /**< 序列化日志分配失败是否记录丢失日志长度,需要消耗性能用于空序列化一次,个人觉得没必要 */
+    #endif
+
+    #ifndef FC_LOG_FMT_START
+        #define FC_LOG_FMT_START "" /**< 每句log格式开始部分,结尾跟\r\n可能打印丢失,开头打印可以保证日志清晰 */
+    // #define FC_LOG_FMT_START "\r\n"
+    #endif
+
     #ifndef FC_LOG_FMT_END
         #define FC_LOG_FMT_END "" /**< 每句log格式结尾部分 */
     #endif
@@ -140,17 +149,17 @@
      * log级别字符(包含颜色)
      */
     #if FC_LOG_USING_COLOR == 1
-        #define FC_ERROR_TEXT      CSI(31) FC_LOG_ERROR_HEAD    FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 错误标签 */
-        #define FC_WARNING_TEXT    CSI(33) FC_LOG_WARNING_HEAD  FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 警告标签 */
-        #define FC_INFO_TEXT       CSI(32) FC_LOG_INFO_HEAD     FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 信息标签 */
-        #define FC_DEBUG_TEXT      CSI(34) FC_LOG_DEBUG_HEAD    FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 调试标签 */
-        #define FC_VERBOSE_TEXT    CSI(36) FC_LOG_VERBOSE_HEAD  FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 冗余信息标签 */
+        #define FC_ERROR_TEXT      FC_LOG_FMT_START CSI(31) FC_LOG_ERROR_HEAD    FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 错误标签 */
+        #define FC_WARNING_TEXT    FC_LOG_FMT_START CSI(33) FC_LOG_WARNING_HEAD  FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 警告标签 */
+        #define FC_INFO_TEXT       FC_LOG_FMT_START CSI(32) FC_LOG_INFO_HEAD     FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 信息标签 */
+        #define FC_DEBUG_TEXT      FC_LOG_FMT_START CSI(34) FC_LOG_DEBUG_HEAD    FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 调试标签 */
+        #define FC_VERBOSE_TEXT    FC_LOG_FMT_START CSI(36) FC_LOG_VERBOSE_HEAD  FC_LOG_PREFIX_FMT CSI(39)   FC_LOG_FMT_END    /**< 冗余信息标签 */
     #else
-        #define FC_ERROR_TEXT       FC_LOG_ERROR_HEAD       FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
-        #define FC_WARNING_TEXT     FC_LOG_WARNING_HEAD     FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
-        #define FC_INFO_TEXT        FC_LOG_INFO_HEAD        FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
-        #define FC_DEBUG_TEXT       FC_LOG_DEBUG_HEAD       FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
-        #define FC_VERBOSE_TEXT     FC_LOG_VERBOSE_HEAD     FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
+        #define FC_ERROR_TEXT       FC_LOG_FMT_START FC_LOG_ERROR_HEAD       FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
+        #define FC_WARNING_TEXT     FC_LOG_FMT_START FC_LOG_WARNING_HEAD     FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
+        #define FC_INFO_TEXT        FC_LOG_FMT_START FC_LOG_INFO_HEAD        FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
+        #define FC_DEBUG_TEXT       FC_LOG_FMT_START FC_LOG_DEBUG_HEAD       FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
+        #define FC_VERBOSE_TEXT     FC_LOG_FMT_START FC_LOG_VERBOSE_HEAD     FC_LOG_PREFIX_FMT   FC_LOG_FMT_END
     #endif
 
 // clang-format on

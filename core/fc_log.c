@@ -99,8 +99,12 @@ static int __fc_log_alloc_write(FC_FILE *f, const void *buf, int len)
         user->block_write += mem->size;
         if (false == log->alloc(FC_LOG_ALLOC_NEW, mem, FC_LOG_LINE_SIZE))
         {
+#if !FC_LOG_POOL_FAIL_RECORD
             f->io.write = __fc_log_fail_record_write;  // 改变下一次进来的函数,后续只做丢失记录
             return len;
+#else
+            return FC_IO_EOF;  // 强制结束后面的序列化
+#endif
         }
 
         // 切换到新的内存块
@@ -127,64 +131,100 @@ fc_weak void fc_log_fprintf(fc_log_t *log, fc_log_level_t level, const char *fmt
 
     if (log->level >= level)
     {
-        FC_FILE            temp_f = {0};
-        fc_log_file_user_t temp_user = {0};
-
-        FC_FILE            *f = &temp_f;
-        fc_log_file_user_t *user = &temp_user;
-
-        if (log->merge)  // 推迟输出,使用对象自身的f和user
+        if (!log->merge)  // 单次日志输出,不使用log自身的FC_FILE/fc_log_file_user_t对象,使用栈对象
         {
-            f = &log->f;
-            user = &log->file_user;
-        }
+            FC_FILE            temp_f = {0};
+            fc_log_file_user_t temp_user = {0};
 
-        if (!user->mem.buff && NULL == f->io.write)  // 还没有分配过内存并设置write指针(第一次进入)
-        {
-            // 分配内存池
-            if (false == log->alloc(FC_LOG_ALLOC_NEW, &(user->mem), FC_LOG_LINE_SIZE))
+            FC_FILE            *f = &temp_f;
+            fc_log_file_user_t *user = &temp_user;
+
+            // if (NULL == user->mem.buff && NULL == f->io.write)  // 还没有分配过内存并设置write指针(第一次进入)
+            // 优化性能,这里一定会进
+            {
+                // 分配内存池
+                if (false == log->alloc(FC_LOG_ALLOC_NEW, &(user->mem), FC_LOG_LINE_SIZE))
+                {
+#if !FC_LOG_POOL_FAIL_RECORD
+                    va_list vargs;
+                    va_start(vargs, fmt);
+                    user->total_write = fc_vsnprintf(NULL, 0, fmt, vargs);
+                    va_end(vargs);
+
+                    // 调用钩子记录丢失的日志长度
+                    FC_LOG_LOSE_HOOK(0 == user->total_write, log, user->total_write);
+#endif
+                    // 优化性能,这里不需要赋值
+                    // f->io.write = __fc_log_fail_record_write;  // 改变下一次进来的函数,后续只做丢失记录,一次失败后续连续失败,避免一个段内的日志存在中间丢失两边存在的情况
+
+                    return;
+                }
+
+                user->log = (log->file_user.log) ? log->file_user.log : log;  // 始终指向其根对象,如果根对象没有赋值的话就指向当前log对象(代价是日志丢失没有记录)
+                user->mem_chain = user->mem.buff;
+                // user->block_write = 0;
+
+                f->p_now = user->mem.buff;
+                f->p_start = user->mem.buff;
+                f->p_end = user->mem.buff + user->mem.size;
+                f->user = (void *)user;
+                f->io.write = __fc_log_alloc_write;
+            }
+
             {
                 va_list vargs;
                 va_start(vargs, fmt);
-                user->total_write = fc_vsnprintf(NULL, 0, fmt, vargs);
+                user->total_write = fc_vfprintf(f, fmt, vargs);
                 va_end(vargs);
-
-                // 调用钩子记录丢失的日志长度
-                FC_LOG_LOSE_HOOK(0 == user->total_write, log, user->total_write);
-
-                f->io.write = __fc_log_fail_record_write;  // 改变下一次进来的函数,后续只做丢失记录,一次失败后续连续失败,避免一个段内的日志存在中间丢失两边存在的情况
-
-                return;
             }
-
-            user->log = (log->file_user.log) ? log->file_user.log : log;  // 始终指向其根对象,如果根对象没有赋值的话就指向当前log对象(代价是日志丢失没有记录)
-            user->mem_chain = user->mem.buff;
-            // user->block_write = 0;
-
-            f->p_now = user->mem.buff;
-            f->p_start = user->mem.buff;
-            f->p_end = user->mem.buff + user->mem.size;
-            f->user = (void *)user;
-            f->io.write = __fc_log_alloc_write;
-        }
-
-        {
-            va_list vargs;
-            va_start(vargs, fmt);
-            user->total_write = fc_vfprintf(f, fmt, vargs);
-            va_end(vargs);
-        }
-
-        if (!log->merge)
-        {
-            // 这里必须展开调用,使用的是栈对象
-            //  fc_log_fflush(log);
 
             // 写入数据,数据早已写入,这里是将内存块链入fifo
             log->write(user);
 
             // 释放内存池
             log->alloc(FC_LOG_ALLOC_FREE, &(user->mem), 0);
+        }
+        else
+        {
+            FC_FILE            *f = &log->f;
+            fc_log_file_user_t *user = &log->file_user;
+
+            if (NULL == user->mem.buff && NULL == f->io.write)  // 还没有分配过内存并设置write指针(第一次进入)
+            {
+                // 分配内存池
+                if (false == log->alloc(FC_LOG_ALLOC_NEW, &(user->mem), FC_LOG_LINE_SIZE))
+                {
+#if !FC_LOG_POOL_FAIL_RECORD
+                    va_list vargs;
+                    va_start(vargs, fmt);
+                    user->total_write = fc_vsnprintf(NULL, 0, fmt, vargs);
+                    va_end(vargs);
+
+                    // 调用钩子记录丢失的日志长度
+                    FC_LOG_LOSE_HOOK(0 == user->total_write, log, user->total_write);
+#endif
+                    f->io.write = __fc_log_fail_record_write;  // 改变下一次进来的函数,后续只做丢失记录,一次失败后续连续失败,避免一个段内的日志存在中间丢失两边存在的情况
+
+                    return;
+                }
+
+                user->log = (log->file_user.log) ? log->file_user.log : log;  // 始终指向其根对象,如果根对象没有赋值的话就指向当前log对象(代价是日志丢失没有记录)
+                user->mem_chain = user->mem.buff;
+                // user->block_write = 0;
+
+                f->p_now = user->mem.buff;
+                f->p_start = user->mem.buff;
+                f->p_end = user->mem.buff + user->mem.size;
+                f->user = (void *)user;
+                f->io.write = __fc_log_alloc_write;
+            }
+
+            {
+                va_list vargs;
+                va_start(vargs, fmt);
+                user->total_write = fc_vfprintf(f, fmt, vargs);
+                va_end(vargs);
+            }
         }
     }
 }
@@ -251,65 +291,60 @@ int fc_log_fwrite(fc_log_t *log, fc_log_level_t level, const void *buff, int len
 
     if (log->level >= level)
     {
-        FC_FILE            temp_f = {0};
-        fc_log_file_user_t temp_user = {0};
+        int enter_len = len;
 
-        FC_FILE            *f = &temp_f;
-        fc_log_file_user_t *user = &temp_user;
-
-        if (log->merge)  // 推迟输出,使用对象自身的f和user
+        if (!log->merge)  // 单次日志输出,使用栈对象
         {
-            f = &log->f;
-            user = &log->file_user;
-        }
+            FC_FILE            temp_f = {0};
+            fc_log_file_user_t temp_user = {0};
 
-        user->total_write = len;
+            FC_FILE            *f = &temp_f;
+            fc_log_file_user_t *user = &temp_user;
 
-        if (!user->mem.buff && NULL == f->io.write)  // 还没有分配过内存并设置write指针(第一次进入)
-        {
-            // 分配内存池
-            if (false == log->alloc(FC_LOG_ALLOC_NEW, &(user->mem), FC_LOG_LINE_SIZE))
+            // if (NULL == user->mem.buff && NULL == f->io.write)  // 还没有分配过内存并设置write指针(第一次进入)
+            // 优化性能,这里一定会进
             {
-                // 调用钩子记录丢失的日志长度
-                FC_LOG_LOSE_HOOK(false, log, len);
+                // 分配内存池
+                if (false == log->alloc(FC_LOG_ALLOC_NEW, &(user->mem), FC_LOG_LINE_SIZE))
+                {
+                    // 调用钩子记录丢失的日志长度
+                    FC_LOG_LOSE_HOOK(false, log, len);
 
-                f->io.write = __fc_log_fail_record_write;  // 改变下一次进来的函数,后续只做丢失记录,一次失败后续连续失败,避免一个段内的日志存在中间丢失两边存在的情况
+                    // 优化性能,这里不需要赋值
+                    // f->io.write = __fc_log_fail_record_write;  // 改变下一次进来的函数,后续只做丢失记录,一次失败后续连续失败,避免一个段内的日志存在中间丢失两边存在的情况
 
-                return 0;
+                    return 0;
+                }
+
+                user->log = (log->file_user.log) ? log->file_user.log : log;  // 始终指向其根对象,如果根对象没有赋值的话就指向当前log对象(代价是日志丢失没有记录)
+                user->mem_chain = user->mem.buff;
+                // user->block_write = 0;
+
+                // 保持跟fprintf一样
+                f->p_now = user->mem.buff;
+                f->p_start = user->mem.buff;
+                f->p_end = user->mem.buff + user->mem.size;
+                f->user = (void *)user;
+                f->io.write = __fc_log_alloc_write;
             }
 
-            user->log = log;
-            user->mem_chain = user->mem.buff;
-            // user->block_write = 0;
-
-            // 保持跟fprintf一样
-            f->p_now = user->mem.buff;
-            f->p_start = user->mem.buff;
-            f->p_end = user->mem.buff + user->mem.size;
-            f->user = (void *)user;
-            f->io.write = __fc_log_alloc_write;
-        }
-
-        {
-            char *this_buff = (char *)buff;
-            do
             {
-                if (!_write_ch(f, *this_buff))
-                    break;
-                this_buff++;
-                len--;
-            } while (len > 0);
+                char *this_buff = (char *)buff;
+                do
+                {
+                    if (!_write_ch(f, *this_buff))
+                        break;
+                    this_buff++;
+                    len--;
+                } while (len > 0);
 
-            if (f->io.write)
-            {
-                f->io.write(f, f->p_now, (int)FC_IO_EOF);  // 结束
+                if (f->io.write)
+                {
+                    f->io.write(f, f->p_now, (int)FC_IO_EOF);  // 结束
+                }
             }
-        }
 
-        if (!log->merge)
-        {
-            // 这里必须展开调用,使用的是栈对象
-            //  fc_log_fflush(log);
+            user->total_write += (enter_len - len);
 
             // 写入数据,数据早已写入,这里是将内存块链入fifo
             log->write(user);
@@ -317,8 +352,56 @@ int fc_log_fwrite(fc_log_t *log, fc_log_level_t level, const void *buff, int len
             // 释放内存池
             log->alloc(FC_LOG_ALLOC_FREE, &(user->mem), 0);
         }
+        else
+        {
+            FC_FILE            *f = &log->f;
+            fc_log_file_user_t *user = &log->file_user;
 
-        return (int)(user->total_write - len);
+            if (NULL == user->mem.buff && NULL == f->io.write)  // 还没有分配过内存并设置write指针(第一次进入)
+            {
+                // 分配内存池
+                if (false == log->alloc(FC_LOG_ALLOC_NEW, &(user->mem), FC_LOG_LINE_SIZE))
+                {
+                    // 调用钩子记录丢失的日志长度
+                    FC_LOG_LOSE_HOOK(false, log, len);
+
+                    f->io.write = __fc_log_fail_record_write;  // 改变下一次进来的函数,后续只做丢失记录,一次失败后续连续失败,避免一个段内的日志存在中间丢失两边存在的情况
+
+                    return 0;
+                }
+
+                user->log = (log->file_user.log) ? log->file_user.log : log;  // 始终指向其根对象,如果根对象没有赋值的话就指向当前log对象(代价是日志丢失没有记录)
+                user->mem_chain = user->mem.buff;
+                // user->block_write = 0;
+
+                // 保持跟fprintf一样
+                f->p_now = user->mem.buff;
+                f->p_start = user->mem.buff;
+                f->p_end = user->mem.buff + user->mem.size;
+                f->user = (void *)user;
+                f->io.write = __fc_log_alloc_write;
+            }
+
+            {
+                char *this_buff = (char *)buff;
+                do
+                {
+                    if (!_write_ch(f, *this_buff))
+                        break;
+                    this_buff++;
+                    len--;
+                } while (len > 0);
+
+                if (f->io.write)
+                {
+                    f->io.write(f, f->p_now, (int)FC_IO_EOF);  // 结束
+                }
+            }
+
+            user->total_write += (enter_len - len);
+        }
+
+        return (enter_len - len);
     }
 
     return 0;
