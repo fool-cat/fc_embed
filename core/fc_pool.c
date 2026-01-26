@@ -169,6 +169,8 @@ void *fc_pool_alloc(fc_pool_t *pool, size_t *size)
         }
         else
         {
+            FC_POOL_ALLOC_FAIL_HOOK(pool);
+
             // 分配失败将size置0,防止误用
             *size = 0;  // 也可以不用管
         }
@@ -261,9 +263,9 @@ void fc_pool_free(fc_pool_t *pool, void *ptr)
     }
 #endif
 
-    FC_ATOMIC_SCOPE
+    if (static_head)  // 静态内存释放仅仅是加入空闲链表,非常快
     {
-        if (static_head)  // 静态内存释放仅仅是加入空闲链表,非常快
+        FC_ATOMIC_SCOPE
         {
             static_tail->next = pool->list_free.next;  // 尾部指向空闲链表头部
             pool->list_free.next = static_head;        // 空闲链表头部指向新释放的内存块头部
