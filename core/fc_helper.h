@@ -139,10 +139,11 @@
     #pragma clang diagnostic ignored "-Wmissing-field-initializers"
     #pragma clang diagnostic ignored "-Wmissing-declarations"
     #pragma clang diagnostic ignored "-Wmissing-braces"
+    #pragma clang diagnostic ignored "-Wconstant-logical-operand"
 #elif __IS_COMPILER_ARM_COMPILER_5__
     /*! arm compiler 5 */
     #pragma push
-    #pragma diag_suppress 1, 64, 174, 177, 188, 68, 513, 144, 2525
+    #pragma diag_suppress 1, 64, 174, 177, 188, 68, 513, 144, 2525, 236
 #elif __IS_COMPILER_IAR__
 /*! IAR */
 #elif __IS_COMPILER_GCC__
@@ -153,6 +154,7 @@
     #pragma GCC diagnostic ignored "-Wformat="
     #pragma GCC diagnostic ignored "-Wmissing-braces"
     #pragma GCC diagnostic ignored "-Wmissing-declarations"
+    #pragma GCC diagnostic ignored "-Wconstant-condition"
 #endif
 
 // clang-format on
