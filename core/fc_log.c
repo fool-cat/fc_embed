@@ -69,7 +69,7 @@ void fc_log_set_level(fc_log_t *log, fc_log_level_t level)
  */
 static int __fc_log_fail_record_write(FC_FILE *f, const void *buf, int len)
 {
-    if (len >= FC_IO_SWAP)
+    if (len > FC_IO_SWAP)
     {
         fc_log_file_user_t *user = (fc_log_file_user_t *)f->user;
         // 调用钩子记录丢失的日志长度
@@ -99,7 +99,8 @@ static int __fc_log_alloc_write(FC_FILE *f, const void *buf, int len)
         user->block_write += mem->size;
         if (false == log->alloc(FC_LOG_ALLOC_NEW, mem, FC_LOG_LINE_SIZE))
         {
-#if !FC_LOG_POOL_FAIL_RECORD
+            // f->p_now = NULL;  // 强制后续写入失败,进入的时候已经设置为NULL了
+#if FC_LOG_POOL_FAIL_RECORD
             f->io.write = __fc_log_fail_record_write;  // 改变下一次进来的函数,后续只做丢失记录
             return len;
 #else
@@ -145,7 +146,7 @@ fc_weak void fc_log_fprintf(fc_log_t *log, fc_log_level_t level, const char *fmt
                 // 分配内存池
                 if (false == log->alloc(FC_LOG_ALLOC_NEW, &(user->mem), FC_LOG_LINE_SIZE))
                 {
-#if !FC_LOG_POOL_FAIL_RECORD
+#if FC_LOG_POOL_FAIL_RECORD
                     va_list vargs;
                     va_start(vargs, fmt);
                     user->total_write = fc_vsnprintf(NULL, 0, fmt, vargs);
@@ -194,7 +195,7 @@ fc_weak void fc_log_fprintf(fc_log_t *log, fc_log_level_t level, const char *fmt
                 // 分配内存池
                 if (false == log->alloc(FC_LOG_ALLOC_NEW, &(user->mem), FC_LOG_LINE_SIZE))
                 {
-#if !FC_LOG_POOL_FAIL_RECORD
+#if FC_LOG_POOL_FAIL_RECORD
                     va_list vargs;
                     va_start(vargs, fmt);
                     user->total_write = fc_vsnprintf(NULL, 0, fmt, vargs);

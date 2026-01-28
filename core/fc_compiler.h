@@ -38,11 +38,6 @@
  * For GCC/Clang:
  *   GNU extensions are enabled by default
  */
-#if defined(__ARMCC_VERSION)
-    #if !defined(__GNUC__)
-        #error "fc_embed requires GNU extensions! Please enable GNU dialect in Keil Project Options -> C/C++ settings."
-    #endif
-#endif
 
 #if defined(__ARMCC_VERSION)        /* ARM Compiler */
 #define fc_section(x)               __attribute__((section(x)))
@@ -92,13 +87,5 @@
 #else                              /* Unkown Compiler */
     #error not supported tool chain
 #endif /* __ARMCC_VERSION */
-
-#if defined(__GNUC__) && __GNUC__ >= 3
-    #define FMT_ARG(n) __attribute__((__format_arg__(n)))
-#else
-    #define FMT_ARG(n)
-#endif
-
-
 
 #endif // __FC_COMPILER_H__

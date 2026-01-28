@@ -139,10 +139,14 @@
     #pragma clang diagnostic ignored "-Wmissing-field-initializers"
     #pragma clang diagnostic ignored "-Wmissing-declarations"
     #pragma clang diagnostic ignored "-Wmissing-braces"
+
+    #pragma clang diagnostic ignored "-Wconstant-logical-operand"
+    #pragma clang diagnostic ignored "-Wshadow" 
 #elif __IS_COMPILER_ARM_COMPILER_5__
     /*! arm compiler 5 */
     #pragma push
     #pragma diag_suppress 1, 64, 174, 177, 188, 68, 513, 144, 2525
+    #pragma diag_suppress 236, 780
 #elif __IS_COMPILER_IAR__
 /*! IAR */
 #elif __IS_COMPILER_GCC__
@@ -153,6 +157,9 @@
     #pragma GCC diagnostic ignored "-Wformat="
     #pragma GCC diagnostic ignored "-Wmissing-braces"
     #pragma GCC diagnostic ignored "-Wmissing-declarations"
+
+    #pragma GCC diagnostic ignored "-Wconstant-condition"
+    #pragma GCC diagnostic ignored "-Wshadow"
 #endif
 
 // clang-format on
@@ -242,16 +249,16 @@
          FC_CONNECT3(__fc_using_, __LINE__, _ptr)++ == NULL; \
          (__on_leave_expr))
 
-#define __fc_using3(__declare, __on_enter_expr, __on_leave_expr)                          \
-    for (__declare,                                                                       \
-         *FC_CONNECT3(__fc_using_, __LINE__, _ptr) = NULL;                                \
-         FC_CONNECT3(__fc_using_, __LINE__, _ptr)++ == NULL ? ((__on_enter_expr), 1) : 0; \
+#define __fc_using3(__declare, __on_enter_expr, __on_leave_expr)                                \
+    for (__declare,                                                                             \
+         *FC_CONNECT3(__fc_using_, __LINE__, _ptr) = NULL;                                      \
+         (FC_CONNECT3(__fc_using_, __LINE__, _ptr)++ == NULL ? ((void)(__on_enter_expr), 1) : 0); \
          (__on_leave_expr))
 
-#define __fc_using4(__dcl1, __dcl2, __on_enter_expr, __on_leave_expr)                     \
-    for (__dcl1, __dcl2,                                                                  \
-         *FC_CONNECT3(__fc_using_, __LINE__, _ptr) = NULL;                                \
-         FC_CONNECT3(__fc_using_, __LINE__, _ptr)++ == NULL ? ((__on_enter_expr), 1) : 0; \
+#define __fc_using4(__dcl1, __dcl2, __on_enter_expr, __on_leave_expr)                           \
+    for (__dcl1, __dcl2,                                                                        \
+         *FC_CONNECT3(__fc_using_, __LINE__, _ptr) = NULL;                                      \
+         (FC_CONNECT3(__fc_using_, __LINE__, _ptr)++ == NULL ? ((void)(__on_enter_expr), 1) : 0);   \
          (__on_leave_expr))
 
 #define fc_using(...)                             \

@@ -574,6 +574,8 @@ void fc_default_port_init(void)
         fc_port_rtt.port_in = &fc_stdin;
         fc_port_rtt.port_out = &fc_stdout;
     }
+
+    (void)fc_port_rtt;  // 未使用也不要警告
 }
 
 //+********************************* log组件write函数 **********************************/
