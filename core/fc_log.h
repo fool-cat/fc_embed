@@ -285,11 +285,7 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 //+********************************* 以下部分允许重入 **********************************/
 #undef fc_log_level
 
-#undef fc_log_merge_2
-#undef fc_log_merge_1
-#undef fc_log_merge_0
-
-#undef fc_log_merge
+#undef FC_LOG_MERGE
 #undef fc_log_level_record
 #undef fc_log_format
 
@@ -318,18 +314,13 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 
 #if FC_LOG_ENABLE
 
-    #define fc_log_merge_2(enter_expr, leave_expr) \
-        fc_using(fc_log_t SAFE_NAME(log_obj) = FC_LOG_OBJ, *scope_log_ptr = &SAFE_NAME(log_obj), { SAFE_NAME(log_obj).merge = true; enter_expr; }, {leave_expr; fc_log_fflush(&SAFE_NAME(log_obj)); })
-
-    #define fc_log_merge_1(enter_expr) \
-        fc_log_merge_2(enter_expr, { (void)0; })
-
-    #define fc_log_merge_0() \
-        fc_log_merge_1({ (void)0; })
-
-// 根据参数展开为0/1/2个参数的版本,超过2将报错,可以用复合语句{exp1;exp2...expN}算一个参数
-    #define fc_log_merge(...) \
-        FC_CONNECT2(fc_log_merge_, __PLOOC_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
+    // 统一实现:C和C++模式都不接受参数,避免兼容性问题
+    // FC_LOG_MERGE将作用域内的所有log输出合并为一次输出,大写不带括号,避免与函数混淆
+    #define FC_LOG_MERGE                                   \
+        fc_using(fc_log_t SAFE_NAME(log_obj) = FC_LOG_OBJ, \
+                 *scope_log_ptr = &SAFE_NAME(log_obj),     \
+                 scope_log_ptr->merge = true,              \
+                 fc_log_fflush(scope_log_ptr))
 
     #define fc_log_level_record(_level)                                                          \
         do                                                                                       \
@@ -437,11 +428,7 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
         } while (0)
 
 #else
-    #define fc_log_merge_2(enter_expr, leave_expr)
-    #define fc_log_merge_1(enter_expr)
-    #define fc_log_merge_0()
-
-    #define fc_log_merge(...)  // 空定义即可
+    #define FC_LOG_MERGE  // 空定义即可
 
 // clang-format off
     
@@ -478,7 +465,7 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 #if FC_LOG_NOPREFIX_API
     #define log_level       fc_log_level
 
-    #define log_merge       fc_log_merge
+    #define LOG_MERGE       FC_LOG_MERGE
 
     #define log_error       fc_log_error
     #define log_warning     fc_log_warning
