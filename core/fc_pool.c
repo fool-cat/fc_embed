@@ -275,14 +275,15 @@ void fc_pool_free(fc_pool_t *pool, void *ptr)
 
 #if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
 
-    while (dynamic_head && pool->alloc)  // 如果是动态分配的内存,调用用户自定义的内存释放回调函数释放内存
+    while (dynamic_head)  // 如果是动态分配的内存,调用用户自定义的内存释放回调函数释放内存
     {
+        node = dynamic_head->next;  // 先记录下一个节点
         // 根据地址找到起始位置
-        fc_pool_dynamic_mem_t mem = (fc_pool_dynamic_mem_t)((uint8_t *)dynamic_head - sizeof(fc_pool_header_t));
+        fc_pool_dynamic_mem_t mem = (fc_pool_dynamic_mem_t)dynamic_head;
 
         pool->alloc(FC_POOL_DYNAMIC_FREE, &mem, pool->block_size + sizeof(fc_pool_header_t));  // 释放动态内存块
 
-        dynamic_head = dynamic_head->next;
+        dynamic_head = node;
     }
 
 #endif
@@ -694,30 +695,33 @@ void *fc_pool_fifo_pop(fc_pool_t *pool)
 
     FC_ATOMIC_SCOPE
     {
-        node = pool->fifo_used.next;
-        tail = node;
-        do
+        if (!fc_pool_fifo_empty(pool))  // 再次判定,避免从上次判定到这里之间其他线程调用过(基本不可能,但是为了绝对安全考虑)
         {
-            if (tail->pool.tag.end == FC_POOL_TAG_END)  // 找到这一次链式内存块的最后一块
+            node = pool->fifo_used.next;
+            tail = node;
+            do
             {
-                break;
+                if (tail->pool.tag.end == FC_POOL_TAG_END)  // 找到这一次链式内存块的最后一块
+                {
+                    break;
+                }
+
+                if (tail->next == NULL)  // 理论上不可能出现这种情况,前一个判断就会退出
+                {
+                    break;
+                }
+
+                tail = tail->next;
+            } while (tail);
+
+            pool->fifo_used.next = tail->next;  // 更新头部
+            if (pool->fifo_used.next == NULL)   // 如果头部为空,则尾部也需要置空
+            {
+                pool->fifo_used.pool.tail = NULL;
             }
 
-            if (tail->next == NULL)  // 理论上不可能出现这种情况,前一个判断就会退出
-            {
-                break;
-            }
-
-            tail = tail->next;
-        } while (tail);
-
-        pool->fifo_used.next = tail->next;  // 更新头部
-        if (pool->fifo_used.next == NULL)   // 如果头部为空,则尾部也需要置空
-        {
-            pool->fifo_used.pool.tail = NULL;
+            tail->next = NULL;  // 断开链式内存块
         }
-
-        tail->next = NULL;  // 断开链式内存块
     }
 
     return (void *)(node ? (uint8_t *)node + sizeof(fc_pool_header_t) : NULL);
@@ -758,7 +762,7 @@ void fc_pool_walk(void *ptr, fc_pool_walker_t walker, void *user)
 }
 
 /**
- * @brief 遍历整个fifo used队列链表,遍历后释放内存,自行确保函数的线程安全
+ * @brief 遍历整个fifo used队列链表,遍历后释放内存
  *
  * @param pool
  * @param walker

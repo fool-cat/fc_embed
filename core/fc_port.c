@@ -229,7 +229,7 @@ int fc_port_printf(fc_port_t *port, size_t rb_index, const char *fmt, ...)
 
     FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_WRITE);
     ret = fc_fifo_vprintf(fifo, fmt, arp);
-    FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_WRITE);
+    FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_WRITE);
 
     va_end(arp);
 
@@ -255,11 +255,7 @@ int fc_port_getc(fc_port_t *port, size_t rb_index)
 
     while (1 != fc_fifo_read(fifo, (void *)&ch, 1))
     {
-        FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_READ);  // 释放锁
-
         FC_WAIT_MOMENT();
-
-        FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_READ);  // 重新获取锁
     }
 
     FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_READ);
