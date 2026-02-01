@@ -68,8 +68,9 @@ extern "C"
     //! 废弃实现,建议直接使用标准库的
 
     //+********************************* port对接API **********************************/
-    // 由外层fc_port.h声明
+    // 在 fc_port.h 声明
     // extern int fc_port_vprintf(fc_port_t *port, size_t rb_index, const char *fmt, va_list arp);  // 字符串格式化核心函数
+    // extern int fc_fifo_vprintf(fc_fifo_t *fifo, const char *fmt, va_list arp);
 
 #ifdef __cplusplus
 }

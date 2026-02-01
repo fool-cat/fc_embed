@@ -13,7 +13,7 @@
 
 #include "../fc_stdio.h"
 
-#include "../fc_port.h"  //使用相对路径避免依赖
+#include "../fc_fifo.h"  //使用相对路径避免依赖
 
 #ifndef FC_FIFO_VPRINTF_LINEAR_WRITE
     #define FC_FIFO_VPRINTF_LINEAR_WRITE 1
@@ -83,19 +83,6 @@ int fc_fifo_vprintf(fc_fifo_t *fifo, const char *fmt, va_list arp)
     return f.n;
 }
 
-/**
- * @brief fc_port_vprintf的核心实现,将格式化字符串写入到fc_port_t的环形缓冲区中
- *
- * @param port
- * @param fmt
- * @param arp
- * @return int
- */
-int fc_port_vprintf(fc_port_t *port, size_t rb_index, const char *fmt, va_list arp)
-{
-    return fc_fifo_vprintf(port->rb[rb_index], fmt, arp);
-}
-
 #else
 
 /**
@@ -144,19 +131,6 @@ int fc_fifo_vprintf(fc_fifo_t *fifo, const char *fmt, va_list arp)
     fc_vfprintf(&f, fmt, arp);
 
     return f.n;
-}
-
-/**
- * @brief fc_port_vprintf的核心实现,将格式化字符串写入到fc_port_t的环形缓冲区中
- *
- * @param port
- * @param fmt
- * @param arp
- * @return int
- */
-int fc_port_vprintf(fc_port_t *port, size_t rb_index, const char *fmt, va_list arp)
-{
-    return fc_fifo_vprintf(port->rb[rb_index], fmt, arp);
 }
 
 #endif

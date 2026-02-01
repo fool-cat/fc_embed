@@ -229,7 +229,7 @@ void fc_sender_init(fc_sender_t *sender, fc_fifo_t *fifo)
     sender->fifo = fifo;
     sender->index = 0;  // 默认窗口0
 
-    fc_fifo_write(sender->fifo, (void *)default_division, sizeof(FC_DIVISION_DEFAULT) - 1);  // 写入默认窗口
+    // fc_fifo_write(sender->fifo, (void *)default_division, sizeof(FC_DIVISION_DEFAULT) - 1);  // 写入默认窗口
 }
 
 /**

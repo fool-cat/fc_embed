@@ -36,36 +36,26 @@
     #define fc_assert(x) ((void)(0))
 #endif
 
-#ifndef FIFO_TX_LOG2_SIZE
+#ifndef STDOUT_RB0_LOG2_SIZE
     /* 输出环形队列大小,2^n */
     // 4K Byte
-    #define FIFO_TX_LOG2_SIZE 12
+    #define STDOUT_RB0_LOG2_SIZE 12
 #endif
 
-#ifndef STDOUT_TX_SINGLE_MAX_SHIFT
+#ifndef STDOUT_RB0_TX_SINGLE_MAX_SHIFT
     // 单次发送最大字节数为缓冲区的1/(2^n),多段发送可以尽快空出部分缓冲区
-    #define STDOUT_TX_SINGLE_MAX_SHIFT 2
+    #define STDOUT_RB0_TX_SINGLE_MAX_SHIFT 2
 #endif
 
-// 连续发送
-#ifndef PHY_SERIAL_TX_ENABLE
-    #define PHY_SERIAL_TX_ENABLE 0
-#endif
-
-#ifndef FIFO_RX_LOG2_SIZE
+#ifndef STDIN_RB0_LOG2_SIZE
     /* 输入环形队列大小,2^n */
     // 256 Byte
-    #define FIFO_RX_LOG2_SIZE 8
+    #define STDIN_RB0_LOG2_SIZE 8
 #endif
 
-#ifndef STDIN_RX_SINGLE_MAX_SHIFT
+#ifndef STDIN_RB0_RX_SINGLE_MAX_SHIFT
     // 单次接收最大字节数为缓冲区的1/(2^n),多段接收可以防止连续接收满了之后来不及处理
-    #define STDIN_RX_SINGLE_MAX_SHIFT 1
-#endif
-
-// 连续接收
-#ifndef PHY_SERIAL_RX_ENABLE
-    #define PHY_SERIAL_RX_ENABLE 0
+    #define STDIN_RB0_RX_SINGLE_MAX_SHIFT 1
 #endif
 
 //+********************************* 提供的默认数据丢失处理钩子函数 **********************************/
@@ -111,6 +101,39 @@ fc_weak size_t fc_port_lose_hook(fc_port_t *port, size_t rb_index, const void *b
 }
 
 //+********************************* 面向对象 **********************************/
+/**
+ * @brief 初始化port,其实就是设置方向
+ *
+ * @param port
+ * @param dir
+ */
+void fc_port_init(fc_port_t *port, fc_port_dir_t dir)
+{
+    fc_assert(port != NULL);
+    memset(port, 0, sizeof(fc_port_t));
+    port->dir = (uint8_t)dir;
+}
+
+/**
+ * @brief port绑定环形缓冲区
+ *
+ * @param port
+ * @param rb_index 环形缓冲区索引
+ * @param fifo 环形缓冲区指针
+ * @param name 缓冲区名字
+ * @param single_limit 单次读写限制(针对慢速IO而言),限制大小为缓冲区空间的1/(2^n),n=single_limit
+ */
+void fc_port_catch_fifo(fc_port_t *port, size_t rb_index, fc_fifo_t *fifo, const char *name, uint8_t single_limit)
+{
+    fc_assert(port != NULL);
+    fc_assert(rb_index < PORT_RB_NUM);
+    fc_assert(fifo != NULL);
+
+    port->rb[rb_index] = fifo;
+    port->rb_name[rb_index] = name;
+    port->rb_single_limit[rb_index] = single_limit;
+}
+
 /**
  * @brief
  *
@@ -229,11 +252,24 @@ int fc_port_printf(fc_port_t *port, size_t rb_index, const char *fmt, ...)
 
     FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_WRITE);
     ret = fc_fifo_vprintf(fifo, fmt, arp);
-    FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_WRITE);
+    FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_WRITE);
 
     va_end(arp);
 
     return ret;
+}
+
+/**
+ * @brief fc_port_vprintf的核心实现,将格式化字符串写入到fc_port_t的环形缓冲区中
+ *
+ * @param port
+ * @param fmt
+ * @param arp
+ * @return int
+ */
+int fc_port_vprintf(fc_port_t *port, size_t rb_index, const char *fmt, va_list arp)
+{
+    return fc_fifo_vprintf(port->rb[rb_index], fmt, arp);
 }
 
 /**
@@ -255,11 +291,7 @@ int fc_port_getc(fc_port_t *port, size_t rb_index)
 
     while (1 != fc_fifo_read(fifo, (void *)&ch, 1))
     {
-        FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_READ);  // 释放锁
-
         FC_WAIT_MOMENT();
-
-        FC_PORT_LOCK(port, rb_index, FC_PORT_DIR_READ);  // 重新获取锁
     }
 
     FC_PORT_UNLOCK(port, rb_index, FC_PORT_DIR_READ);
@@ -375,10 +407,10 @@ void fc_port_trigger(fc_port_t *port, size_t rb_index)
 
         if (!busy)
         {
-            if (port->single_max_shift)
+            if (port->rb_single_limit[rb_index])
             {
-                fc_assert(fc_fifo_get_size(fifo) > (1 << port->single_max_shift));
-                buf = fc_fifo_linear_read_setup_limit(fifo, &size, port->single_max_shift);
+                fc_assert(fc_fifo_get_size(fifo) > (1 << port->rb_single_limit[rb_index]));
+                buf = fc_fifo_linear_read_setup_limit(fifo, &size, port->rb_single_limit[rb_index]);
             }
             else
             {
@@ -392,10 +424,10 @@ void fc_port_trigger(fc_port_t *port, size_t rb_index)
 
         if (!busy)
         {
-            if (port->single_max_shift)
+            if (port->rb_single_limit[rb_index])
             {
-                fc_assert(fc_fifo_get_size(fifo) > (1 << port->single_max_shift));
-                buf = fc_fifo_linear_write_setup_limit(fifo, &size, port->single_max_shift);
+                fc_assert(fc_fifo_get_size(fifo) > (1 << port->rb_single_limit[rb_index]));
+                buf = fc_fifo_linear_write_setup_limit(fifo, &size, port->rb_single_limit[rb_index]);
             }
             else
             {
@@ -449,11 +481,6 @@ void fc_port_end(fc_port_t *port, size_t rb_index, int size)
             fc_fifo_linear_write_done(fifo, size);
         }
     }
-
-    if (port->trigger_serial)
-    {
-        return fc_port_trigger(port, rb_index);
-    }
 }
 
 /**
@@ -463,7 +490,7 @@ void fc_port_end(fc_port_t *port, size_t rb_index, int size)
  * @param rb_index
  * @return int
  */
-int fc_port_available(fc_port_t *port, size_t rb_index)
+int fc_port_used(fc_port_t *port, size_t rb_index)
 {
     fc_assert(port != NULL);
     fc_assert(port->rb != NULL);
@@ -533,34 +560,28 @@ void fc_default_port_init(void)
     }
     init = true;
 
-#if !(STDOUT_TX_SINGLE_MAX_SHIFT < FIFO_TX_LOG2_SIZE && STDOUT_TX_SINGLE_MAX_SHIFT >= 0 && FIFO_TX_LOG2_SIZE >= 0)
-    #error "STDOUT_TX_SINGLE_MAX_SHIFT must less than FIFO_TX_LOG2_SIZE,please check it"
-    #error "单次发送位移必须小于缓冲区的log2大小,且两者必须同时大于等于0"
+#if !(STDOUT_RB0_TX_SINGLE_MAX_SHIFT < STDOUT_RB0_LOG2_SIZE && STDOUT_RB0_TX_SINGLE_MAX_SHIFT >= 0 && STDOUT_RB0_LOG2_SIZE > 0)
+    #error "STDOUT_RB0_TX_SINGLE_MAX_SHIFT must less than STDOUT_RB0_LOG2_SIZE,please check it"
+    #error "单次发送位移必须小于等于缓冲区的log2大小,请检查配置"
 #endif
 
-#if !(STDIN_RX_SINGLE_MAX_SHIFT < FIFO_RX_LOG2_SIZE && STDIN_RX_SINGLE_MAX_SHIFT >= 0 && FIFO_RX_LOG2_SIZE >= 0)
-    #error "STDIN_RX_SINGLE_MAX_SHIFT must less than FIFO_RX_LOG2_SIZE,please check it"
-    #error "单次接收位移必须小于缓冲区的log2大小,且两者必须同时大于等于0"
+#if !(STDIN_RB0_RX_SINGLE_MAX_SHIFT < STDIN_RB0_LOG2_SIZE && STDIN_RB0_RX_SINGLE_MAX_SHIFT >= 0 && STDIN_RB0_LOG2_SIZE > 0)
+    #error "STDIN_RB0_RX_SINGLE_MAX_SHIFT must less than STDIN_RB0_LOG2_SIZE,please check it"
+    #error "单次接收位移必须小于等于缓冲区的log2大小,请检查配置"
 #endif
 
     {
-        fc_stdout.single_max_shift = STDOUT_TX_SINGLE_MAX_SHIFT;
-        fc_stdout.dir = (uint8_t)FC_PORT_DIR_OUT;
-        fc_stdout.trigger_serial = PHY_SERIAL_TX_ENABLE ? 1 : 0;
+        fc_port_init(&fc_stdout, FC_PORT_DIR_OUT);
 
         // 初始化环形队列,静态内存构造,默认端口只给一个环形缓冲区分配内存
-        // fc_fifo_static_new_at(fc_stdout.rb[0], FIFO_TX_LOG2_SIZE);
-        fc_port_static_alloc_rb(&fc_stdout, 0, FIFO_TX_LOG2_SIZE, "fc_stdout_rb0");
+        fc_port_static_alloc_rb(&fc_stdout, 0, STDOUT_RB0_LOG2_SIZE, "fc_stdout_rb0", STDOUT_RB0_TX_SINGLE_MAX_SHIFT);
     }
 
     {
-        fc_stdin.single_max_shift = STDIN_RX_SINGLE_MAX_SHIFT;
-        fc_stdin.dir = (uint8_t)FC_PORT_DIR_IN;
-        fc_stdin.trigger_serial = PHY_SERIAL_RX_ENABLE ? 1 : 0;
+        fc_port_init(&fc_stdin, FC_PORT_DIR_IN);
 
         // 初始化环形队列,静态内存构造,默认端口只给一个环形缓冲区分配内存
-        // fc_fifo_static_new_at(fc_stdin.rb[0], FIFO_RX_LOG2_SIZE);
-        fc_port_static_alloc_rb(&fc_stdin, 0, FIFO_RX_LOG2_SIZE, "fc_stdin_rb0");
+        fc_port_static_alloc_rb(&fc_stdin, 0, STDIN_RB0_LOG2_SIZE, "fc_stdin_rb0", STDIN_RB0_RX_SINGLE_MAX_SHIFT);
     }
 
     {

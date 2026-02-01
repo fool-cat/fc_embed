@@ -33,4 +33,4 @@
 
 //+********************************* port API **********************************/
 
-#include "./utils/fc_port_vprintf.c"
+#include "./utils/fc_fifo_vprintf.c"
