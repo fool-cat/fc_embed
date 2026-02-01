@@ -73,35 +73,25 @@
     //   <i> Default: 8
     #define PORT_RB_NUM 8
 
-    //   <o> FIFO_TX_LOG2_SIZE - TX FIFO Size (log2) <8-16>
+    //   <o> STDOUT_RB0_LOG2_SIZE - TX FIFO Size (log2) <8-16>
     //   <i> Output ring buffer size as power of 2 (e.g., 12 = 4096 bytes)
     //   <i> Default: 12 (4KB)
-    #define FIFO_TX_LOG2_SIZE 12
+    #define STDOUT_RB0_LOG2_SIZE 12
 
-    //   <o> STDOUT_TX_SINGLE_MAX_SHIFT - TX Single Max Shift <1-4>
+    //   <o> STDOUT_RB0_TX_SINGLE_MAX_SHIFT - TX Single Max Shift <1-4>
     //   <i> Single TX max bytes = buffer_size / (2^n), smaller value allows more data per transfer
     //   <i> Default: 2
-    #define STDOUT_TX_SINGLE_MAX_SHIFT 2
+    #define STDOUT_RB0_TX_SINGLE_MAX_SHIFT 2
 
-    //   <q> PHY_SERIAL_TX_ENABLE - Enable Serial TX
-    //   <i> Enable continuous serial transmission
-    //   <i> Default: 0 (Disabled)
-    #define PHY_SERIAL_TX_ENABLE 0
-
-    //   <o> FIFO_RX_LOG2_SIZE - RX FIFO Size (log2) <6-12>
+    //   <o> STDIN_RB0_LOG2_SIZE - RX FIFO Size (log2) <6-12>
     //   <i> Input ring buffer size as power of 2 (e.g., 8 = 256 bytes)
     //   <i> Default: 8 (256B)
-    #define FIFO_RX_LOG2_SIZE 8
+    #define STDIN_RB0_LOG2_SIZE 8
 
-    //   <o> STDIN_RX_SINGLE_MAX_SHIFT - RX Single Max Shift <1-4>
+    //   <o> STDIN_RB0_RX_SINGLE_MAX_SHIFT - RX Single Max Shift <1-4>
     //   <i> Single RX max bytes = buffer_size / (2^n), smaller value allows more data per transfer
     //   <i> Default: 1
-    #define STDIN_RX_SINGLE_MAX_SHIFT 1
-
-    //   <q> PHY_SERIAL_RX_ENABLE - Enable Serial RX
-    //   <i> Enable continuous serial reception
-    //   <i> Default: 0 (Disabled)
-    #define PHY_SERIAL_RX_ENABLE 0
+    #define STDIN_RB0_RX_SINGLE_MAX_SHIFT 1
 
 // </h>
 

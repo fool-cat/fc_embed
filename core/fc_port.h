@@ -48,20 +48,18 @@ extern "C"
         FC_PORT_DIR_READ = FC_PORT_DIR_OUT,  // 从缓冲区读数据
     } fc_port_dir_t;
 
-    typedef size_t (*fc_phy_io_t)(size_t rb_index, void *buf, size_t len);  // 返回值仅做保留
+    typedef size_t (*fc_phy_io_t)(size_t rb_index, void *buf, size_t len);  // 返回值仅做保留,回调时保证从buf地址开始len长度一定是连续内存
 
     typedef struct _fc_port_t fc_port_t;
     struct _fc_port_t
     {
-        fc_fifo_t  *rb[PORT_RB_NUM];       // 环形缓冲
-        const char *rb_name[PORT_RB_NUM];  // 每个rb缓冲区的名字
-        fc_phy_io_t phy;                   // 物理IO接口
-
         // void *user;  // 自定义数据
+        fc_fifo_t  *rb[PORT_RB_NUM];               // 环形缓冲
+        const char *rb_name[PORT_RB_NUM];          // 每个rb缓冲区的名字
+        fc_phy_io_t phy;                           // 物理IO接口
+        uint8_t     rb_single_limit[PORT_RB_NUM];  // 单次读写限制(针对慢速IO而言),限制大小为缓冲区空间的1/(2^n),n=rb_single_limit
 
-        uint8_t dir;               // 方向,用uint8_t而不是枚举(fc_port_dir_t)是为了明确空间大小
-        uint8_t single_max_shift;  // 单次读写限制(针对慢速IO而言),限制大小为缓冲区空间的1/(2^n)
-        uint8_t trigger_serial;    // 连续触发
+        uint8_t dir;  // 方向,用uint8_t而不是枚举(fc_port_dir_t)是为了明确空间大小
     };
 
     typedef struct _fc_port_rtt_t fc_port_rtt_t;
@@ -78,11 +76,17 @@ extern "C"
 
     //+********************************* 面向对象 **********************************/
     // clang-format off
+    extern void fc_port_init        (fc_port_t *port, fc_port_dir_t dir);
+    extern void fc_port_catch_fifo  (fc_port_t *port, size_t rb_index, fc_fifo_t *fifo, const char *name, uint8_t single_limit);
 
-    // 给环形缓冲区指针分配静态内存
-#define fc_port_static_alloc_rb(port, rb_index, log2_size, name) \
-    fc_fifo_static_new_at((port)->rb[rb_index], log2_size);      \
-    (port)->rb_name[rb_index] = name
+    // 静态内存初始化一个port的环形缓冲区,包括静态内存分配构造,单次读写限制设置等
+    #define fc_port_static_alloc_rb(port, rb_index, log2_size, name, single_limit)           \
+        do                                                                                   \
+        {                                                                                    \
+            fc_fifo_t *__temp_fifo_ptr = NULL;                                               \
+            fc_fifo_static_new_at(__temp_fifo_ptr, log2_size);                               \
+            fc_port_catch_fifo((port), (rb_index), __temp_fifo_ptr, (name), (single_limit)); \
+        } while (0)
 
     extern int fc_port_putc   (fc_port_t *port, size_t rb_index, int ch);
     extern int fc_port_puts   (fc_port_t *port, size_t rb_index, const char *str);
@@ -90,16 +94,16 @@ extern "C"
     extern int fc_port_printf (fc_port_t *port, size_t rb_index, const char *fmt, ...);
     extern int fc_port_vprintf(fc_port_t *port, size_t rb_index, const char *fmt, va_list arp);  // fc_port_printf核心实现
 
-    extern int   fc_port_getc(fc_port_t *port, size_t rb_index);                         // 阻塞式API,非线程安全
+    extern int   fc_port_getc(fc_port_t *port, size_t rb_index);                         // 阻塞式API
     extern char *fc_port_gets(fc_port_t *port, size_t rb_index, char *buf, size_t n);    // 不建议使用
     extern int   fc_port_read(fc_port_t *port, size_t rb_index, void *buf, size_t len);  // 读取数据并删除
     extern int   fc_port_peek(fc_port_t *port, size_t rb_index, void *buf, size_t len);  // 读取数据但不删除
 
-    extern int  fc_port_available(fc_port_t *port, size_t rb_index);            // 获取指定缓冲区的已用空间大小
-    extern int  fc_port_free     (fc_port_t *port, size_t rb_index);            // 获取指定缓冲区的剩余空间大小
-    // 以下API的行为取决于fc_port_t的方向(fc_port_dir_t)
-    extern void fc_port_trigger  (fc_port_t *port, size_t rb_index);            // 触发慢速IO
-    extern void fc_port_end      (fc_port_t *port, size_t rb_index, int size);  // 慢速IO完成回调
+    extern int  fc_port_used    (fc_port_t *port, size_t rb_index);            // 获取指定缓冲区的已用空间大小
+    extern int  fc_port_free    (fc_port_t *port, size_t rb_index);            // 获取指定缓冲区的剩余空间大小
+    // 以下API的行为取决于port的方向port->dir
+    extern void fc_port_trigger (fc_port_t *port, size_t rb_index);            // 触发慢速IO
+    extern void fc_port_end     (fc_port_t *port, size_t rb_index, int size);  // 慢速IO完成回调
 
     // clang-format on
 
@@ -107,7 +111,7 @@ extern "C"
 
     // 这两个API使用都需要自行保证fifo的写操作线程安全
     extern int fc_fifo_printf(fc_fifo_t *fifo, const char *fmt, ...);
-    extern int fc_fifo_vprintf(fc_fifo_t *fifo, const char *fmt, va_list arp);  // fc_fifo_printf核心实现,在fc_port_vprintf.c中实现
+    extern int fc_fifo_vprintf(fc_fifo_t *fifo, const char *fmt, va_list arp);  // fc_fifo_printf核心实现,在utils/fc_fifo_vprintf.c中实现
 
     //+********************************* 默认实例化对象 **********************************/
     // 初始化标准输入输出
@@ -145,10 +149,10 @@ extern "C"
     #define fc_printf(fmt, ...)  fc_port_printf (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, fmt, ##__VA_ARGS__)
     #define fc_vprintf(fmt, arp) fc_port_vprintf(FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, fmt, arp)
 
-    #define fc_out_trigger()    fc_port_trigger  (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX)          // 触发发送
-    #define fc_out_end(size)    fc_port_end      (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, size)    // 发送完成处理
-    #define fc_out_available()  fc_port_available(FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX)          // 缓冲区可用字节数
-    #define fc_out_free()       fc_port_free     (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX)          // 缓冲区剩余空间
+    #define fc_out_trigger()    fc_port_trigger (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX)         // 触发发送
+    #define fc_out_end(size)    fc_port_end     (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX, size)   // 发送完成处理
+    #define fc_out_used()       fc_port_used    (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX)         // 缓冲区已用空间
+    #define fc_out_free()       fc_port_free    (FC_STDOUT_OBJ, FC_STDOUT_RB_INDEX)         // 缓冲区剩余空间
 
     /*----------------------------------------------*/
     /* Formatted string output                      */
@@ -176,15 +180,15 @@ extern "C"
     */
 
    // stdin
-   #define fc_getchar()        fc_port_getc(FC_STDIN_OBJ, FC_STDIN_RB_INDEX)            // 阻塞式API,非线程安全
-   #define fc_getc()           fc_port_getc(FC_STDIN_OBJ, FC_STDIN_RB_INDEX)            // 阻塞式API,非线程安全
+   #define fc_getchar()        fc_port_getc(FC_STDIN_OBJ, FC_STDIN_RB_INDEX)            // 阻塞式API
+   #define fc_getc()           fc_port_getc(FC_STDIN_OBJ, FC_STDIN_RB_INDEX)            // 阻塞式API
    #define fc_gets(buf, n)     fc_port_gets(FC_STDIN_OBJ, FC_STDIN_RB_INDEX, buf, n)    // 不建议使用
-   #define fc_read(buf, len)   fc_port_read(FC_STDIN_OBJ, FC_STDIN_RB_INDEX, buf, len)  // 阻塞式API,非线程安全
+   #define fc_read(buf, len)   fc_port_read(FC_STDIN_OBJ, FC_STDIN_RB_INDEX, buf, len)  // 阻塞式API
 
-   #define fc_in_trigger()     fc_port_trigger  (FC_STDIN_OBJ, FC_STDIN_RB_INDEX)        // 触发接收
-   #define fc_in_end(size)     fc_port_end      (FC_STDIN_OBJ, FC_STDIN_RB_INDEX, size)  // 接收完成处理
-   #define fc_in_available()   fc_port_available(FC_STDIN_OBJ, FC_STDIN_RB_INDEX)        // 缓冲区可用字节数
-   #define fc_in_free()        fc_port_free     (FC_STDIN_OBJ, FC_STDIN_RB_INDEX)        // 缓冲区剩余空间
+   #define fc_in_trigger()  fc_port_trigger (FC_STDIN_OBJ, FC_STDIN_RB_INDEX)       // 触发接收
+   #define fc_in_end(size)  fc_port_end     (FC_STDIN_OBJ, FC_STDIN_RB_INDEX, size) // 接收完成处理
+   #define fc_in_used()     fc_port_used    (FC_STDIN_OBJ, FC_STDIN_RB_INDEX)       // 缓冲区已用空间
+   #define fc_in_free()     fc_port_free    (FC_STDIN_OBJ, FC_STDIN_RB_INDEX)       // 缓冲区剩余空间
 
     // clang-format on
 
