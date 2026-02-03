@@ -135,6 +135,18 @@ void fc_port_catch_fifo(fc_port_t *port, size_t rb_index, fc_fifo_t *fifo, const
 }
 
 /**
+ * @brief 绑定物理IO
+ *
+ * @param port
+ * @param phy
+ */
+void fc_port_catch_phy(fc_port_t *port, fc_phy_io_t phy)
+{
+    fc_assert(port != NULL);
+    port->phy = phy;
+}
+
+/**
  * @brief
  *
  * @param port
@@ -396,49 +408,53 @@ void fc_port_trigger(fc_port_t *port, size_t rb_index)
     fc_assert(port != NULL);
     fc_assert(port->rb != NULL);
 
-    bool       busy;
     size_t     size;
     void      *buf;
     fc_fifo_t *fifo = port->rb[rb_index];
 
     if ((uint8_t)FC_PORT_DIR_OUT == port->dir)
     {
-        busy = fc_fifo_linear_read_busy(fifo);
-
-        if (!busy)
+        if (0 >= fc_port_used(port, rb_index))
         {
-            if (port->rb_single_limit[rb_index])
-            {
-                fc_assert(fc_fifo_get_size(fifo) > (1 << port->rb_single_limit[rb_index]));
-                buf = fc_fifo_linear_read_setup_limit(fifo, &size, port->rb_single_limit[rb_index]);
-            }
-            else
-            {
-                buf = fc_fifo_linear_read_setup(fifo, &size);
-            }
+            return;  // 没有数据需要发送
+        }
+
+        if (fc_fifo_linear_read_busy(fifo))
+        {
+            return;  // 正在传输中,不响应
+        }
+
+        if (port->rb_single_limit[rb_index])
+        {
+            fc_assert(fc_fifo_get_size(fifo) > (1 << port->rb_single_limit[rb_index]));
+            buf = fc_fifo_linear_read_setup_limit(fifo, &size, port->rb_single_limit[rb_index]);
+        }
+        else
+        {
+            buf = fc_fifo_linear_read_setup(fifo, &size);
         }
     }
     else
     {
-        busy = fc_fifo_linear_write_busy(fifo);
-
-        if (!busy)
+        if (0 >= fc_port_free(port, rb_index))
         {
-            if (port->rb_single_limit[rb_index])
-            {
-                fc_assert(fc_fifo_get_size(fifo) > (1 << port->rb_single_limit[rb_index]));
-                buf = fc_fifo_linear_write_setup_limit(fifo, &size, port->rb_single_limit[rb_index]);
-            }
-            else
-            {
-                buf = fc_fifo_linear_write_setup(fifo, &size);
-            }
+            return;  // 没有空间可以接收
         }
-    }
 
-    if (busy)
-    {
-        return;
+        if (fc_fifo_linear_write_busy(fifo))
+        {
+            return;  // 正在传输中,不响应
+        }
+
+        if (port->rb_single_limit[rb_index])
+        {
+            fc_assert(fc_fifo_get_size(fifo) > (1 << port->rb_single_limit[rb_index]));
+            buf = fc_fifo_linear_write_setup_limit(fifo, &size, port->rb_single_limit[rb_index]);
+        }
+        else
+        {
+            buf = fc_fifo_linear_write_setup(fifo, &size);
+        }
     }
 
     fc_assert(port->phy != NULL);
