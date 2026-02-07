@@ -138,8 +138,8 @@ extern "C"
     #define FC_STDIN_RB_INDEX (0)
 #endif
 
-#define fc_stdin_phy_catch(func) fc_port_catch_phy(FC_STDIN_OBJ, func)
-#define fc_stdout_phy_catch(func) fc_port_catch_phy(FC_STDOUT_OBJ, func)
+#define fc_stdin_phy_catch(func) fc_port_catch_phy(FC_STDIN_OBJ, (fc_phy_io_t)func)
+#define fc_stdout_phy_catch(func) fc_port_catch_phy(FC_STDOUT_OBJ, (fc_phy_io_t)func)
 
     // clang-format off
 

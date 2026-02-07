@@ -561,7 +561,7 @@ int fc_fifo_printf(fc_fifo_t *fifo, const char *fmt, ...)
 fc_port_t fc_stdin = {0};  // 对象创建
 fc_port_t fc_stdout = {0};
 
-static fc_port_rtt_t fc_port_rtt = {0};
+static fc_port_rtt_t fc_port_rtt = {0};  // RTT支持
 
 /**
  * @brief
@@ -614,30 +614,6 @@ void fc_default_port_init(void)
 
     (void)fc_port_rtt;  // 未使用也不要警告
 }
-
-//+********************************* log组件write函数 **********************************/
-
-// > C/C++兼容性宏定义
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-    /**
-     * @brief 默认log对象的write函数,写入到fc_stdout的0号队列
-     *
-     * @param buf
-     * @param len
-     * @return int
-     */
-    fc_weak int log_write_stdout(const char *buf, int len)
-    {
-        return fc_port_write(&fc_stdout, 0, buf, len);
-    }
-
-#ifdef __cplusplus
-}
-#endif  //\ __cplusplus
 
 //+********************************* 注册到ENV段中 **********************************/
 #include "fc_auto_init.h"
