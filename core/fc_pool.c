@@ -129,12 +129,13 @@ void *fc_pool_alloc(fc_pool_t *pool, size_t *size)
 
     void             *ret_ptr = NULL;
     fc_pool_header_t *node = NULL;
-
-    FC_ATOMIC_SCOPE
     {
-        node = pool->list_free.next;
-        pool->list_free.next = (node) ? node->next : pool->list_free.next;  // 移动空闲链表头部
-        pool->list_free.pool.record_now -= (node) ? 1 : 0;                  // 统计空闲块数
+        FC_ATOMIC_SCOPE
+        {
+            node = pool->list_free.next;
+            pool->list_free.next = (node) ? node->next : pool->list_free.next;  // 移动空闲链表头部
+            pool->list_free.pool.record_now -= (node) ? 1 : 0;                  // 统计空闲块数
+        }
     }
 
     if (node)  // 有空闲内存
@@ -646,32 +647,33 @@ void fc_pool_fifo_push(fc_pool_t *pool, void *head_ptr)
 
     // 找到头部
     fc_pool_header_t *node = (fc_pool_header_t *)((uint8_t *)head_ptr - sizeof(fc_pool_header_t));
-
-    FC_ATOMIC_SCOPE
     {
-        // 如果头部为空,则头部也需要指向新节点
-        if (pool->fifo_used.next == NULL)
+        FC_ATOMIC_SCOPE
         {
-            pool->fifo_used.next = node;
-            pool->fifo_used.pool.tail = node;
-        }
-        else
-        {
-            pool->fifo_used.pool.tail->next = node;  // 尾部块指向新节点
-        }
-
-        do
-        {
-            if (node->next == NULL)  // 找到这一次链式内存块的最后一块
+            // 如果头部为空,则头部也需要指向新节点
+            if (pool->fifo_used.next == NULL)
             {
-                break;
+                pool->fifo_used.next = node;
+                pool->fifo_used.pool.tail = node;
             }
-            node = node->next;
-        } while (node);
-        pool->fifo_used.pool.tail = node;  // 更新尾部
+            else
+            {
+                pool->fifo_used.pool.tail->next = node;  // 尾部块指向新节点
+            }
 
-        // 无需标记,默认创建的时候已经标记
-        // fc_pool_end((void *)((uint8_t *)node + sizeof(fc_pool_header_t)));  // 标记最后一块
+            do
+            {
+                if (node->next == NULL)  // 找到这一次链式内存块的最后一块
+                {
+                    break;
+                }
+                node = node->next;
+            } while (node);
+            pool->fifo_used.pool.tail = node;  // 更新尾部
+
+            // 无需标记,默认创建的时候已经标记
+            // fc_pool_end((void *)((uint8_t *)node + sizeof(fc_pool_header_t)));  // 标记最后一块
+        }
     }
 }
 
@@ -692,35 +694,36 @@ void *fc_pool_fifo_pop(fc_pool_t *pool)
 
     fc_pool_header_t *node = NULL;
     fc_pool_header_t *tail = NULL;
-
-    FC_ATOMIC_SCOPE
     {
-        if (!fc_pool_fifo_empty(pool))  // 再次判定,避免从上次判定到这里之间其他线程调用过(基本不可能,但是为了绝对安全考虑)
+        FC_ATOMIC_SCOPE
         {
-            node = pool->fifo_used.next;
-            tail = node;
-            do
+            if (!fc_pool_fifo_empty(pool))  // 再次判定,避免从上次判定到这里之间其他线程调用过(基本不可能,但是为了绝对安全考虑)
             {
-                if (tail->pool.tag.end == FC_POOL_TAG_END)  // 找到这一次链式内存块的最后一块
+                node = pool->fifo_used.next;
+                tail = node;
+                do
                 {
-                    break;
+                    if (tail->pool.tag.end == FC_POOL_TAG_END)  // 找到这一次链式内存块的最后一块
+                    {
+                        break;
+                    }
+
+                    if (tail->next == NULL)  // 理论上不可能出现这种情况,前一个判断就会退出
+                    {
+                        break;
+                    }
+
+                    tail = tail->next;
+                } while (tail);
+
+                pool->fifo_used.next = tail->next;  // 更新头部
+                if (pool->fifo_used.next == NULL)   // 如果头部为空,则尾部也需要置空
+                {
+                    pool->fifo_used.pool.tail = NULL;
                 }
 
-                if (tail->next == NULL)  // 理论上不可能出现这种情况,前一个判断就会退出
-                {
-                    break;
-                }
-
-                tail = tail->next;
-            } while (tail);
-
-            pool->fifo_used.next = tail->next;  // 更新头部
-            if (pool->fifo_used.next == NULL)   // 如果头部为空,则尾部也需要置空
-            {
-                pool->fifo_used.pool.tail = NULL;
+                tail->next = NULL;  // 断开链式内存块
             }
-
-            tail->next = NULL;  // 断开链式内存块
         }
     }
 

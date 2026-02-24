@@ -448,9 +448,11 @@ fc_weak size_t fc_log_write_lose_hook(fc_log_t *log, int len)
     if (log == &default_log)
     {
         static size_t default_lose_count = 0;
-        FC_ATOMIC_SCOPE
         {
-            default_lose_count += len;
+            FC_ATOMIC_SCOPE
+            {
+                default_lose_count += len;
+            }
         }
         lose_count = default_lose_count;
     }
