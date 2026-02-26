@@ -39,6 +39,11 @@ extern "C"
     #define FC_PORT_UNLOCK(port, rb_index, dir) ((void)0)
 #endif
 
+// 运行时断言
+#ifndef fc_assert
+    #define fc_assert(x) ((void)(0))
+#endif
+
     // 方向是从内核视角来说(高速部分)
     typedef enum
     {
@@ -84,6 +89,7 @@ extern "C"
     #define fc_port_static_alloc_rb(port, rb_index, log2_size, name, single_limit)           \
         do                                                                                   \
         {                                                                                    \
+            fc_assert(single_limit <= log2_size);                                            \
             fc_fifo_t *__temp_fifo_ptr = NULL;                                               \
             fc_fifo_static_new_at(__temp_fifo_ptr, log2_size);                               \
             fc_port_catch_fifo((port), (rb_index), __temp_fifo_ptr, (name), (single_limit)); \

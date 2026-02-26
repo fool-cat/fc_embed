@@ -5,6 +5,7 @@ ref/
 unused/
 
 .vscode/
+.claude/
 
 # 开发阶段屏蔽掉所有非核心文件
 test/

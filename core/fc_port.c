@@ -31,11 +31,6 @@
     #define FC_WAIT_MOMENT() ((void)0)
 #endif
 
-// 运行时断言
-#ifndef fc_assert
-    #define fc_assert(x) ((void)(0))
-#endif
-
 #ifndef STDOUT_RB0_LOG2_SIZE
     /* 输出环形队列大小,2^n */
     // 4K Byte
