@@ -716,13 +716,6 @@ void *fc_pool_realloc(fc_pool_t *pool, void *ptr, size_t size)
     else
 #endif
     {
-        if (node->block_count * node_size - sizeof(fc_pool_header_t) >= size)
-        {
-            // 保持不变,仅仅修改标记大小
-            fc_pool_mark_used(ptr, size);  // 标记实际使用大小
-            return ptr;
-        }
-
         need_count = (int32_t)(((size + sizeof(fc_pool_header_t) + node_size - 1) / node_size) - node->block_count);  // 还需要多少个连续内存块
 
         if (1 == need_count)  // 只需要一个内存块
@@ -799,18 +792,18 @@ void *fc_pool_realloc(fc_pool_t *pool, void *ptr, size_t size)
                 }
             }
         }
+        else if (0 == need_count)  // 当前链上还有空闲内存仅仅修改标记大小
+        {
+            // 保持不变,仅仅修改标记大小
+            fc_pool_mark_used(ptr, size);  // 标记实际使用大小
+            return ptr;
+        }
         else if (need_count < 0)  // 还要释放部分内存,正常使用比较少
         {
             node = (fc_pool_header_t *)((uint8_t *)node - (node->block_count + need_count) * node_size);  // 定位到需要释放的内存块第一个节点位置
             ret_ptr = fc_pool_skip_header(node);
             fc_pool_free(pool, ret_ptr);
             ret_ptr = ptr;  // 赋值用于下面判断realloc是否完成
-        }
-        else if (0 == need_count)  // 这个分支不可能发生,最上面就会返回
-        {
-            // 保持不变,仅仅修改标记大小
-            fc_pool_mark_used(ptr, size);  // 标记实际使用大小
-            return ptr;
         }
     }
 
