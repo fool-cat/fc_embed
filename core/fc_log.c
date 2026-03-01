@@ -549,9 +549,15 @@ fc_weak size_t log_write_default(fc_log_file_user_t *file_user)
     }
 
     // 标记最后一块已使用大小
-    fc_pool_mark_used((void *)(file_user->mem.buff), file_user->total_write - file_user->block_write);
+    if (file_user->mem.buff)
+    {
+        fc_pool_mark_used((void *)(file_user->mem.buff), file_user->total_write - file_user->block_write);
+    }
 
-    fc_pool_fifo_push(&fc_log_pool, (void *)file_user->mem_chain);  // 压入fifo
+    if (file_user->mem_chain)
+    {
+        fc_pool_fifo_push(&fc_log_pool, (void *)file_user->mem_chain);  // 压入fifo
+    }
 
     return file_user->total_write;
 }
