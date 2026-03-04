@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "fc_compiler.h"
 #include "fc_config.h"
@@ -66,27 +67,12 @@ static const uint32_t _fc_pool_canary_magic_word = FC_POOL_CANARY_MAGIC_WORD;
     #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-#ifndef FC_USE_STD_MEMCPY
-    #define FC_USE_STD_MEMCPY 1 /**< 是否使用标准库的memcpy */
+#ifndef MAX
+    #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
-#if FC_USE_STD_MEMCPY
-
-    // 高优化等级的时候memcpy可能会出现内存对齐问题,所以这里提供一份单字节拷贝的版本可选
-    #include <string.h>
-    #define fc_pool_memcpy(dst, src, size) memcpy(dst, src, size)
-
-#else
-
-    #ifndef fc_pool_memcpy
-        #define fc_pool_memcpy(dst, src, size)                   \
-            {                                                    \
-                for (size_t _i = 0; _i < size; _i++)             \
-                {                                                \
-                    ((uint8_t *)dst)[_i] = ((uint8_t *)src)[_i]; \
-                }                                                \
-            }
-    #endif  //\ fc_pool_memcpy
+#ifndef ABS
+    #define ABS(x) ((x) < 0 ? -(x) : (x))
 #endif
 
 //+*********************************  **********************************/
@@ -162,11 +148,25 @@ int fc_pool_init(fc_pool_t *pool, void *mem, size_t mem_size, size_t block_size)
             first_node = pool->list_free.next;  // 永远指向第一个节点
             first_node->linear_last = node;     // 第一个节点指向最后一个节点
         }
+
+        pool->sort_free_enable = false;  // 默认不启用排序释放内存
     }
 
     pool->record_min = pool->list_free.record_now;
 
     return ((int)pool->list_free.record_now);
+}
+
+/**
+ * @brief
+ *
+ * @param pool
+ * @param sort_free
+ */
+void fc_pool_sort_enable(fc_pool_t *pool, bool sort_free)
+{
+    fc_assert(pool != NULL);
+    pool->sort_free_enable = sort_free;
 }
 
 //+********************************* 基础信息查询 **********************************/
@@ -265,6 +265,114 @@ void fc_pool_link(void *front, void *back)
     node_front->next = node_back;
 }
 
+// 反转内存
+static inline void __reverse_memory(uint8_t *start, uint8_t *end)
+{
+    uint8_t temp = 0;
+    while (start < end)
+    {
+        temp = *start;
+        *start = *end;
+        *end = temp;
+        start++;
+        end--;
+    }
+}
+
+/**
+ * @brief front和back是逻辑上的先后,front物理地址不一定在back之前,但必须是连续内存
+ *
+ * @param pool
+ * @param front
+ * @param back
+ * @return true
+ * @return false
+ */
+bool fc_pool_merge(fc_pool_t *pool, void *front, void *back)
+{
+    fc_assert(pool != NULL);
+    fc_assert(front != NULL);
+    fc_assert(back != NULL);
+
+    // 必须都是连续内存
+    if (!fc_pool_linear_check(front) || !fc_pool_linear_check(back))
+    {
+        return false;
+    }
+
+    fc_pool_header_t *node_front = fc_pool_rewind_header(front);
+    fc_pool_header_t *node_back = fc_pool_rewind_header(back);
+    size_t            node_size = fc_pool_node_size(pool);
+
+    // 检查是否相邻
+    size_t offset;
+    if ((size_t)node_front < (size_t)node_back)  // front内存块在back内存块之前
+    {
+        offset = node_back - node_front;
+        if ((node_front->block_count + node_back->block_count) * node_size != offset)
+        {
+            return false;
+        }
+        node_front->block_count += node_back->block_count;
+        node_front->used_size += node_back->used_size;
+        memmove(((uint8_t *)front + node_front->used_size), (uint8_t *)back, node_back->used_size);
+
+        return true;
+    }
+    else if ((size_t)node_front > (size_t)node_back)  // back内存块在front内存块之前
+    {
+        offset = node_front - node_back;
+        if ((node_front->block_count + node_back->block_count) * node_size != offset)
+        {
+            return false;
+        }
+
+        // 保存原始数据大小
+        size_t front_data_size = node_front->used_size;
+        size_t back_data_size = node_back->used_size;
+        size_t gap = offset - back_data_size;
+        // 数据区域
+        uint8_t *front_data = (uint8_t *)front;
+        uint8_t *buffer_head = (uint8_t *)back;  // back地址空间在起点
+
+        // 合并到前面的块（node_back）
+        node_back->block_count += node_front->block_count;
+        node_back->used_size += node_front->used_size;
+
+        // 当前:[back_data][back_leave][header][front_data][front_leave],其中 front_leave/back_leave 可能为0,back_data可能大于front_data+front_leave
+        // 目标:[front_data][back_data]
+
+        // back_data开始 反转到 front_data结尾
+        __reverse_memory(buffer_head, front_data + front_data_size - 1);
+        // front_data反转自身,此时front_data已经在头部位置(buffer_head)
+        __reverse_memory(buffer_head, buffer_head + front_data_size - 1);
+        // back_data反转自身,此时反转的back_data位置为buffer_head+(front_data_size - gap)
+        __reverse_memory(buffer_head + front_data_size - gap, buffer_head + back_data_size - 1);
+
+        // 合并back_data到front_data后面
+        memmove(buffer_head + front_data_size, buffer_head + front_data_size + gap, back_data_size);
+
+        return true;
+    }
+
+    // 同一个内存块?返回失败
+    return false;
+}
+
+/**
+ * @brief
+ *
+ * @param ptr
+ * @return true
+ * @return false
+ */
+bool fc_pool_linear_check(void *ptr)
+{
+    fc_assert(ptr != NULL);
+    fc_pool_header_t *node = fc_pool_rewind_header(ptr);
+    return (NULL == node->next);  // 不存在后续节点
+}
+
 /**
  * @brief 遍历链式非连续内存块,不会释放内存,自行确保函数的线程安全
  *
@@ -346,7 +454,7 @@ void *fc_pool_alloc(fc_pool_t *pool, size_t *size)
                 pool->list_free.next = node->next;  // 移动空闲链表头部
                 pool->list_free.record_now--;       // 统计空闲块数
                 pool->record_min = MIN(pool->record_min, pool->list_free.record_now);
-                if (node->linear_last != node)  // 非自旋节点,证明下一个节点跟这个节点是连续的(一定存在下一个节点)
+                if ((size_t)(node->linear_last) != (size_t)node)  // 非自旋节点,证明下一个节点跟这个节点是连续的(一定存在下一个节点)
                 {
                     node->next->linear_last = node->linear_last;  // 使下一个节点指向连续内存块的最后一个节点
                 }
@@ -426,6 +534,8 @@ void fc_pool_free(fc_pool_t *pool, void *ptr)
     fc_pool_header_t *static_head = NULL;
     fc_pool_header_t *static_tail = NULL;
     fc_pool_header_t *node = NULL;
+    fc_pool_header_t *link_node = NULL;
+    size_t            link_count = 0;
     size_t            block_count = 0;
     size_t            node_size = fc_pool_node_size(pool);
 
@@ -468,79 +578,137 @@ void fc_pool_free(fc_pool_t *pool, void *ptr)
 
             node = node->next;         // node移动到下一个节点
             static_tail->next = NULL;  // 断开这个节点与后面链接
+
+            {  // 拆分节点
+                link_node = static_tail;
+
+                link_count = link_node->block_count;  // 先记录下来,节点自旋之后会覆盖
+                block_count += link_count;
+                link_node->linear_last = link_node;  // 节点自旋
+                if (link_count > 1)                  // 需要拆分节点
+                {
+                    for (; link_count > 1; link_count--)
+                    {
+                        link_node->next = (fc_pool_header_t *)((uint8_t *)link_node + node_size);  // 拆分节点
+                        link_node = link_node->next;                                               // 移动到下一个节点
+                        link_node->linear_last = link_node;                                        // 节点自旋
+                        link_node->next = NULL;                                                    // 初始化下一个节点指向NULL
+                    }
+                    static_tail->linear_last = link_node;  // 指向最后一个连续节点
+                }
+
+                static_tail = link_node;  // 更新static_tail
+            }
         }
     }
 #else
     static_head = node;
+    {                             // 拆分节点
+        link_node = static_head;  // 从头遍历
+        do
+        {
+            static_tail = link_node;              // 前面用tail做临时变量记录一下这一次起始的第一个节点
+            node = link_node->next;               // 记住下一个节点
+            link_count = link_node->block_count;  // 先记录下来,节点自旋之后会覆盖
+            block_count += link_count;
+            link_node->linear_last = link_node;  // 节点自旋
+
+            if (link_count > 1)  // 需要拆分节点
+            {
+                for (; link_count > 1; link_count--)
+                {
+                    link_node->next = (fc_pool_header_t *)((uint8_t *)link_node + node_size);  // 拆分节点
+                    link_node = link_node->next;                                               // 移动到下一个节点
+                    link_node->linear_last = link_node;                                        // 节点自旋
+                    link_node->next = NULL;                                                    // 初始化下一个节点指向NULL
+                }
+                link_node->next = node;                // 链接下一个节点
+                static_tail->linear_last = link_node;  // 这一次起始的第一个节点指向最后一个连续节点
+            }
+
+            static_tail = link_node;  // 更新static_tail,最后赋值保证tail是最后一个节点就行
+            link_node = node;
+        } while (link_node);
+    }
 #endif
 
-    while (static_head)
+    if (true == pool->sort_free_enable)  // 排序释放
     {
-        node = static_head->next;  // 记住下一个节点
-        block_count = 0;
-        static_tail = static_head;
-
-        for (;;)
+        link_node = static_head;
+        while (link_node)
         {
-            block_count += static_tail->block_count;
-            for (size_t i = static_tail->block_count; i > 1; i--)
-            {
-                static_tail->next = (fc_pool_header_t *)((char *)static_tail + node_size);  // 分块,并链接到下一个子节点
-                static_tail = static_tail->next;                                            // 移动到下一个子节点
-                static_tail->linear_last = static_tail;                                     // 子节点自旋
-                static_tail->next = NULL;                                                   // 初始化下一个节点指向NULL
-            }
-            static_head->linear_last = static_tail;  // 头节点指向最后一个节点
-            if (node && (size_t)node == (size_t)static_tail + node_size)
-            {
-                // 后面的节点跟这里是连续的
-                static_tail->next = node;  // 链接到下一个节点
-                static_tail = node;        // 移动到下一个节点
-                node = node->next;         // 记录下一个节点
-                continue;
-            }
-            else
-            {
-                break;  // 一定在这里退出
-            }
-        }
+            node = link_node->next;  // 记住下一个节点
+            block_count = 0;         // 用与指示连续块的个数
 
-        // 开始合并到空闲链表
-        {
-            fc_pool_header_t *now = NULL;
-            fc_pool_header_t *prev = &(pool->list_free);  // 第一次直接取pool->list_free地址,优化循环中的判断
-            FC_ATOMIC_SCOPE
+            static_tail = link_node;  // tail指针这里用不到,用来当临时变量使用
+            for (;;)
             {
-                now = pool->list_free.next;
-                // 找到合适的位置插入,并判断能否与前后节点合并
-                for (;;)  // 最坏情况O(n)
+                block_count++;                         // 在前面已经被拆分好了
+                link_node->linear_last = static_tail;  // 头节点始终指向最后连续的最后一个节点
+
+                if (node && (size_t)node == (size_t)static_tail + node_size)
                 {
-                    if (NULL == now || (size_t)now > (size_t)static_head)  // 找到指定位置了
-                    {
-                        pool->list_free.record_now += block_count;  // 空闲块数更新
-                        static_tail->next = now;
-                        prev->next = static_head;  // 利用第一次直接取pool->list_free地址,避免了判断prev为空的情况
-                        // 先判断跟后面是否连续
-                        if (NULL != now && NULL != now->next && (size_t)(now->next) == (size_t)static_tail + node_size)
-                        {
-                            static_head->linear_last = now->next->linear_last;  // 头结点指向新的最后一个连续节点
-                            now->next->linear_last = now->next;                 // 自旋
-                        }
-                        // 后判断跟前面是否连续
-                        if (NULL != now && prev != &(pool->list_free) && (size_t)(static_head) == (size_t)now + node_size)
-                        {
-                            prev->linear_last = static_head->linear_last;  // 更新最前面节点指向的最后一个连续节点
-                            static_head->linear_last = static_head;        // 自旋
-                        }
-                        break;  // 合并完了退出,一定是从这里退出
-                    }
-                    prev = now->linear_last;  // 跳到最后一个连续节点,必不为NULL
-                    now = prev->next;         // 跳到最后一个连续节点的下一个节点
+                    // 后面的节点跟这里是连续的
+                    static_tail = node;  // 移动到下一个节点
+                    node = node->next;   // 记录下一个节点
+                    continue;
+                }
+                else
+                {
+                    // static_tail->next = NULL;  // 断开这个节点与后面的链接,无所谓
+                    break;  // 一定在这里退出
                 }
             }
-        }
 
-        static_head = node;
+            // 开始合并到空闲链表
+            {
+                fc_pool_header_t *now = NULL;
+                fc_pool_header_t *prev = &(pool->list_free);  // 直接取pool->list_free地址,优化循环中的判断
+                FC_ATOMIC_SCOPE
+                {
+                    now = pool->list_free.next;
+                    // 找到合适的位置插入,并判断能否与前后节点合并
+                    for (;;)  // 最坏情况O(n)
+                    {
+                        if (NULL == now || (size_t)now > (size_t)link_node)  // 找到指定位置了
+                        {
+                            pool->list_free.record_now += block_count;  // 空闲块数更新
+                            static_tail->next = now;                    // 最后一块链接到当前块
+                            prev->next = link_node;                     // 利用第一次直接取pool->list_free地址,避免了判断prev为空的情况
+                            // 先判断跟后面是否连续
+                            if (NULL != now && (size_t)(now) == (size_t)static_tail + node_size)
+                            {
+                                link_node->linear_last = now->linear_last;  // 头结点指向新的最后一个连续节点
+                                now->linear_last = now;                     // 自旋
+                            }
+                            // 后判断跟前面是否连续
+                            if (NULL != now && (size_t)prev != (size_t)&(pool->list_free) && (size_t)(link_node) == (size_t)now + node_size)
+                            {
+                                prev->linear_last = link_node->linear_last;  // 更新最前面节点指向的最后一个连续节点
+                                link_node->linear_last = link_node;          // 自旋
+                            }
+                            break;  // 合并完了退出
+                        }
+                        prev = now->linear_last;  // 跳到最后一个连续节点,必不为NULL
+                        now = prev->next;         // 跳到最后一个连续节点的下一个节点
+                    }
+                }
+            }
+
+            link_node = node;
+        }
+    }
+    else  // 不排序,直接链接到空闲链表
+    {
+        if (static_head)
+        {
+            FC_ATOMIC_SCOPE
+            {
+                static_tail->next = pool->list_free.next;  // 尾部指向空闲链表头部
+                pool->list_free.next = static_head;        // 空闲链表头部指向新释放的内存块头部
+                pool->list_free.record_now += block_count;
+            }
+        }
     }
 
 #if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
@@ -587,6 +755,36 @@ void *fc_pool_malloc(fc_pool_t *pool, size_t size)
         return ret_ptr;
     }
 
+#if 0
+    if (false == pool->sort_free_enable)
+    {
+    #if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
+        if (pool->alloc_cb)
+        {
+            // 调用用户自定义的内存分配回调函数
+            if (pool->alloc_cb(FC_POOL_DYNAMIC_MALLOC, (fc_pool_dynamic_mem_t *)&ret_ptr, (size + sizeof(fc_pool_header_t))))
+            {
+                node = (fc_pool_header_t *)ret_ptr;
+                {
+                    node->used_size = size;                    // 连续块内存已使用的大小
+                    node->link_flag = FC_POOL_TAG_END;         // 默认标记为最后一块
+                    node->block_count = (uint8_t)block_count;  // 本块内存有多少个连续内存块
+                }
+                ret_ptr = fc_pool_skip_header(node);  // 返回内存地址,跳过头部
+                fc_pool_mark_used(ret_ptr, size);     // 标记实际使用大小
+            }
+            else
+            {
+                ret_ptr = NULL;
+                FC_POOL_ALLOC_FAIL_HOOK(pool);
+            }
+        }
+    #endif
+
+        return ret_ptr;  // 纯静态分配时为保证free的O1复杂度,超过1块时必然失败
+    }
+#endif
+
     node_size = fc_pool_node_size(pool);                                          // 加上头部大小
     block_count = (size + sizeof(fc_pool_header_t) + node_size - 1) / node_size;  // 需要的块数(向上取整)
     serial_leap = (block_count - 1) * node_size;                                  // 得到总跨度,不计入最后一个节点的大小,简化循环中的判断计算
@@ -599,8 +797,8 @@ void *fc_pool_malloc(fc_pool_t *pool, size_t size)
             {
                 if ((size_t)(node->linear_last) - (size_t)node >= serial_leap)
                 {
-                    fc_pool_header_t *node_temp = (fc_pool_header_t *)((char *)node + serial_leap);  // 得到分配出去的最后一个节点
-                    node_temp = node_temp->next;                                                     // 通过节点获取到下一个空闲节点
+                    fc_pool_header_t *node_temp = (fc_pool_header_t *)((uint8_t *)node + serial_leap);  // 得到分配出去的最后一个节点
+                    node_temp = node_temp->next;                                                        // 通过节点获取到下一个空闲节点
 
                     pool->list_free.next = node_temp;           // 移动空闲链表头部
                     pool->list_free.record_now -= block_count;  // 统计空闲块数
@@ -816,8 +1014,8 @@ void *fc_pool_realloc(fc_pool_t *pool, void *ptr, size_t size)
         ret_ptr = fc_pool_malloc(pool, size);  // 重新分配内存
         if (ret_ptr)                           // 分配成功
         {
-            fc_pool_memcpy(ret_ptr, ptr, size);  // 复制内存
-            fc_pool_free(pool, ptr);             // 释放旧内存
+            memcpy(ret_ptr, ptr, size);  // 复制内存
+            fc_pool_free(pool, ptr);     // 释放旧内存
         }
     }
 

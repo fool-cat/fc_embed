@@ -81,24 +81,27 @@ extern "C"
 #if FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC
         fc_pool_dynamic_cb_t alloc_cb;  // 内存分配回调函数,可为NULL
 #endif
+
+        bool sort_free_enable;  // 是否启用排序释放内存,默认不启用(O1)
     };
 
     // 对象初始化,返回负值表示失败,返回正值表示可用的内存块数
-    int fc_pool_init(fc_pool_t *pool, void *mem, size_t mem_size, size_t block_size);
+    int  fc_pool_init(fc_pool_t *pool, void *mem, size_t mem_size, size_t block_size);
+    void fc_pool_sort_enable(fc_pool_t *pool, bool sort_free);  // 设置是否启用排序释放内存,默认不启用(O1),初始化后才能调用,运行过程中不可改变
 
     //+********************************* 辅助API **********************************/
     fc_always_inline size_t fc_pool_node_size(fc_pool_t *pool)  // 获取一个内存块节点的大小
     {
         return (pool->block_size + sizeof(fc_pool_header_t));
-    };
+    }
     fc_always_inline void *fc_pool_skip_header(void *ptr)  // 获取ptr跳过头部后的地址
     {
         return ((void *)((uint8_t *)ptr + sizeof(fc_pool_header_t)));
-    };
+    }
     fc_always_inline fc_pool_header_t *fc_pool_rewind_header(void *ptr)  // 从ptr指向的内存块开始,返回内存块头部地址
     {
         return ((fc_pool_header_t *)((uint8_t *)ptr - sizeof(fc_pool_header_t)));
-    };
+    }
     fc_always_inline size_t fc_pool_per_size(fc_pool_t *pool)  // 每块内存用户可用大小(字节)
     {
         return pool->block_size;
@@ -112,15 +115,21 @@ extern "C"
     bool fc_pool_mark_used(void *ptr, size_t used_size);                // 标记当前内存块已使用大小,ptr当前内存块地址
     void fc_pool_end(void *ptr);                                        // 给指定链式内存块的最后一块做标记,创建的时候默认已经标记
     void fc_pool_link(void *front, void *back);                         // 将front和back链接起来,非连续内存块
+    bool fc_pool_linear_check(void *ptr);                               // 检查ptr是否为连续内存块,如果是返回true,否则返回false
     void fc_pool_walk(void *ptr, fc_pool_walker_t walker, void *user);  // 遍历链式非连续内存块
 
     void fc_pool_fifo_walk(fc_pool_t *pool, fc_pool_walker_t walker, void *user);  // 遍历整个fifo used队列链表,遍历后释放内存
+    bool fc_pool_merge(fc_pool_t *pool, void *front, void *back);                  // 将front和back合并,将back内存拼接到front后面,返回是否成功合并
+    // void fc_pool_half_sort(fc_pool_t *pool);                                       // 对空闲链表一半进行排序,仅在sort_free_enable在false时有意义 // TODO
 
     //+********************************* 类似标准内存分配 **********************************/
-    void *fc_pool_alloc(fc_pool_t *pool, size_t *size);                // 区别于malloc,传入size的指针分配成功将设置为实际分配(用户可用)的大小,返回可用的内存地址,O(1)复杂度
-    void  fc_pool_free(fc_pool_t *pool, void *ptr);                    // 如果是链式非连续内存块,会将整个链式内存块释放掉,O(n)复杂度,n为链式内存块的块数
+    void *fc_pool_alloc(fc_pool_t *pool, size_t *size);  // 区别于malloc,传入size的指针分配成功将设置为实际分配(用户可用)的大小,返回可用的内存地址,固定O(1)复杂度
+    // sort_free_enable == false时,free复杂度为O1,true的情况下以下free复杂度为O(n)
+    void fc_pool_free(fc_pool_t *pool, void *ptr);  // 如果是链式非连续内存块,会将整个链式内存块释放掉,O(n)复杂度,n为链式内存块的块数
+    // sort_free_enable == false时,realloc大小不超过1块时有概率成功,否则绝大概率失败? // TODO:feature:可优化为超过1块时仍有较大概率成功,且效率O(n)
+    void *fc_pool_realloc(fc_pool_t *pool, void *ptr, size_t size);  // 等效realloc,最坏O(n)复杂度
+    // sort_free_enable == false时,以下API分配超过1块时绝大概率失败,反之O(1)复杂度
     void *fc_pool_malloc(fc_pool_t *pool, size_t size);                // 等效malloc,尝试分配size字节的连续内存,如果失败则返回NULL,最坏O(n)复杂度
-    void *fc_pool_realloc(fc_pool_t *pool, void *ptr, size_t size);    // 等效realloc,最坏O(n)复杂度
     void *fc_pool_calloc(fc_pool_t *pool, size_t count, size_t size);  // 等效calloc,最坏O(n)复杂度
 
     //+********************************* fc_pool_header_t对象当fifo使用 **********************************/
