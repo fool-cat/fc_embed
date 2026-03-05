@@ -39,6 +39,11 @@ extern "C"
     #define FC_PORT_UNLOCK(port, rb_index, dir) ((void)0)
 #endif
 
+// 运行时断言
+#ifndef fc_assert
+    #define fc_assert(x) ((void)(0))
+#endif
+
     // 方向是从内核视角来说(高速部分)
     typedef enum
     {
@@ -78,11 +83,13 @@ extern "C"
     // clang-format off
     extern void fc_port_init        (fc_port_t *port, fc_port_dir_t dir);
     extern void fc_port_catch_fifo  (fc_port_t *port, size_t rb_index, fc_fifo_t *fifo, const char *name, uint8_t single_limit);
+    extern void fc_port_catch_phy   (fc_port_t *port, fc_phy_io_t phy);
 
     // 静态内存初始化一个port的环形缓冲区,包括静态内存分配构造,单次读写限制设置等
     #define fc_port_static_alloc_rb(port, rb_index, log2_size, name, single_limit)           \
         do                                                                                   \
         {                                                                                    \
+            fc_assert(single_limit <= log2_size);                                            \
             fc_fifo_t *__temp_fifo_ptr = NULL;                                               \
             fc_fifo_static_new_at(__temp_fifo_ptr, log2_size);                               \
             fc_port_catch_fifo((port), (rb_index), __temp_fifo_ptr, (name), (single_limit)); \
@@ -120,8 +127,6 @@ extern "C"
     // 声明输入输出对象
     extern fc_port_t fc_stdin;
     extern fc_port_t fc_stdout;
-#define fc_stdin_phy_catch(func) (fc_stdin.phy = (fc_phy_io_t)func)
-#define fc_stdout_phy_catch(func) (fc_stdout.phy = (fc_phy_io_t)func)
 
 #ifndef FC_STDOUT_OBJ
     #define FC_STDOUT_OBJ (&fc_stdout)
@@ -138,6 +143,9 @@ extern "C"
 #ifndef FC_STDIN_RB_INDEX
     #define FC_STDIN_RB_INDEX (0)
 #endif
+
+#define fc_stdin_phy_catch(func) fc_port_catch_phy(FC_STDIN_OBJ, (fc_phy_io_t)func)
+#define fc_stdout_phy_catch(func) fc_port_catch_phy(FC_STDOUT_OBJ, (fc_phy_io_t)func)
 
     // clang-format off
 

@@ -31,11 +31,6 @@
     #define FC_WAIT_MOMENT() ((void)0)
 #endif
 
-// 运行时断言
-#ifndef fc_assert
-    #define fc_assert(x) ((void)(0))
-#endif
-
 #ifndef STDOUT_RB0_LOG2_SIZE
     /* 输出环形队列大小,2^n */
     // 4K Byte
@@ -132,6 +127,18 @@ void fc_port_catch_fifo(fc_port_t *port, size_t rb_index, fc_fifo_t *fifo, const
     port->rb[rb_index] = fifo;
     port->rb_name[rb_index] = name;
     port->rb_single_limit[rb_index] = single_limit;
+}
+
+/**
+ * @brief 绑定物理IO
+ *
+ * @param port
+ * @param phy
+ */
+void fc_port_catch_phy(fc_port_t *port, fc_phy_io_t phy)
+{
+    fc_assert(port != NULL);
+    port->phy = phy;
 }
 
 /**
@@ -396,49 +403,53 @@ void fc_port_trigger(fc_port_t *port, size_t rb_index)
     fc_assert(port != NULL);
     fc_assert(port->rb != NULL);
 
-    bool       busy;
     size_t     size;
     void      *buf;
     fc_fifo_t *fifo = port->rb[rb_index];
 
     if ((uint8_t)FC_PORT_DIR_OUT == port->dir)
     {
-        busy = fc_fifo_linear_read_busy(fifo);
-
-        if (!busy)
+        if (0 >= fc_port_used(port, rb_index))
         {
-            if (port->rb_single_limit[rb_index])
-            {
-                fc_assert(fc_fifo_get_size(fifo) > (1 << port->rb_single_limit[rb_index]));
-                buf = fc_fifo_linear_read_setup_limit(fifo, &size, port->rb_single_limit[rb_index]);
-            }
-            else
-            {
-                buf = fc_fifo_linear_read_setup(fifo, &size);
-            }
+            return;  // 没有数据需要发送
+        }
+
+        if (fc_fifo_linear_read_busy(fifo))
+        {
+            return;  // 正在传输中,不响应
+        }
+
+        if (port->rb_single_limit[rb_index])
+        {
+            fc_assert(fc_fifo_get_size(fifo) > (1 << port->rb_single_limit[rb_index]));
+            buf = fc_fifo_linear_read_setup_limit(fifo, &size, port->rb_single_limit[rb_index]);
+        }
+        else
+        {
+            buf = fc_fifo_linear_read_setup(fifo, &size);
         }
     }
     else
     {
-        busy = fc_fifo_linear_write_busy(fifo);
-
-        if (!busy)
+        if (0 >= fc_port_free(port, rb_index))
         {
-            if (port->rb_single_limit[rb_index])
-            {
-                fc_assert(fc_fifo_get_size(fifo) > (1 << port->rb_single_limit[rb_index]));
-                buf = fc_fifo_linear_write_setup_limit(fifo, &size, port->rb_single_limit[rb_index]);
-            }
-            else
-            {
-                buf = fc_fifo_linear_write_setup(fifo, &size);
-            }
+            return;  // 没有空间可以接收
         }
-    }
 
-    if (busy)
-    {
-        return;
+        if (fc_fifo_linear_write_busy(fifo))
+        {
+            return;  // 正在传输中,不响应
+        }
+
+        if (port->rb_single_limit[rb_index])
+        {
+            fc_assert(fc_fifo_get_size(fifo) > (1 << port->rb_single_limit[rb_index]));
+            buf = fc_fifo_linear_write_setup_limit(fifo, &size, port->rb_single_limit[rb_index]);
+        }
+        else
+        {
+            buf = fc_fifo_linear_write_setup(fifo, &size);
+        }
     }
 
     fc_assert(port->phy != NULL);
@@ -545,7 +556,7 @@ int fc_fifo_printf(fc_fifo_t *fifo, const char *fmt, ...)
 fc_port_t fc_stdin = {0};  // 对象创建
 fc_port_t fc_stdout = {0};
 
-static fc_port_rtt_t fc_port_rtt = {0};
+static fc_port_rtt_t fc_port_rtt = {0};  // RTT支持
 
 /**
  * @brief
@@ -598,30 +609,6 @@ void fc_default_port_init(void)
 
     (void)fc_port_rtt;  // 未使用也不要警告
 }
-
-//+********************************* log组件write函数 **********************************/
-
-// > C/C++兼容性宏定义
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-    /**
-     * @brief 默认log对象的write函数,写入到fc_stdout的0号队列
-     *
-     * @param buf
-     * @param len
-     * @return int
-     */
-    fc_weak int log_write_stdout(const char *buf, int len)
-    {
-        return fc_port_write(&fc_stdout, 0, buf, len);
-    }
-
-#ifdef __cplusplus
-}
-#endif  //\ __cplusplus
 
 //+********************************* 注册到ENV段中 **********************************/
 #include "fc_auto_init.h"
