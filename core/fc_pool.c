@@ -143,11 +143,13 @@ int fc_pool_init(fc_pool_t *pool, void *mem, size_t mem_size, size_t block_size)
             node = node->next;                   // 移动到下一个节点
             node->next = NULL;                   // 初始化下一个节点指向NULL
             node->linear_last = node;            // 指向自己,自旋指示当前处于连续内存块
-            pool->list_free.record_now++;        // 统计内存块数
+            // pool->list_free.record_now++;        // 统计内存块数
 
             first_node = pool->list_free.next;  // 永远指向第一个节点
             first_node->linear_last = node;     // 第一个节点指向最后一个节点
         }
+
+        pool->list_free.record_now = (((size_t)mem + mem_size) - (size_t)(start_addr)) / per_block_size;
 
         pool->sort_free_enable = false;  // 默认不启用排序释放内存
     }
