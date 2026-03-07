@@ -34,7 +34,9 @@ static int __fc_fifo_vprintf_write(FC_FILE *f, const void *buf, int len)
 
     if (len >= (int)FC_IO_SWAP)  // 只可能==FC_IO_SWAP
     {
-        fc_fifo_linear_write_done((fc_fifo_t *)(f->user), (size_t)f->p_now - (size_t)f->p_start);
+        // 不能使用p_now,调用write的时候p_now已经等于NULL了,只有连续内存写完的时候会尝试调用一次更新连续内存
+        // fc_fifo_linear_write_done((fc_fifo_t *)(f->user), (size_t)f->p_now - (size_t)f->p_start);
+        fc_fifo_linear_write_done((fc_fifo_t *)(f->user), (size_t)f->p_end - (size_t)f->p_start);
 
         // 还有空间
         if (fc_fifo_get_free((fc_fifo_t *)(f->user)) >= 1)

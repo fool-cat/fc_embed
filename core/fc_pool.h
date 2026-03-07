@@ -146,6 +146,11 @@ extern "C"
 #define fc_pool_fifo_pop(pool) \
     fc_header_fifo_pop(&((pool)->fifo_used))
 
+    //+********************************* 其他 **********************************/
+    // bool   fc_pool_check(fc_pool_t *pool);             // 检查内存池是否正常
+    size_t fc_pool_max_linear_count(fc_pool_t *pool);  // 内存池最大连续内存块数
+    size_t fc_pool_max_linear_size(fc_pool_t *pool);   // 内存池最大连续内存块大小(字节)
+
     //+********************************* 动态内存支持使用 **********************************/
 
     // 提供了一份默认的动态内存分配实现,需要开启FC_FOOL_ENABLE_DYNAMIC_POOL_ALLOC宏定义
