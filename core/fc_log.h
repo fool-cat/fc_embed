@@ -203,9 +203,8 @@ struct _fc_log_t
     fc_log_alloc_t alloc;
     fc_log_write_t write;
 
-    fc_log_file_user_t file_user;   // 缓冲输出的临时对象中才会使用
-    FC_FILE            f;           // 输出对象,同样只在临时对象中才会使用
-    fc_log_level_t     last_level;  // 记录上次临时log对象输出等级
+    fc_log_file_user_t file_user;  // 缓冲输出的临时对象中才会使用
+    FC_FILE            f;          // 输出对象,同样只在临时对象中才会使用
 
     fc_log_level_t level;
     bool           merge; /**< 是否合并日志一并输出 */
@@ -227,7 +226,10 @@ extern "C"
 
     // clang-format on
 
-    void fc_log_fflush(fc_log_t *log);  // 输出缓冲区
+    extern size_t      fc_log_level_roll(fc_log_t *log);  // 等级单次滚动(循环),返回改变后的等级
+    extern const char *fc_log_level_name(fc_log_t *log);  // 获取等级字符串
+
+    extern void fc_log_fflush(fc_log_t *log);  // 输出缓冲区
     // extern size_t fc_log_lose(fc_log_t *log, int len);  // 获取丢失日志长度
 
     // 提供一份默认的弱函数log写丢失数据钩子,可以在外面重写
@@ -284,9 +286,10 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 
 //+********************************* 以下部分允许重入 **********************************/
 #undef fc_log_level
+#undef fc_log_lv_roll
+#undef fc_log_lv_name
 
 #undef FC_LOG_MERGE
-#undef fc_log_level_record
 #undef fc_log_format
 
 #undef fc_log_error
@@ -305,12 +308,18 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 
 //+********************************* 宏API **********************************/
 
-// 切换log等级,使用宏API,无需显示指定对象名称,设置外部对象,临时对象继承等级不做控制避免歧义
+// 设置log等级,使用宏API,无需显示指定对象名称,设置外部对象,临时对象继承等级不做控制避免歧义
 #define fc_log_level(_level)                                 \
     do                                                       \
     {                                                        \
         fc_log_set_level((fc_log_t *)(&FC_LOG_OBJ), _level); \
     } while (0)
+
+#define fc_log_lv_roll() \
+    fc_log_level_roll((fc_log_t *)(&FC_LOG_OBJ))
+
+#define fc_log_lv_name() \
+    fc_log_level_name((fc_log_t *)(&FC_LOG_OBJ))
 
 #if FC_LOG_ENABLE
 
@@ -322,28 +331,15 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
                  scope_log_ptr->merge = true,              \
                  fc_log_fflush(scope_log_ptr))
 
-    #define fc_log_level_record(_level)                                                          \
-        do                                                                                       \
-        {                                                                                        \
-            if (scope_log_ptr)                                                                   \
-            {                                                                                    \
-                fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)scope_log_ptr;                   \
-                if (SAFE_NAME(log_temp_ptr)->merge)                                              \
-                    SAFE_NAME(log_temp_ptr)->last_level = _level; /* 临时对象实体记录临时等级 */ \
-            }                                                                                    \
-        } while (0);
-
 // 把fc_log_level_record在format中展开,减少一次do...while(0)的开销
-    #define fc_log_format(text, _level, fmt, ...)                                                                                                               \
-        do                                                                                                                                                      \
-        {                                                                                                                                                       \
-            fc_log_fprintf((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), _level, text "" fmt "" FC_LOG_END, FC_LOG_PREFIX_CONTENT, ##__VA_ARGS__); \
-            if (scope_log_ptr)                                                                                                                                  \
-            {                                                                                                                                                   \
-                fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)scope_log_ptr;                                                                                  \
-                if (SAFE_NAME(log_temp_ptr)->merge)                                                                                                             \
-                    SAFE_NAME(log_temp_ptr)->last_level = _level; /* 临时对象实体记录临时等级 */                                                                \
-            }                                                                                                                                                   \
+    #define fc_log_format(text, _level, fmt, ...)                                     \
+        do                                                                            \
+        {                                                                             \
+            fc_log_fprintf((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), \
+                           _level,                                                    \
+                           text "" fmt "" FC_LOG_END,                                 \
+                           FC_LOG_PREFIX_CONTENT,                                     \
+                           ##__VA_ARGS__);                                            \
         } while (0)
 
     //+********************************* 期望使用 **********************************/
@@ -351,56 +347,36 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
         #define fc_log_error(fmt, ...) \
             fc_log_format(FC_ERROR_TEXT, FC_LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
     #else
-        #define fc_log_error(fmt, ...) \
-            fc_log_level_record(FC_LOG_LEVEL_ERROR)
+        #define fc_log_error(fmt, ...) ((void)(0))
     #endif
 
     #if FC_LOG_FILE_LEVEL >= FC_LOG_LEVEL_WARNING
         #define fc_log_warning(fmt, ...) \
             fc_log_format(FC_WARNING_TEXT, FC_LOG_LEVEL_WARNING, fmt, ##__VA_ARGS__)
     #else
-        #define fc_log_warning(fmt, ...) \
-            fc_log_level_record(FC_LOG_LEVEL_WARNING)
+        #define fc_log_warning(fmt, ...) ((void)(0))
     #endif
 
     #if FC_LOG_FILE_LEVEL >= FC_LOG_LEVEL_INFO
         #define fc_log_info(fmt, ...) \
             fc_log_format(FC_INFO_TEXT, FC_LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
     #else
-        #define fc_log_info(fmt, ...) \
-            fc_log_level_record(FC_LOG_LEVEL_INFO)
+        #define fc_log_info(fmt, ...) ((void)(0))
     #endif
 
     #if FC_LOG_FILE_LEVEL >= FC_LOG_LEVEL_DEBUG
         #define fc_log_debug(fmt, ...) \
             fc_log_format(FC_DEBUG_TEXT, FC_LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
     #else
-        #define fc_log_debug(fmt, ...) \
-            fc_log_level_record(FC_LOG_LEVEL_DEBUG)
+        #define fc_log_debug(fmt, ...) ((void)(0))
     #endif
 
     #if FC_LOG_FILE_LEVEL >= FC_LOG_LEVEL_VERBOSE
         #define fc_log_verbose(fmt, ...) \
             fc_log_format(FC_VERBOSE_TEXT, FC_LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
     #else
-        #define fc_log_verbose(fmt, ...) \
-            fc_log_level_record(FC_LOG_LEVEL_VERBOSE)
+        #define fc_log_verbose(fmt, ...) ((void)(0))
     #endif
-
-    #define fc_log_printf(fmt, ...)                                                                        \
-        do                                                                                                 \
-        {                                                                                                  \
-            fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ); \
-            if (SAFE_NAME(log_temp_ptr)->last_level <= FC_LOG_FILE_LEVEL)                                  \
-                fc_log_format("", SAFE_NAME(log_temp_ptr)->last_level, fmt, ##__VA_ARGS__);                \
-        } while (0)
-
-    #define fc_log_printf_lv(_level, fmt, ...)                 \
-        do                                                     \
-        {                                                      \
-            if (_level <= FC_LOG_FILE_LEVEL)                   \
-                fc_log_format("", _level, fmt, ##__VA_ARGS__); \
-        } while (0)
 
     #define fc_log_assert(expr, ...)                                                                   \
         if (!(expr))                                                                                   \
@@ -409,21 +385,43 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
             __VA_ARGS__;                                                                               \
         }
 
+    #define fc_log_printf(fmt, ...)                                                                      \
+        do                                                                                               \
+        {                                                                                                \
+            fc_log_fprintf((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), FC_LOG_LEVEL_NONE, \
+                           "" fmt "" FC_LOG_END,                                                         \
+                           ##__VA_ARGS__);                                                               \
+        } while (0)
+
+    #define fc_log_printf_lv(_level, fmt, ...)                                            \
+        do                                                                                \
+        {                                                                                 \
+            if (_level <= FC_LOG_FILE_LEVEL) /* 开优化这里可以编译期处理 */               \
+            {                                                                             \
+                fc_log_fprintf((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), \
+                               _level,                                                    \
+                               "" fmt "" FC_LOG_END,                                      \
+                               ##__VA_ARGS__);                                            \
+            }                                                                             \
+        } while (0)
+
     /**
      * @brief fc_log_write如果是全局的则强制以最高等级输出,如果是fc_log_merge作用域内,则上一条log什么等级,接下来的write就以什么等级输出
      *
      */
-    #define fc_log_write(buf, len)                                                                         \
-        do                                                                                                 \
-        {                                                                                                  \
-            fc_log_t *SAFE_NAME(log_temp_ptr) = (fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ); \
-            fc_log_fwrite(SAFE_NAME(log_temp_ptr), SAFE_NAME(log_temp_ptr)->last_level, buf, len);         \
+    #define fc_log_write(buf, len)                                                   \
+        do                                                                           \
+        {                                                                            \
+            fc_log_fwrite((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), \
+                          FC_LOG_LEVEL_NONE,                                         \
+                          buf,                                                       \
+                          len);                                                      \
         } while (0)
 
     #define fc_log_write_lv(_level, buf, len)                                                               \
         do                                                                                                  \
         {                                                                                                   \
-            if (_level <= FC_LOG_FILE_LEVEL)                                                                \
+            if (_level <= FC_LOG_FILE_LEVEL) /* 开优化这里可以编译期处理 */                                 \
                 fc_log_fwrite((fc_log_t *)(scope_log_ptr ? scope_log_ptr : &FC_LOG_OBJ), _level, buf, len); \
         } while (0)
 
@@ -431,8 +429,6 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
     #define FC_LOG_MERGE  // 空定义即可
 
 // clang-format off
-    
-    #define fc_log_level_record(_level)             ((void)0)
     #define fc_log_format(text, level, fmt, ...)    ((void)0)
     #define fc_log_error(fmt, ...)                  ((void)0)
     #define fc_log_warning(fmt, ...)                ((void)0)
