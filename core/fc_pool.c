@@ -196,6 +196,24 @@ size_t fc_pool_record_now(fc_pool_t *pool)
 }
 
 //+********************************* 内存块状态管理及链式操作 **********************************/
+/**
+ * @brief 获取当前(链式)内存块已使用大小
+ *
+ * @param ptr 当前内存块地址
+ * @return size_t
+ */
+size_t fc_pool_used_size(void *ptr)
+{
+    fc_assert(ptr != NULL);
+    fc_pool_header_t *node = fc_pool_rewind_header(ptr);  // 从ptr指向的内存块开始,返回内存块头部地址
+    size_t            used_size = 0;
+    while (node)
+    {
+        used_size += node->used_size;
+        node = node->next;
+    }
+    return used_size;
+}
 
 /**
  * @brief 标记当前内存块已使用大小
@@ -676,7 +694,7 @@ void fc_pool_free(fc_pool_t *pool, void *ptr)
 
             // 开始合并到空闲链表
             {
-                after = NULL;
+                // after = NULL;
                 prev = NULL;
                 prev_first = NULL;
                 FC_ATOMIC_SCOPE
@@ -961,81 +979,7 @@ void *fc_pool_realloc(fc_pool_t *pool, void *ptr, size_t size)
     {
         need_count = (int32_t)(((size + sizeof(fc_pool_header_t) + node_size - 1) / node_size) - node->block_count);  // 还需要多少个连续内存块
 
-        if (1 == need_count)  // 只需要一个内存块
-        {
-            node = (fc_pool_header_t *)((uint8_t *)node + node->block_count * node_size);  // 直接定位到需要取出的内存块第一个节点位置
-            {
-                FC_ATOMIC_SCOPE
-                {
-                    // 遍历空闲链表看需要取出的内存块是否还在空闲链表中
-                    node_free = pool->list_free.next;
-                    node_prev = &(pool->list_free);
-                    while (node_free)  // 最坏O(n)
-                    {
-                        if ((size_t)node_free == (size_t)node)  // 链式内存是按顺序排列的,如果这块内存还未使用必定是一块链的起始
-                        {
-                            // 找到这块内存了
-                            node_prev->next = node_free->next;  // 从空闲链表中移除
-
-                            if (node_free->linear_last != node_free)  // 非自旋节点,证明下一个节点跟这个节点是连续的(一定存在下一个节点)
-                            {
-                                node_free->next->linear_last = node_free->linear_last;  // 使下一个节点指向连续内存块的最后一个节点
-                            }
-
-                            ret_ptr = ptr;  // 赋值用于下面判断realloc是否完成,不能ATOMIC域内直接return
-                            break;
-                        }
-
-                        node_prev = node_free->linear_last;
-                        node_free = node_free->linear_last->next;
-
-                        if ((size_t)node_free > (size_t)node)  // 遍历到需要内存后面了证明需要分配的内存不再空闲链表中
-                        {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        else if (need_count > 1)  // 需要两个及以上连续内存块
-        {
-            node = (fc_pool_header_t *)((uint8_t *)node + node->block_count * node_size);     // 直接定位到需要取出的内存块第一个节点位置
-            node_end = (fc_pool_header_t *)((uint8_t *)node + (need_count - 1) * node_size);  // 得到需要分配出去的最后一个节点位置
-
-            {
-                FC_ATOMIC_SCOPE
-                {
-                    // 遍历空闲链表看需要取出的内存块是否还在空闲链表中
-                    node_free = pool->list_free.next;
-                    node_prev = &(pool->list_free);
-                    while (node_free)  // 最坏O(n)
-                    {
-                        if ((size_t)node_free == (size_t)node && (size_t)(node_free->linear_last) >= (size_t)node_end)  // 链式内存是按顺序排列的,如果这块内存还未使用必定是一块链的起始,从这块内存开始到node_end都是空闲的
-                        {
-                            // 找到这块内存了
-                            node_prev->next = node_end->next;  // 从空闲链表中移除
-
-                            if (node_free->linear_last != node_end)  // 起始节点指向的最后一个连续节点不是分配出去的最后一个节点
-                            {
-                                node_end->next->linear_last = node_free->linear_last;  // 使下一个节点指向连续内存块的最后一个节点
-                            }
-
-                            ret_ptr = ptr;  // 赋值用于下面判断realloc是否完成,不能ATOMIC域内直接return
-                            break;
-                        }
-
-                        node_prev = node_free->linear_last;
-                        node_free = node_free->linear_last->next;
-
-                        if ((size_t)node_free > (size_t)node)  // 遍历到需要内存后面了证明需要分配的内存不再空闲链表中
-                        {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        else if (0 == need_count)  // 当前链上还有空闲内存仅仅修改标记大小
+        if (0 == need_count)  // 当前链上还有空闲内存仅仅修改标记大小
         {
             // 保持不变,仅仅修改标记大小
             fc_pool_mark_used(ptr, size);  // 标记实际使用大小
@@ -1044,26 +988,149 @@ void *fc_pool_realloc(fc_pool_t *pool, void *ptr, size_t size)
         else if (need_count < 0)  // 还要释放部分内存,正常使用比较少
         {
             node = (fc_pool_header_t *)((uint8_t *)node - (node->block_count + need_count) * node_size);  // 定位到需要释放的内存块第一个节点位置
+            {
+                node->next = NULL;  // 释放的内存块下一个节点指向NULL
+                node->link_flag = FC_POOL_TAG_END;
+                node->block_count = (-need_count);
+                node->used_size = node->block_count * node_size - sizeof(fc_pool_header_t);
+            }
             ret_ptr = fc_pool_skip_header(node);
             fc_pool_free(pool, ret_ptr);
             ret_ptr = ptr;  // 赋值用于下面判断realloc是否完成
         }
+        else if (pool->sort_free_enable)
+        {
+            if (1 == need_count)  // 只需要一个内存块
+            {
+                node = (fc_pool_header_t *)((uint8_t *)node + node->block_count * node_size);  // 直接定位到需要取出的内存块第一个节点位置
+                {
+                    FC_ATOMIC_SCOPE
+                    {
+                        // 遍历空闲链表看需要取出的内存块是否还在空闲链表中
+                        node_free = pool->list_free.next;
+                        node_prev = &(pool->list_free);
+                        while (node_free)  // 最坏O(n)
+                        {
+                            if ((size_t)node_free == (size_t)node)  // 链式内存是按顺序排列的,如果这块内存还未使用必定是一块链的起始
+                            {
+                                // 找到这块内存了
+                                node_prev->next = node_free->next;        // 从空闲链表中移除
+                                if (node_free->linear_last != node_free)  // 非自旋节点,证明下一个节点跟这个节点是连续的(一定存在下一个节点)
+                                {
+                                    node_free->next->linear_last = node_free->linear_last;  // 使下一个节点指向连续内存块的最后一个节点
+                                }
+                                pool->list_free.record_now -= need_count;
+                                pool->record_min = MIN(pool->record_min, pool->list_free.record_now);
+                                node->block_count += need_count;
+                                ret_ptr = ptr;  // 赋值用于下面判断realloc是否完成,不能ATOMIC域内直接return
+                                break;
+                            }
+                            node_prev = node_free->linear_last;
+                            node_free = node_free->linear_last->next;
+                            if ((size_t)node_free > (size_t)node)  // 遍历到需要内存后面了证明需要分配的内存不再空闲链表中
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            else if (need_count > 1)  // 需要两个及以上连续内存块
+            {
+                node = (fc_pool_header_t *)((uint8_t *)node + node->block_count * node_size);     // 直接定位到需要取出的内存块第一个节点位置
+                node_end = (fc_pool_header_t *)((uint8_t *)node + (need_count - 1) * node_size);  // 得到需要分配出去的最后一个节点位置
+                {
+                    FC_ATOMIC_SCOPE
+                    {
+                        // 遍历空闲链表看需要取出的内存块是否还在空闲链表中
+                        node_free = pool->list_free.next;
+                        node_prev = &(pool->list_free);
+                        while (node_free)  // 最坏O(n)
+                        {
+                            if ((size_t)node_free == (size_t)node && (size_t)(node_free->linear_last) >= (size_t)node_end)  // 链式内存是按顺序排列的,如果这块内存还未使用必定是一块链的起始,从这块内存开始到node_end都是空闲的
+                            {
+                                // 找到这块内存了
+                                node_prev->next = node_end->next;        // 从空闲链表中移除
+                                if (node_free->linear_last != node_end)  // 起始节点指向的最后一个连续节点不是分配出去的最后一个节点
+                                {
+                                    node_end->next->linear_last = node_free->linear_last;  // 使下一个节点指向连续内存块的最后一个节点
+                                }
+                                pool->list_free.record_now -= need_count;
+                                pool->record_min = MIN(pool->record_min, pool->list_free.record_now);
+                                node->block_count += need_count;
+                                ret_ptr = ptr;  // 赋值用于下面判断realloc是否完成,不能ATOMIC域内直接return
+                                break;
+                            }
+                            node_prev = node_free->linear_last;
+                            node_free = node_free->linear_last->next;
+                            if ((size_t)node_free > (size_t)node)  // 遍历到需要内存后面了证明需要分配的内存不再空闲链表中
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            // need_count >= 1,需要判断连续的内存块是否被使用,内存块未排序
+            size_t            count = 0;
+            fc_pool_header_t *node_part_front = &(pool->list_free);                             // 需要提取出的内存块的前一个节点
+            node_prev = (fc_pool_header_t *)((uint8_t *)node + node->block_count * node_size);  // 直接定位到需要取出的内存块第一个节点位置
+            node_end = (fc_pool_header_t *)((uint8_t *)node + (need_count - 1) * node_size);    // 得到需要分配出去的最后一个节点位置
+            FC_ATOMIC_SCOPE
+            {
+                node_free = pool->list_free.next;
+                while (node_free)
+                {
+                    if ((size_t)node_free >= (size_t)node_prev && (size_t)node_free <= (size_t)node_end)
+                    {
+                        count++;
+                        if (count >= need_count)
+                        {
+                            break;
+                        }
+                    }
+                    node_free = node_free->next;
+                }
+                if (count >= need_count)
+                {
+                    node_free = pool->list_free.next;  // 从头开始,一边遍历一边提取
+                    // 从链中提取出需要的内存块
+                    while (node_free)
+                    {
+                        if ((size_t)node_free >= (size_t)node_prev && (size_t)node_free <= (size_t)node_end)
+                        {
+                            node_part_front->next = node_free->next;                    // 从链中移除
+                            if ((size_t)(node_free->linear_last) != (size_t)node_free)  // 非自旋节点,证明下一个节点跟这个节点是连续的(一定存在下一个节点),无需判断(NULL != node->next)
+                            {
+                                node_free->next->linear_last = node_free->linear_last;  // 使下一个节点指向连续内存块的最后一个节点
+                            }
+                            count--;
+                            if (count <= 0)
+                            {
+                                pool->list_free.record_now -= need_count;
+                                pool->record_min = MIN(pool->record_min, pool->list_free.record_now);
+                                node->block_count += need_count;
+                                ret_ptr = ptr;  // 赋值用于下面判断realloc是否完成,不能ATOMIC域内直接return
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            node_part_front = node_free;
+                        }
+                        node_free = node_free->next;
+                    }
+                }
+            }
+        }
     }
-
     if (ret_ptr)  // 执行到这儿且不为空证明正常完成了realloc操作(基于原始内存)
     {
         fc_pool_mark_used(ret_ptr, size);  // 标记实际使用大小
     }
-    else
-    {
-        ret_ptr = fc_pool_malloc(pool, size);  // 重新分配内存
-        if (ret_ptr)                           // 分配成功
-        {
-            memcpy(ret_ptr, ptr, size);  // 复制内存
-            fc_pool_free(pool, ptr);     // 释放旧内存
-        }
-    }
-
     return ret_ptr;
 }
 
@@ -1221,6 +1288,18 @@ void *fc_header_fifo_pop(fc_pool_header_t *header)
     }
 
     return (void *)(node ? (uint8_t *)node + sizeof(fc_pool_header_t) : NULL);
+}
+
+/**
+ * @brief 从fifo used链表头部查看一条链式非连续内存块,O(1)复杂度
+ *
+ * @param header
+ * @return void*
+ */
+void *fc_header_fifo_peek(fc_pool_header_t *header)
+{
+    fc_assert(header != NULL);
+    return (void *)(header->next ? (uint8_t *)header->next + sizeof(fc_pool_header_t) : NULL);
 }
 
 #if 0
