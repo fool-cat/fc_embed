@@ -47,7 +47,7 @@ void fc_stp_base_heart(fc_stp_base_t *stp)
         return;
     }
     STP_HEART_ENTER(stp);
-    ++stp->heart_index;
+    ++(stp->heart_index);
     // 每次第一次进入就发出脉冲
     if (1 == stp->heart_index)
     {
@@ -64,18 +64,17 @@ void fc_stp_base_heart(fc_stp_base_t *stp)
         stp->s_now += stp->s_each_increase;  // 位置更改放到这里
         if (stp->s_now != stp->s_target)
         {
-            //>速度限制也丢给用户自己处理curve_func中自行确保速度不超过限制
             stp->curve_func(stp, FC_STP_CLAC_NEXT, &(stp->v_now));  // 重新计算下次速度
+            stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));    // 设置为实际需要的频率
         }
         else  // 到达指定位置了
         {
             stp->v_now = 0;                                        // 速度清零
             stp->s_last = stp->s_now;                              // 记录上一次的位置
-            stp->ioctl(stp, FC_STP_IOCTL_END);                     // 标记结束
             stp->curve_func(stp, FC_STP_CLAC_END, &(stp->v_now));  // 每次运行之后都会调用的API,用于清理曲线的数据之类的
+            stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));   // 设置为实际需要的频率
+            stp->ioctl(stp, FC_STP_IOCTL_END);                     // 标记结束
         }
-        // 调整fc_stp_isr调用频率,可以通过改变中断也可以通过固定频率调用改变pulse_scale实现
-        stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));  // 设置为实际需要的频率
     }
     STP_HEART_EXIT(stp);
 }
@@ -119,11 +118,11 @@ bool fc_stp_base_move(fc_stp_base_t *stp, fc_stp_move_t move_mode, int32_t s)
         fc_dev_assert(false);
         break;
     }
-    stp->s_last = stp->s_now;
-    if (stp->s_now != temp_target)
+    if (stp->s_now != temp_target)  // 基本一定会进这里,没进这里面运行到这儿也可以相当于移动0距离直接返回成功
     {
+        stp->s_last = stp->s_now;
         stp->ioctl(stp, FC_STP_IOCTL_ENABLE);  // 使能
-        if (temp_target > stp->s_now)          // 设定点处于当前正方向
+        if (temp_target >= stp->s_now)         // 设定点处于当前正方向
         {
             stp->ioctl(stp, FC_STP_IOCTL_DIR_POSITIVE);  // 设置为正方向
             stp->s_each_increase = 1;
@@ -133,20 +132,12 @@ bool fc_stp_base_move(fc_stp_base_t *stp, fc_stp_move_t move_mode, int32_t s)
             stp->ioctl(stp, FC_STP_IOCTL_DIR_NEGATIVE);  // 设置为负方向
             stp->s_each_increase = -1;
         }
-        STP_HEART_ENTER(stp);
+        // STP_HEART_ENTER(stp);
         stp->s_target = temp_target;
         stp->curve_func(stp, FC_STP_CLAC_START, &(stp->v_now));  // 需要在这里面计算曲线相关数据并且设置初始速度
         stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));     // 设置为实际需要的频率
         stp->ioctl(stp, FC_STP_IOCTL_START);                     // 标记启动
-        STP_HEART_EXIT(stp);
-    }
-    else
-    {
-        stp->v_now = 0;  // 速度清零
-        stp->s_target = temp_target;
-        stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));  // 设置为实际需要的频率
-        stp->ioctl(stp, FC_STP_IOCTL_START);                  // 标记启动
-        stp->ioctl(stp, FC_STP_IOCTL_END);                    // 标记结束
+        // STP_HEART_EXIT(stp);
     }
     // STP_HEART_EXIT(stp);
 
@@ -178,14 +169,13 @@ void fc_stp_base_stop(fc_stp_base_t *stp, bool safe_stop)
         {
             stp->s_target = stp->s_now;  // 设置为当前位置,心跳函数再次进入会无操作
             stp->v_now = 0;              // 速度清零
-            stp->heart_index = 0;        // 重置计数器
-            // stp->a_now = 0;             // 加速度设置为0
-
-            stp->ioctl(stp, FC_STP_IOCTL_EDGE_FREE);  // 释放为下一次做准备
             stp->curve_func(stp, FC_STP_CLAC_END, &(stp->v_now));
-
-            stp->s_target = stp->s_now;  // 再设置一次,防止中间产生过心跳调用
             stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));
+            stp->heart_index = 0;  // 重置计数器
+            // stp->a_now = 0;             // 加速度设置为0
+            stp->ioctl(stp, FC_STP_IOCTL_EDGE_FREE);  // 释放为下一次做准备
+            stp->s_target = stp->s_now;               // 再设置一次,防止中间产生过心跳调用
+            stp->ioctl(stp, FC_STP_IOCTL_END);        // 标记结束
         }
     }
     // STP_HEART_EXIT(stp);
@@ -216,9 +206,9 @@ bool fc_stp_base_arrived(fc_stp_base_t *stp)
 {
     fc_dev_assert(stp);
     // 此电机对象是针对点对点的运动,所以位置到达了速度及加速度都是0
-    if (stp->s_now == stp->s_target && stp->v_now == 0)  // 到达目标位置
+    if (stp->s_now == stp->s_target && 0 == stp->v_now)  // 到达目标位置
     {
-        // if (stp->a_now == 0)  // 电机本体不引入加速度,曲线对象中可能引入
+        // if (0 == stp->a_now)  // 电机本体不引入加速度,曲线对象中可能引入
         return true;
     }
     return false;
@@ -237,7 +227,7 @@ bool fc_stp_base_rectify_pos(fc_stp_base_t *stp, fc_stp_move_t move_mode, int32_
 {
     fc_dev_assert(stp);
     bool ret = false;
-    STP_ATOMIC_ENTER(stp);
+    // STP_ATOMIC_ENTER(stp);
     if (fc_stp_base_arrived(stp))
     {
         if (FC_STP_MOVE_TO == move_mode)
@@ -254,7 +244,7 @@ bool fc_stp_base_rectify_pos(fc_stp_base_t *stp, fc_stp_move_t move_mode, int32_
         }
         ret = true;
     }
-    STP_ATOMIC_EXIT(stp);
+    // STP_ATOMIC_EXIT(stp);
     return ret;
 }
 
