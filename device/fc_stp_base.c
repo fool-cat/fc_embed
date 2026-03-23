@@ -19,6 +19,7 @@ void fc_stp_base_init(fc_stp_base_t *stp, fc_stp_ioctl_t ioctl, fc_stp_freq_set_
 
     //> pulse_scale必须>=1,但是设置为1有要求,意味着发出动作脉冲后无需再次进入fc_stp_base_heart发出恢复脉冲(不调用stp->ioctl(stp, FC_STP_IOCTL_EDGE_FREE))
     stp->pulse_scale = 2;  // 默认为2,两次中断发出一个完整脉冲,除非发出脉冲后固定时间不用管动作释放脉冲可以设置为1
+    stp->curve_hold_steps = 0;
 }
 
 void fc_stp_base_catch_curve(fc_stp_base_t *stp, void *curve, fc_curve_func_t curve_func)
@@ -64,13 +65,25 @@ void fc_stp_base_heart(fc_stp_base_t *stp)
         stp->s_now += stp->s_each_increase;  // 位置更改放到这里
         if (stp->s_now != stp->s_target)
         {
-            stp->curve_func(stp, FC_STP_CLAC_NEXT, &(stp->v_now));  // 重新计算下次速度
-            stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));    // 设置为实际需要的频率
+            if (stp->curve_hold_steps > 0)
+            {
+                --(stp->curve_hold_steps);  // 平台段直接跳过本次重算
+            }
+            else
+            {
+                int32_t v_last = stp->v_now;
+                stp->curve_func(stp, FC_STP_CLAC_NEXT, &(stp->v_now));  // 重新计算下次速度
+                if (stp->v_now != v_last)
+                {
+                    stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));  // 仅在速度变化时才重设频率
+                }
+            }
         }
         else  // 到达指定位置了
         {
             stp->v_now = 0;                                        // 速度清零
             stp->s_last = stp->s_now;                              // 记录上一次的位置
+            stp->curve_hold_steps = 0;                             // 清除平台段跳算状态
             stp->curve_func(stp, FC_STP_CLAC_END, &(stp->v_now));  // 每次运行之后都会调用的API,用于清理曲线的数据之类的
             stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));   // 设置为实际需要的频率
             stp->ioctl(stp, FC_STP_IOCTL_END);                     // 标记结束
@@ -134,6 +147,7 @@ bool fc_stp_base_move(fc_stp_base_t *stp, fc_stp_move_t move_mode, int32_t s)
         }
         // STP_HEART_ENTER(stp);
         stp->s_target = temp_target;
+        stp->curve_hold_steps = 0;
         stp->curve_func(stp, FC_STP_CLAC_START, &(stp->v_now));  // 需要在这里面计算曲线相关数据并且设置初始速度
         stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));     // 设置为实际需要的频率
         stp->ioctl(stp, FC_STP_IOCTL_START);                     // 标记启动
@@ -161,6 +175,7 @@ void fc_stp_base_stop(fc_stp_base_t *stp, bool safe_stop)
         if (safe_stop)  // 缓停
         {
             STP_HEART_ENTER(stp);
+            stp->curve_hold_steps = 0;                              // 退出平台段跳算状态
             stp->curve_func(stp, FC_STP_CLAC_DEC, &(stp->v_now));  // 调用函数进入减速状态
             stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));
             STP_HEART_EXIT(stp);
@@ -172,6 +187,7 @@ void fc_stp_base_stop(fc_stp_base_t *stp, bool safe_stop)
             stp->curve_func(stp, FC_STP_CLAC_END, &(stp->v_now));
             stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));
             stp->heart_index = 0;  // 重置计数器
+            stp->curve_hold_steps = 0;
             // stp->a_now = 0;             // 加速度设置为0
             stp->ioctl(stp, FC_STP_IOCTL_EDGE_FREE);  // 释放为下一次做准备
             stp->s_target = stp->s_now;               // 再设置一次,防止中间产生过心跳调用

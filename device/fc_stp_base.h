@@ -122,6 +122,12 @@ extern "C"
 
         size_t pulse_scale;  // 脉冲比率,多少次心跳发出一次脉冲
         size_t heart_index;  // 心跳索引,每次心跳增加一次,到达pulse_scale时从头开始
+
+        // 曲线平台段优化:
+        // 当速度已经进入平台区且到减速点之前都不会变化时,
+        // 允许曲线实现把未来若干步的“无需重算”步数写到这里.
+        // base层会在这些步内跳过curve_func(NEXT)和freq_set调用.
+        size_t curve_hold_steps;
     };
 
     void fc_stp_base_init(fc_stp_base_t *stp, fc_stp_ioctl_t ioctl, fc_stp_freq_set_t freq_set, void *user);  // 初始化电机,绑定平台操作函数
