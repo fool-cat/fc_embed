@@ -71,12 +71,8 @@ void fc_stp_base_heart(fc_stp_base_t *stp)
             }
             else
             {
-                int32_t v_last = stp->v_now;
                 stp->curve_func(stp, FC_STP_CLAC_NEXT, &(stp->v_now));  // 重新计算下次速度
-                if (stp->v_now != v_last)
-                {
-                    stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));  // 仅在速度变化时才重设频率
-                }
+                stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));    // 仅在速度变化时才重设频率
             }
         }
         else  // 到达指定位置了
@@ -175,7 +171,7 @@ void fc_stp_base_stop(fc_stp_base_t *stp, bool safe_stop)
         if (safe_stop)  // 缓停
         {
             STP_HEART_ENTER(stp);
-            stp->curve_hold_steps = 0;                              // 退出平台段跳算状态
+            stp->curve_hold_steps = 0;                             // 退出平台段跳算状态
             stp->curve_func(stp, FC_STP_CLAC_DEC, &(stp->v_now));  // 调用函数进入减速状态
             stp->freq_set(stp, stp->v_now, &(stp->pulse_scale));
             STP_HEART_EXIT(stp);
