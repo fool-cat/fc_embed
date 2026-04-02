@@ -555,7 +555,7 @@ static uint64_t s_curve_accel_time_ns(int32_t v_max, int32_t v_start, int32_t s_
     return time_ns;
 }
 
-void s_curve_init_time(s_curve_t *curve, int32_t v_max, int32_t v_start, size_t ms)
+size_t s_curve_init_time(s_curve_t *curve, int32_t v_max, int32_t v_start, size_t ms)
 {
     fc_dev_assert(curve);
 
@@ -798,7 +798,7 @@ static uint64_t s_curve_tri_acc_accel_time_ns(int32_t v_max, int32_t v_start, in
     return time_ns;
 }
 
-void s_curve_tri_acc_init_time(s_curve_tri_acc_t *curve, int32_t v_max, int32_t v_start, size_t ms)
+size_t s_curve_tri_acc_init_time(s_curve_tri_acc_t *curve, int32_t v_max, int32_t v_start, size_t ms)
 {
     fc_dev_assert(curve);
 
