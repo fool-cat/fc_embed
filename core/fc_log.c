@@ -512,7 +512,13 @@ fc_weak size_t fc_log_write_lose_hook(fc_log_t *log, int len)
 fc_log_t default_log = {
     .write = log_write_default,
     .alloc = log_alloc_default,
-    .file_user = {0},  // 临时对象中才会用到这个内存,其他都不用
+    // .file_user = {0},  // 临时对象中才会用到这个内存,其他都不用
+    .file_user = {
+        .log = &default_log,  // 指向默认log对象自身
+        .mem = {0},
+        .block_write = 0,
+        .total_write = 0,
+        .mem_chain = NULL},
     .f = {0},
     .level = FC_LOG_LEVEL_ALL,
     .merge = false,  // 默认不需要推迟输出
@@ -536,7 +542,7 @@ fc_pool_t fc_log_pool;  // log组件使用的内存池
 
 void fc_log_init(void)
 {
-    default_log.file_user.log = &default_log;  // 根对象初始化的时候必须将此指针指向自身!!!
+    // default_log.file_user.log = &default_log;  // 根对象初始化的时候必须将此指针指向自身!!!
 
     // static size_t log_pool_mem[FC_CALC_POOL_MEM_SIZE(FC_LOG_ALLOC_BLOCK_SIZE, 64) / sizeof(size_t)];                         // 内存池,64块内存,每块FC_LOG_ALLOC_BLOCK_SIZE字节
     static size_t log_pool_mem[FC_CALC_POOL_USABLE_SIZE(FC_LOG_ALLOC_BLOCK_SIZE, FC_LOG_POOL_TOTAL_SIZE) / sizeof(size_t)];  // 内存池,每块FC_LOG_ALLOC_BLOCK_SIZE字节,至少包含FC_LOG_POOL_TOTAL_SIZE字节的内存

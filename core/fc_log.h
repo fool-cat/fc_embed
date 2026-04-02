@@ -255,7 +255,7 @@ extern fc_log_t default_log;  // 默认log对象
         #define FC_LOG_OBJ (default_log)
     #endif
 
-static fc_log_t const *const scope_log_ptr = NULL;  // 强制空指针!!!,强烈建议O1及以上优化可以省非常多空间
+static fc_log_t const *const scope_log_ptr = NULL;  // 强制空指针!!!,强烈建议O1及以上优化可以优化掉这个flash占用
 
     #ifndef FC_LOG_LOSE_HOOK
         /* #define FC_LOG_LOSE_HOOK(exp, log, len) (void)(0) */
@@ -323,8 +323,16 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 
 #if FC_LOG_ENABLE
 
-    // 统一实现:C和C++模式都不接受参数,避免兼容性问题
     // FC_LOG_MERGE将作用域内的所有log输出合并为一次输出,大写不带括号,避免与函数混淆
+    /**
+     * 例:
+     * FC_LOG_MERGE
+     * {
+     *      log_info("xxx");
+     *      log_debug("xxx");
+     * }
+     *  info和debug会在出作用域的时候才一并输出
+     */
     #define FC_LOG_MERGE                                   \
         fc_using(fc_log_t SAFE_NAME(log_obj) = FC_LOG_OBJ, \
                  *scope_log_ptr = &SAFE_NAME(log_obj),     \
