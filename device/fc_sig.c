@@ -7,7 +7,7 @@ void fc_sig_init(fc_sig_t *sig, fc_sig_ioctl_t ioctl, void *user)
     fc_dev_assert(ioctl != NULL);
     // fc_dev_assert(name != NULL);//> name可以为空
 
-    SIGNAL_ATOMIC_ENTER();
+    SIGNAL_ATOMIC_ENTER(sig);
 
     sig->event = FC_SIGNAL_EVENT_FREE;
     // 循环清零
@@ -25,7 +25,7 @@ void fc_sig_init(fc_sig_t *sig, fc_sig_ioctl_t ioctl, void *user)
     sig->state_steady = sig->ioctl(sig, FC_SIGNAL_IOCTL_GET_STATE);
     sig->state_last = sig->state_steady;
 
-    SIGNAL_ATOMIC_EXIT();
+    SIGNAL_ATOMIC_EXIT(sig);
 }
 
 /**
@@ -39,11 +39,11 @@ void fc_sig_catch_filter(fc_sig_t *sig, void *filter, fc_sig_filter_t filter_fun
 {
     fc_dev_assert(sig != NULL);
 
-    SIGNAL_ATOMIC_ENTER();
+    SIGNAL_ATOMIC_ENTER(sig);
     sig->state_steady = sig->state_last;
     sig->filter = filter;
     sig->filter_func = filter_func;
-    SIGNAL_ATOMIC_EXIT();
+    SIGNAL_ATOMIC_EXIT(sig);
 }
 
 //+********************************* 信号状态机任务 **********************************/
@@ -52,7 +52,7 @@ void fc_sig_heart(fc_sig_t *sig)
     fc_dev_assert(sig != NULL);
     fc_dev_assert(sig->ioctl != NULL);
 
-    SIGNAL_HEART_ENTER();
+    SIGNAL_HEART_ENTER(sig);
 
     fc_sig_state_t now_state = sig->ioctl(sig, FC_SIGNAL_IOCTL_GET_STATE);
 
@@ -99,7 +99,7 @@ void fc_sig_heart(fc_sig_t *sig)
 
     sig->state_last = sig->state_steady;  //> 记录上一次状态
 
-    SIGNAL_HEART_EXIT();
+    SIGNAL_HEART_EXIT(sig);
 }
 
 void fc_sig_trigger(fc_sig_t *sig, fc_sig_trigger_t func_trigger, fc_sig_state_t state_trigger)
@@ -107,29 +107,25 @@ void fc_sig_trigger(fc_sig_t *sig, fc_sig_trigger_t func_trigger, fc_sig_state_t
     fc_dev_assert(sig != NULL);
     // fc_dev_assert(func_trigger != NULL); // 可以为空表示不需要触发
 
-    SIGNAL_ATOMIC_ENTER();
+    SIGNAL_ATOMIC_ENTER(sig);
 
     sig->event = FC_SIGNAL_EVENT_FREE;
 
     sig->func_trigger = func_trigger;
-    if (NULL == func_trigger)
+    if (NULL != func_trigger)
     {
-        goto __exit;
+        if (state_trigger == FC_SIGNAL_STATE_UNDEFINED)
+        {
+            sig->event = FC_SIGNAL_EVENT_EDGE_BOTH_TRIGGER;
+        }
+        else
+        {
+            sig->state_trigger = state_trigger;
+            sig->event = FC_SIGNAL_EVENT_EDGE_TRIGGER;
+        }
     }
 
-    if (state_trigger == FC_SIGNAL_STATE_UNDEFINED)
-    {
-        sig->event = FC_SIGNAL_EVENT_EDGE_BOTH_TRIGGER;
-    }
-    else
-    {
-        sig->state_trigger = state_trigger;
-        sig->event = FC_SIGNAL_EVENT_EDGE_TRIGGER;
-    }
-
-__exit:
-    (void)0;  // 防止报错
-    SIGNAL_ATOMIC_EXIT();
+    SIGNAL_ATOMIC_EXIT(sig);
 }
 
 fc_sig_state_t fc_sig_state(fc_sig_t *sig)

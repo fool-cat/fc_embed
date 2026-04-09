@@ -22,6 +22,10 @@
     #define fc_dev_assert(exp) fc_assert(exp)
 #endif  // !fc_dev_assert
 
+#ifndef FC_ATOMIC_SCOPE
+    #define FC_ATOMIC_SCOPE
+#endif
+
 //! 原子操作中不允许调用阻塞函数,也不能直接退出函数,建议支持嵌套
 #ifndef SIGNAL_ATOMIC_ENTER
     #define SIGNAL_ATOMIC_ENTER(obj) \
