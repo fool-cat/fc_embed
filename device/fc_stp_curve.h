@@ -22,7 +22,10 @@ extern "C"
         int32_t v_target;      // 设定速度
         int32_t s_acc_target;  // 实际需要的长度
 
-        int32_t a_now;  // 恒定加速度,不需要用户设置
+        int32_t a_now;        // 前段每步速度增量
+        int32_t a_back;       // 后段每步速度增量
+        int32_t s_acc_front;  // 前段长度
+        int32_t s_acc_back;   // 后段长度
 
         int32_t v_max;    // 最大速度
         int32_t v_start;  // 启动速度,结束速度

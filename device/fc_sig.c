@@ -71,9 +71,9 @@ void fc_sig_heart(fc_sig_t *sig)
         break;
 
     case FC_SIGNAL_EVENT_EDGE_TRIGGER:
-        fc_dev_assert(sig->func_trigger != NULL);
         if (sig->state_last != sig->state_steady && sig->state_trigger == sig->state_steady)  // 状态满足
         {
+            fc_dev_assert(sig->func_trigger != NULL);
             if (FC_SIGNAL_TRIGGER_RET_END == sig->func_trigger(sig))  // 执行一次触发函数,如果触发函数返回结束表示不需要再触发了,否则会持续在改变时触发
             {
                 sig->event = FC_SIGNAL_EVENT_FREE;
@@ -82,9 +82,9 @@ void fc_sig_heart(fc_sig_t *sig)
         break;
 
     case FC_SIGNAL_EVENT_EDGE_BOTH_TRIGGER:
-        fc_dev_assert(sig->func_trigger != NULL);
         if (sig->state_last != sig->state_steady)  // 状态满足
         {
+            fc_dev_assert(sig->func_trigger != NULL);
             if (FC_SIGNAL_TRIGGER_RET_END == sig->func_trigger(sig))  // 执行一次触发函数,如果触发函数返回结束表示不需要再触发了,否则会持续在改变时触发
             {
                 sig->event = FC_SIGNAL_EVENT_FREE;

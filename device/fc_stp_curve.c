@@ -6,6 +6,9 @@ static inline void     stp_curve_set_hold_steps(fc_stp_base_t *stp, int32_t s_re
 static inline int32_t  stp_div_ceil_i64(int64_t n, int64_t d);
 static inline uint64_t stp_curve_step_time_ns(int32_t v);
 static int32_t         stp_curve_find_s_acc_by_time(uint64_t target_ns, int32_t v_max, int32_t v_start, uint64_t (*calc_time_ns)(int32_t, int32_t, int32_t));
+static void            ladder_curve_set_target(ladder_curve_t *curve, int32_t v_target, int32_t s_acc_target);
+static inline int32_t  ladder_curve_step_delta(const ladder_curve_t *curve, int32_t s_progress);
+static inline int32_t  ladder_curve_speed_by_span(int32_t v_start, int32_t v_target, int32_t s_acc, int32_t s_progress);
 static uint64_t        ladder_curve_accel_time_ns(int32_t v_max, int32_t v_start, int32_t s_acc);
 static uint64_t        trapezoid_curve_accel_time_ns(int32_t v_max, int32_t v_start, int32_t s_acc);
 static uint64_t        s_curve_accel_time_ns(int32_t v_max, int32_t v_start, int32_t s_acc);
@@ -103,14 +106,121 @@ void ladder_curve_init(ladder_curve_t *curve, int32_t v_max, int32_t v_start, in
     curve->v_max = v_max;
     curve->v_start = v_start;
     curve->s_acc = s_acc;
+    ladder_curve_set_target(curve, v_max, s_acc);
+}
 
-    int32_t v_diff = curve->v_max - curve->v_start;
-    v_diff = FC_STP_ABS(v_diff);
+static void ladder_curve_set_target(ladder_curve_t *curve, int32_t v_target, int32_t s_acc_target)
+{
+    int32_t v_diff;
 
-    // 加速度是恒定的,理论只需要计算一次
-    curve->a_now = (v_diff + curve->s_acc - 1) / curve->s_acc;  // 向上取整
-    // 限制至少为1
+    fc_dev_assert(curve);
+
+    curve->v_target = v_target;
+    if (curve->v_target < curve->v_start)
+    {
+        curve->v_target = curve->v_start;
+    }
+    if (curve->v_target > curve->v_max)
+    {
+        curve->v_target = curve->v_max;
+    }
+
+    curve->s_acc_target = s_acc_target < 0 ? 0 : s_acc_target;
+    v_diff = curve->v_target - curve->v_start;
+
+    if (curve->s_acc_target <= 0 || v_diff <= 0)
+    {
+        curve->a_now = 0;
+        curve->a_back = 0;
+        curve->s_acc_front = 0;
+        curve->s_acc_back = curve->s_acc_target;
+        return;
+    }
+
+    // 把离散加速段拆成前后两段:
+    // 前段使用较大的增量 a_now, 后段使用较小的增量 a_back,
+    // 这样总增量可以精确落在(v_target - v_start),避免 ceil 后提前到顶.
+    curve->a_now = stp_div_ceil_i64((int64_t)v_diff, (int64_t)curve->s_acc_target);
     curve->a_now = curve->a_now < 1 ? 1 : curve->a_now;
+    curve->a_back = curve->a_now - 1;
+    curve->a_back = curve->a_back < 0 ? 0 : curve->a_back;
+
+    curve->s_acc_front = v_diff - curve->a_back * curve->s_acc_target;
+    if (curve->s_acc_front < 0)
+    {
+        curve->s_acc_front = 0;
+    }
+    if (curve->s_acc_front > curve->s_acc_target)
+    {
+        curve->s_acc_front = curve->s_acc_target;
+    }
+    curve->s_acc_back = curve->s_acc_target - curve->s_acc_front;
+}
+
+static inline int32_t ladder_curve_step_delta(const ladder_curve_t *curve, int32_t s_progress)
+{
+    fc_dev_assert(curve);
+
+    if (s_progress <= 0 || s_progress > curve->s_acc_target)
+    {
+        return 0;
+    }
+    if (s_progress <= curve->s_acc_front)
+    {
+        return curve->a_now;
+    }
+    return curve->a_back;
+}
+
+static inline int32_t ladder_curve_speed_by_span(int32_t v_start, int32_t v_target, int32_t s_acc, int32_t s_progress)
+{
+    int32_t v_diff;
+    int32_t a_front;
+    int32_t a_back;
+    int32_t s_acc_front;
+    int32_t s_front_now;
+    int32_t s_back_now;
+    int64_t v_now;
+
+    if (v_target <= v_start || s_acc <= 0 || s_progress <= 0)
+    {
+        return v_start;
+    }
+
+    if (s_progress >= s_acc)
+    {
+        return v_target;
+    }
+
+    v_diff = v_target - v_start;
+    a_front = stp_div_ceil_i64((int64_t)v_diff, (int64_t)s_acc);
+    a_front = a_front < 1 ? 1 : a_front;
+    a_back = a_front - 1;
+    a_back = a_back < 0 ? 0 : a_back;
+
+    s_acc_front = v_diff - a_back * s_acc;
+    if (s_acc_front < 0)
+    {
+        s_acc_front = 0;
+    }
+    if (s_acc_front > s_acc)
+    {
+        s_acc_front = s_acc;
+    }
+
+    s_front_now = s_progress < s_acc_front ? s_progress : s_acc_front;
+    s_back_now = s_progress - s_front_now;
+    v_now = (int64_t)v_start + (int64_t)s_front_now * (int64_t)a_front + (int64_t)s_back_now * (int64_t)a_back;
+
+    if (v_now < v_start)
+    {
+        return v_start;
+    }
+    if (v_now > v_target)
+    {
+        return v_target;
+    }
+    return (int32_t)v_now;
 }
 
 static uint64_t ladder_curve_accel_time_ns(int32_t v_max, int32_t v_start, int32_t s_acc)
@@ -123,11 +233,8 @@ static uint64_t ladder_curve_accel_time_ns(int32_t v_max, int32_t v_start, int32
     for (int32_t i = 0; i < s_acc; ++i)
     {
         time_ns += stp_curve_step_time_ns(v_now);
-        if (v_now < curve.v_max)
-        {
-            v_now += curve.a_now;
-            v_now = v_now > curve.v_max ? curve.v_max : v_now;
-        }
+        v_now += ladder_curve_step_delta(&curve, i + 1);
+        v_now = v_now > curve.v_target ? curve.v_target : v_now;
     }
 
     return time_ns;
@@ -146,21 +253,22 @@ size_t ladder_curve_init_time(ladder_curve_t *curve, int32_t v_max, int32_t v_st
 
 static inline void ladder_calc_start(fc_stp_base_t *stp, ladder_curve_t *curve, int32_t *v_start)
 {
-    int32_t s_diff = stp->s_target - stp->s_now;
-    s_diff = FC_STP_ABS(s_diff);
+    int32_t s_total = FC_STP_ABS(stp->s_target - stp->s_now);
+    int32_t s_acc_target;
+    int32_t v_target;
 
     stp->s_last = stp->s_now;  // 记录上一次的位置
 
     // 距离能够覆盖加减速段,速度曲线是梯形
-    if ((s_diff >> 1) > curve->s_acc)
+    if ((s_total >> 1) > curve->s_acc)
     {
-        curve->s_acc_target = curve->s_acc;
-        curve->v_target = curve->v_max;
+        ladder_curve_set_target(curve, curve->v_max, curve->s_acc);
     }
     else  // 距离可能不足以覆盖加减速段,速度曲线三角形(等于也属于三角形)
     {
-        curve->s_acc_target = s_diff / 2;
-        curve->v_target = curve->v_start + curve->a_now * s_diff / 2;
+        s_acc_target = s_total >> 1;
+        v_target = ladder_curve_speed_by_span(curve->v_start, curve->v_max, curve->s_acc, s_acc_target);
+        ladder_curve_set_target(curve, v_target, s_acc_target);
     }
 
     *v_start = curve->v_start;  // 速度初始化为启动速度
@@ -168,43 +276,78 @@ static inline void ladder_calc_start(fc_stp_base_t *stp, ladder_curve_t *curve, 
 
 static inline int32_t ladder_calc_stop_steps(ladder_curve_t *curve, int32_t v_now)
 {
+    int32_t s_stop;
+    int64_t v_front_end;
+
     fc_dev_assert(curve);
 
     if (v_now <= curve->v_start)
     {
         return 0;
     }
+    if (curve->s_acc_target <= 0)
+    {
+        return 0;
+    }
+    if (v_now >= curve->v_target)
+    {
+        return curve->s_acc_target;
+    }
 
-    return stp_div_ceil_i64((int64_t)(v_now - curve->v_start), (int64_t)curve->a_now);
+    v_front_end = (int64_t)curve->v_start + (int64_t)curve->s_acc_front * (int64_t)curve->a_now;
+    if ((int64_t)v_now <= v_front_end || curve->a_back <= 0)
+    {
+        s_stop = stp_div_ceil_i64((int64_t)(v_now - curve->v_start), (int64_t)curve->a_now);
+    }
+    else
+    {
+        s_stop = curve->s_acc_front + stp_div_ceil_i64((int64_t)v_now - v_front_end, (int64_t)curve->a_back);
+    }
+
+    if (s_stop < 0)
+    {
+        return 0;
+    }
+    if (s_stop > curve->s_acc_target)
+    {
+        return curve->s_acc_target;
+    }
+    return s_stop;
 }
 
 static inline void ladder_calc_next(fc_stp_base_t *stp, ladder_curve_t *curve, int32_t *v_next)
 {
-    int32_t s_diff = stp->s_target - stp->s_now;
-    s_diff = FC_STP_ABS(s_diff);
-    int32_t s_stop = ladder_calc_stop_steps(curve, *v_next);
+    int32_t s_remain = FC_STP_ABS(stp->s_target - stp->s_now);
+    int32_t s_moved = FC_STP_ABS(stp->s_now - stp->s_last);
+    int32_t delta;
+
     stp->curve_hold_steps = 0;
-    if (s_diff <= s_stop)  // 根据当前速度动态判断是否进入减速阶段
+
+    if (s_remain < curve->s_acc_target)  // 固定减速段,不再每次反推刹车距离
     {
-        // 减速阶段
-        *v_next -= curve->a_now;
+        delta = ladder_curve_step_delta(curve, s_remain + 1);
+        *v_next -= delta;
     }
     else  // 加速或者匀速阶段
     {
-        *v_next += curve->a_now;
+        delta = ladder_curve_step_delta(curve, s_moved);
+        *v_next += delta;
     }
 
     // 限定速度
     *v_next = *v_next > curve->v_target ? curve->v_target : (*v_next < curve->v_start ? curve->v_start : *v_next);  // 限制速度
 
-    if (*v_next == curve->v_target && s_diff > s_stop)
+    if (*v_next == curve->v_target && s_remain > curve->s_acc_target)
     {
-        stp_curve_set_hold_steps(stp, s_diff, s_stop);
+        stp_curve_set_hold_steps(stp, s_remain, curve->s_acc_target);
     }
 }
 
 static inline void ladder_calc_end(fc_stp_base_t *stp, ladder_curve_t *curve, int32_t *v_now)
 {
+    (void)stp;
+    (void)curve;
+    (void)v_now;
     return;
 }
 
