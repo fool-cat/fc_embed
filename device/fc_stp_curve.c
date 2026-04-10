@@ -96,6 +96,14 @@ static int32_t stp_curve_find_s_acc_by_time(
 }
 
 //+********************************* 对称梯形曲线初始化 **********************************/
+/**
+ * @brief 初始化对称梯形速度曲线
+ *
+ * @param curve
+ * @param v_max 最大速度
+ * @param v_start 启动速度
+ * @param s_acc 加速步数
+ */
 void ladder_curve_init(ladder_curve_t *curve, int32_t v_max, int32_t v_start, int32_t s_acc)
 {
     fc_dev_assert(curve);
@@ -240,6 +248,15 @@ static uint64_t ladder_curve_accel_time_ns(int32_t v_max, int32_t v_start, int32
     return time_ns;
 }
 
+/**
+ * @brief 按预期加速时间初始化对称梯形速度曲线
+ *
+ * @param curve
+ * @param v_max 最大速度
+ * @param v_start 启动速度
+ * @param ms 预期加速时间(ms)
+ * @return size_t 实际加速步数
+ */
 size_t ladder_curve_init_time(ladder_curve_t *curve, int32_t v_max, int32_t v_start, size_t ms)
 {
     fc_dev_assert(curve);
@@ -368,6 +385,13 @@ static inline void ladder_calc_dec(fc_stp_base_t *stp, ladder_curve_t *curve, in
 
 //+*********************************  **********************************/
 
+/**
+ * @brief 对称梯形速度曲线计算函数
+ *
+ * @param stp 已绑定曲线对象的步进电机基础对象
+ * @param calc_type 曲线计算阶段
+ * @param v_next 输入或输出的下一速度值
+ */
 void ladder_curve_func(fc_stp_base_t *stp, fc_stp_calc_t calc_type, int32_t *v_next)
 {
     fc_dev_assert(stp);
@@ -462,6 +486,14 @@ static inline void stp_curve_set_hold_steps(fc_stp_base_t *stp, int32_t s_remain
     stp->curve_hold_steps = (size_t)(s_remain - s_dec - 1);
 }
 
+/**
+ * @brief 初始化标准梯形速度曲线
+ *
+ * @param curve
+ * @param v_max 最大速度
+ * @param v_start 启动速度
+ * @param s_acc 加速步数
+ */
 void trapezoid_curve_init(trapezoid_curve_t *curve, int32_t v_max, int32_t v_start, int32_t s_acc)
 {
     fc_dev_assert(curve);
@@ -502,6 +534,15 @@ static uint64_t trapezoid_curve_accel_time_ns(int32_t v_max, int32_t v_start, in
     return time_ns;
 }
 
+/**
+ * @brief 按预期加速时间初始化标准梯形速度曲线
+ *
+ * @param curve
+ * @param v_max 最大速度
+ * @param v_start 启动速度
+ * @param ms 预期加速时间(ms)
+ * @return size_t 实际加速步数
+ */
 size_t trapezoid_curve_init_time(trapezoid_curve_t *curve, int32_t v_max, int32_t v_start, size_t ms)
 {
     fc_dev_assert(curve);
@@ -592,6 +633,13 @@ static inline void trapezoid_calc_dec(fc_stp_base_t *stp, trapezoid_curve_t *cur
     }
 }
 
+/**
+ * @brief 标准梯形速度曲线计算函数
+ *
+ * @param stp 已绑定曲线对象的步进电机基础对象
+ * @param calc_type 曲线计算阶段
+ * @param v_next 输入或输出的下一速度值
+ */
 void trapezoid_curve_func(fc_stp_base_t *stp, fc_stp_calc_t calc_type, int32_t *v_next)
 {
     fc_dev_assert(stp);
@@ -665,6 +713,14 @@ static inline uint32_t s_curve_ease_q15(int32_t progress, int32_t total)
     return s_curve_u32_clamp(y_q15, 0, S_CURVE_Q_ONE);
 }
 
+/**
+ * @brief 初始化平滑型 S 曲线
+ *
+ * @param curve
+ * @param v_max 最大速度
+ * @param v_start 启动速度
+ * @param s_acc 加速步数
+ */
 void s_curve_init(s_curve_t *curve, int32_t v_max, int32_t v_start, int32_t s_acc)
 {
     fc_dev_assert(curve);
@@ -698,6 +754,15 @@ static uint64_t s_curve_accel_time_ns(int32_t v_max, int32_t v_start, int32_t s_
     return time_ns;
 }
 
+/**
+ * @brief 按预期加速时间初始化平滑型 S 曲线
+ *
+ * @param curve
+ * @param v_max 最大速度
+ * @param v_start 启动速度
+ * @param ms 预期加速时间(ms)
+ * @return size_t 实际加速步数
+ */
 size_t s_curve_init_time(s_curve_t *curve, int32_t v_max, int32_t v_start, size_t ms)
 {
     fc_dev_assert(curve);
@@ -835,6 +900,13 @@ static inline void s_curve_calc_dec(fc_stp_base_t *stp, s_curve_t *curve, int32_
     }
 }
 
+/**
+ * @brief 平滑型 S 曲线计算函数
+ *
+ * @param stp 已绑定曲线对象的步进电机基础对象
+ * @param calc_type 曲线计算阶段
+ * @param v_next 输入或输出的下一速度值
+ */
 void s_curve_func(fc_stp_base_t *stp, fc_stp_calc_t calc_type, int32_t *v_next)
 {
     fc_dev_assert(stp);
@@ -908,6 +980,14 @@ static inline uint32_t s_curve_tri_acc_ease_q15(int32_t progress, int32_t total)
     }
 }
 
+/**
+ * @brief 初始化三角加速度型 S 曲线
+ *
+ * @param curve
+ * @param v_max 最大速度
+ * @param v_start 启动速度
+ * @param s_acc 加速步数
+ */
 void s_curve_tri_acc_init(s_curve_tri_acc_t *curve, int32_t v_max, int32_t v_start, int32_t s_acc)
 {
     fc_dev_assert(curve);
@@ -941,6 +1021,15 @@ static uint64_t s_curve_tri_acc_accel_time_ns(int32_t v_max, int32_t v_start, in
     return time_ns;
 }
 
+/**
+ * @brief 按预期加速时间初始化三角加速度型 S 曲线
+ *
+ * @param curve
+ * @param v_max 最大速度
+ * @param v_start 启动速度
+ * @param ms 预期加速时间(ms)
+ * @return size_t 实际加速步数
+ */
 size_t s_curve_tri_acc_init_time(s_curve_tri_acc_t *curve, int32_t v_max, int32_t v_start, size_t ms)
 {
     fc_dev_assert(curve);
@@ -1073,6 +1162,13 @@ static inline void s_curve_tri_acc_calc_dec(fc_stp_base_t *stp, s_curve_tri_acc_
     }
 }
 
+/**
+ * @brief 三角加速度型 S 曲线计算函数
+ *
+ * @param stp 已绑定曲线对象的步进电机基础对象
+ * @param calc_type 曲线计算阶段
+ * @param v_next 输入或输出的下一速度值
+ */
 void s_curve_tri_acc_func(fc_stp_base_t *stp, fc_stp_calc_t calc_type, int32_t *v_next)
 {
     fc_dev_assert(stp);

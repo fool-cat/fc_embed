@@ -22,6 +22,13 @@ void fc_stp_base_init(fc_stp_base_t *stp, fc_stp_ioctl_t ioctl, fc_stp_freq_set_
     stp->curve_hold_steps = 0;
 }
 
+/**
+ * @brief 绑定速度曲线对象和曲线计算函数
+ *
+ * @param stp
+ * @param curve 曲线对象指针
+ * @param curve_func 曲线计算函数指针
+ */
 void fc_stp_base_catch_curve(fc_stp_base_t *stp, void *curve, fc_curve_func_t curve_func)
 {
     fc_dev_assert(stp);
