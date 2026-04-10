@@ -332,6 +332,7 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
      *      log_debug("xxx");
      * }
      *  info和debug会在出作用域的时候才一并输出
+     * FC_LOG_MERGE本质上会展开为只执行一次的for循环,需要在其中提前退出需要使用break或continue,不能在其中直接return
      */
     #define FC_LOG_MERGE                                   \
         fc_using(fc_log_t SAFE_NAME(log_obj) = FC_LOG_OBJ, \
@@ -434,7 +435,9 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
         } while (0)
 
 #else
-    #define FC_LOG_MERGE  // 空定义即可
+    // 保证与原始语义一致
+    #define FC_LOG_MERGE \
+        fc_using(size_t SAFE_NAME(unused) = 0)
 
 // clang-format off
     #define fc_log_format(text, level, fmt, ...)    ((void)0)
