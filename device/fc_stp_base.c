@@ -42,8 +42,10 @@ void fc_stp_base_catch_curve(fc_stp_base_t *stp, void *curve, fc_curve_func_t cu
  * @brief 步进电机基础心跳函数
  * 这里面不涉及方向的更改,只是简单的位置于速度设置,方向只需要在启动之前更改完毕
  * @param stp
+ * @return true 本次心跳结束后允许顶层进行反馈同步/位置纠偏
+ * @return false 本次心跳仍处于单步脉冲过程,不建议顶层介入
  */
-void fc_stp_base_heart(fc_stp_base_t *stp)
+bool fc_stp_base_heart(fc_stp_base_t *stp)
 {
     fc_dev_assert(stp);
     fc_dev_assert(stp->ioctl);
@@ -52,8 +54,10 @@ void fc_stp_base_heart(fc_stp_base_t *stp)
 
     if (stp->s_now == stp->s_target)  // 到达目标位置
     {
-        return;
+        return true;
     }
+
+    bool sync_ready = false;
     STP_HEART_ENTER(stp);
     ++(stp->heart_index);
     // 每次第一次进入就发出脉冲
@@ -69,6 +73,7 @@ void fc_stp_base_heart(fc_stp_base_t *stp)
     if (stp->heart_index >= stp->pulse_scale)  // 计数到最大值,进入下一次周期,更改速度
     {
         stp->heart_index = 0;
+        sync_ready = true;
         stp->s_now += stp->s_each_increase;  // 位置更改放到这里
         if (stp->s_now != stp->s_target)
         {
@@ -93,6 +98,8 @@ void fc_stp_base_heart(fc_stp_base_t *stp)
         }
     }
     STP_HEART_EXIT(stp);
+
+    return sync_ready;
 }
 
 /**

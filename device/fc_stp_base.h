@@ -134,7 +134,7 @@ extern "C"
 
     void fc_stp_base_catch_curve(fc_stp_base_t *stp, void *curve, fc_curve_func_t curve_func);
 
-    void fc_stp_base_heart(fc_stp_base_t *stp);
+    bool fc_stp_base_heart(fc_stp_base_t *stp);
 
     bool fc_stp_base_move(fc_stp_base_t *stp, fc_stp_move_t move_mode, int32_t s);
 
