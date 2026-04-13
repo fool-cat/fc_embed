@@ -1,0 +1,4 @@
+interface:
+  display_name: "Host Test Guard"
+  short_description: "Constrain host-side validation to test/host and Linux or WSL flows"
+  default_prompt: "Before doing host-side validation in this repository, use `test/host` as the canonical entry. Keep supported build paths limited to `build_linux` and `build_wsl`, prefer Linux native or WSL verification, and avoid reviving `test/core` as the primary host test path."
