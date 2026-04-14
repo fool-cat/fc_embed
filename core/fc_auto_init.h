@@ -87,9 +87,9 @@ extern "C"
     #define ELEM_EXPORT_PTR(section_name, elem) \
         static const fc_typeof(&elem) fc_used fc_section(FC_STRINGFY(section_name)) FC_CONNECT(section_name, _, elem, _, __LINE__) = &elem
 
-    #define section_info(section_name, type_ptr, count)                        \
-        SECTION_EXTERN(section_name);                                          \
-        type_ptr = (fc_typeof(type_ptr))FC_CONNECT(__start_, section_name);    \
+    #define section_info(section_name, type_ptr, count)                     \
+        SECTION_EXTERN(section_name);                                       \
+        type_ptr = (fc_typeof(type_ptr))FC_CONNECT(__start_, section_name); \
         count = (size_t)(FC_CONNECT(__stop_, section_name) - FC_CONNECT(__start_, section_name)) / sizeof(fc_typeof(*type_ptr))
 
 #else /* Unkown Compiler */

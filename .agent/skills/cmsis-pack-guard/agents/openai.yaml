@@ -1,0 +1,4 @@
+interface:
+  display_name: "CMSIS Pack Guard"
+  short_description: "Guard CMSIS-Pack pdsc and build flow"
+  default_prompt: "Use $cmsis-pack-guard to update fool_cat.fc_embed.pdsc, gen_pack.sh, and pack workflows safely."
