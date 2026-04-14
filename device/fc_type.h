@@ -18,6 +18,8 @@
 
 #include "fc_config.h"
 
+#include "../core/fc_arch.h"  // 引入原子语义
+
 #ifndef fc_time_t
     #define fc_time_t int64_t
 #endif  // !fc_time_t

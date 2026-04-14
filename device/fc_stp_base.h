@@ -13,6 +13,8 @@
 #ifndef __FC_STEPPER_H_
 #define __FC_STEPPER_H_
 
+#include <stddef.h>
+
 #include "fc_config.h"
 #include "../core/fc_arch.h"
 
