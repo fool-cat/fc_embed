@@ -409,6 +409,49 @@ int fc_log_fwrite(fc_log_t *log, fc_log_level_t level, const void *buff, int len
 }
 
 /**
+ * @brief 等级滚动,返回改变后的等级字符串
+ *
+ * @param log
+ * @return const char*
+ */
+size_t fc_log_level_roll(fc_log_t *log)
+{
+    fc_assert(log != NULL);
+    log->level = (fc_log_level_t)(log->level == FC_LOG_LEVEL_NONE ? FC_LOG_LEVEL_ALL : log->level - 1);
+    return log->level;
+}
+
+/**
+ * @brief 获取等级字符串
+ *
+ * @param log
+ * @return const char*
+ */
+const char *fc_log_level_name(fc_log_t *log)
+{
+    fc_assert(log != NULL);
+    switch (log->level)
+    {
+    case FC_LOG_LEVEL_ALL:
+        return "all";
+    case FC_LOG_LEVEL_ERROR:
+        return "error";
+    case FC_LOG_LEVEL_WARNING:
+        return "warning";
+    case FC_LOG_LEVEL_INFO:
+        return "info";
+    case FC_LOG_LEVEL_DEBUG:
+        return "debug";
+    case FC_LOG_LEVEL_VERBOSE:
+        return "verbose";
+    case FC_LOG_LEVEL_NONE:
+        return "none";
+    default:
+        return "unknown";
+    }
+}
+
+/**
  * @brief 缓冲区输出
  *
  * @param log
@@ -469,11 +512,16 @@ fc_weak size_t fc_log_write_lose_hook(fc_log_t *log, int len)
 fc_log_t default_log = {
     .write = log_write_default,
     .alloc = log_alloc_default,
-    .file_user = {0},  // 临时对象中才会用到这个内存,其他都不用
+    // .file_user = {0},  // 临时对象中才会用到这个内存,其他都不用
+    .file_user = {
+        .log = &default_log,  // 指向默认log对象自身
+        .mem = {0},
+        .block_write = 0,
+        .total_write = 0,
+        .mem_chain = NULL},
     .f = {0},
     .level = FC_LOG_LEVEL_ALL,
-    .last_level = FC_LOG_LEVEL_NONE,  // 不限制,使用write的时候会继承这个等级
-    .merge = false,                   // 默认不需要推迟输出
+    .merge = false,  // 默认不需要推迟输出
 };
 
 // fc_log_t const *scope_log_ptr = NULL;  // 设置为空指针!!!
@@ -494,7 +542,7 @@ fc_pool_t fc_log_pool;  // log组件使用的内存池
 
 void fc_log_init(void)
 {
-    default_log.file_user.log = &default_log;  // 根对象初始化的时候必须将此指针指向自身!!!
+    // default_log.file_user.log = &default_log;  // 根对象初始化的时候必须将此指针指向自身!!!
 
     // static size_t log_pool_mem[FC_CALC_POOL_MEM_SIZE(FC_LOG_ALLOC_BLOCK_SIZE, 64) / sizeof(size_t)];                         // 内存池,64块内存,每块FC_LOG_ALLOC_BLOCK_SIZE字节
     static size_t log_pool_mem[FC_CALC_POOL_USABLE_SIZE(FC_LOG_ALLOC_BLOCK_SIZE, FC_LOG_POOL_TOTAL_SIZE) / sizeof(size_t)];  // 内存池,每块FC_LOG_ALLOC_BLOCK_SIZE字节,至少包含FC_LOG_POOL_TOTAL_SIZE字节的内存

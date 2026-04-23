@@ -30,25 +30,29 @@
 
 #if !__FC_CFG_DISABLE_DEFAULT_ARCH_PORTING__
 
-    #include "cmsis_compiler.h"
+    // > 单次包含宏定义
+    #ifndef _FC_ARCH_H_
+        #define _FC_ARCH_H_
 
-    #include "fc_helper.h"
+        #include "cmsis_compiler.h"
 
-/*============================ MACROS ========================================*/
-/*============================ MACROFIED FUNCTIONS ===========================*/
+        #include "fc_helper.h"
 
-    #ifndef __fc_sync_barrier__
-        #define __fc_sync_barrier__(...) \
-            do                           \
-            {                            \
-                __DSB();                 \
-                __ISB();                 \
-            } while (0)
-    #endif
+    /*============================ MACROS ========================================*/
+    /*============================ MACROFIED FUNCTIONS ===========================*/
 
-    #ifndef __STATIC_INLINE
-        #define __STATIC_INLINE static inline
-    #endif
+        #ifndef __fc_sync_barrier__
+            #define __fc_sync_barrier__(...) \
+                do                           \
+                {                            \
+                    __DSB();                 \
+                    __ISB();                 \
+                } while (0)
+        #endif
+
+        #ifndef __STATIC_INLINE
+            #define __STATIC_INLINE static inline
+        #endif
 
 /*============================ TYPES =========================================*/
 typedef uint32_t fc_global_interrupt_status_t;
@@ -73,11 +77,13 @@ void fc_resume_global_interrupt(fc_global_interrupt_status_t tStatus)
     __set_PRIMASK(tStatus);
 }
 
-    #ifndef FC_ATOMIC_SCOPE
-        #define FC_ATOMIC_SCOPE                                     \
-            fc_using(fc_global_interrupt_status_t SAFE_NAME(temp) = \
-                         fc_disable_global_interrupt(),             \
-                     fc_resume_global_interrupt(SAFE_NAME(temp)))
-    #endif
+        #ifndef FC_ATOMIC_SCOPE
+            #define FC_ATOMIC_SCOPE                                     \
+                fc_using(fc_global_interrupt_status_t SAFE_NAME(temp) = \
+                             fc_disable_global_interrupt(),             \
+                         fc_resume_global_interrupt(SAFE_NAME(temp)))
+        #endif
+
+    #endif  //\ _FC_ARCH_H_
 
 #endif

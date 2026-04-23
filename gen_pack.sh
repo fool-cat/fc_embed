@@ -6,6 +6,8 @@
 
 set -o pipefail
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Set version of gen pack library
 # For available versions see https://github.com/Open-CMSIS-Pack/gen-pack/tags.
 # Use the tag name without the prefix "v", e.g., 0.7.0
@@ -30,6 +32,7 @@ DEFAULT_ARGS=(-c "v")
 #
  PACK_DIRS="
    core
+   device
  "
 
 # Specify file names to be added to pack base directory
@@ -96,6 +99,29 @@ function postprocess() {
   # add custom steps here to be executed
   # after populating the pack build folder
   # but before archiving the pack into output folder
+  local build="$1"
+  local keep_list
+  local pack_path
+  local pack_rel
+
+  keep_list="$(git -C "${REPO_ROOT}" ls-tree -r --name-only HEAD -- core device LICENSE readme.md fool_cat.fc_embed.pdsc)"
+
+  while IFS= read -r -d '' pack_path; do
+    pack_rel="${pack_path#${build}/}"
+    case "${pack_rel}" in
+      fool_cat.fc_embed.sha1)
+        continue
+        ;;
+    esac
+
+    if grep -Fxq -- "${pack_rel}" <<< "${keep_list}"; then
+      continue
+    fi
+
+    rm -f -- "${pack_path}"
+  done < <(find "${build}" -type f -print0)
+
+  find "${build}" -depth -type d -empty -delete
   return 0
 }
 

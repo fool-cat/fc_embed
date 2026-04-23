@@ -1,0 +1,4 @@
+interface:
+  display_name: "Repo Doc Guard"
+  short_description: "Constrain formal docs to committed git tree by default"
+  default_prompt: "Before editing repository-level documentation, first check `git status --short` and `git ls-tree -r --name-only HEAD`. Treat files like `readme.md`, `COMPONENTS.md`, and module overview pages as formal docs that should describe committed files by default. Exclude uncommitted worktree content unless the user explicitly requests working-tree documentation, and place scope or boundary notes under `docs/records/` instead of mixing them into formal overviews."

@@ -275,6 +275,7 @@
 
 #define __fc_with2(__type, __addr) \
     fc_using(__type *_ = (__addr))
+
 #define __fc_with3(__type, __addr, __item) \
     fc_using(__type *_ = (__addr), *__item = _, _ = _, _ = _)
 

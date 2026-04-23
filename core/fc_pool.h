@@ -112,11 +112,12 @@ extern "C"
     size_t fc_pool_record_now(fc_pool_t *pool);  // 内存池当前记录(剩余块)
 
     //+********************************* 内存块状态管理及链式操作 **********************************/
-    bool fc_pool_mark_used(void *ptr, size_t used_size);                // 标记当前内存块已使用大小,ptr当前内存块地址
-    void fc_pool_end(void *ptr);                                        // 给指定链式内存块的最后一块做标记,创建的时候默认已经标记
-    void fc_pool_link(void *front, void *back);                         // 将front和back链接起来,非连续内存块
-    bool fc_pool_linear_check(void *ptr);                               // 检查ptr是否为连续内存块,如果是返回true,否则返回false
-    void fc_pool_walk(void *ptr, fc_pool_walker_t walker, void *user);  // 遍历链式非连续内存块
+    size_t fc_pool_used_size(void *ptr);                                  // 获取当前(链式)内存块已使用大小,ptr当前内存块地址
+    bool   fc_pool_mark_used(void *ptr, size_t used_size);                // 标记当前内存块已使用大小,ptr当前内存块地址
+    void   fc_pool_end(void *ptr);                                        // 给指定链式内存块的最后一块做标记,创建的时候默认已经标记
+    void   fc_pool_link(void *front, void *back);                         // 将front和back链接起来,非连续内存块
+    bool   fc_pool_linear_check(void *ptr);                               // 检查ptr是否为连续内存块,如果是返回true,否则返回false
+    void   fc_pool_walk(void *ptr, fc_pool_walker_t walker, void *user);  // 遍历链式非连续内存块
 
     void fc_pool_fifo_walk(fc_pool_t *pool, fc_pool_walker_t walker, void *user);  // 遍历整个fifo used队列链表,遍历后释放内存
     bool fc_pool_merge(fc_pool_t *pool, void *front, void *back);                  // 将front和back合并,将back内存拼接到front后面,返回是否成功合并
@@ -126,9 +127,9 @@ extern "C"
     void *fc_pool_alloc(fc_pool_t *pool, size_t *size);  // 区别于malloc,传入size的指针分配成功将设置为实际分配(用户可用)的大小,返回可用的内存地址,固定O(1)复杂度
     // sort_free_enable == false时,free复杂度为O1,true的情况下以下free复杂度为O(n)
     void fc_pool_free(fc_pool_t *pool, void *ptr);  // 如果是链式非连续内存块,会将整个链式内存块释放掉,O(n)复杂度,n为链式内存块的块数
-    // sort_free_enable == false时,realloc大小不超过1块时有概率成功,否则绝大概率失败? // TODO:feature:可优化为超过1块时仍有较大概率成功,且效率O(n)
+    // realloc在任何情况下均为O(n)复杂度
     void *fc_pool_realloc(fc_pool_t *pool, void *ptr, size_t size);  // 等效realloc,最坏O(n)复杂度
-    // sort_free_enable == false时,以下API分配超过1块时绝大概率失败,反之O(1)复杂度
+    // sort_free_enable == false时,以下API分配超过1块时很大概率失败,不超过1块则O(1)复杂度
     void *fc_pool_malloc(fc_pool_t *pool, size_t size);                // 等效malloc,尝试分配size字节的连续内存,如果失败则返回NULL,最坏O(n)复杂度
     void *fc_pool_calloc(fc_pool_t *pool, size_t count, size_t size);  // 等效calloc,最坏O(n)复杂度
 
@@ -136,6 +137,7 @@ extern "C"
     bool  fc_header_fifo_empty(fc_pool_header_t *header);                 // fifo是否为空
     void  fc_header_fifo_push(fc_pool_header_t *header, void *head_ptr);  // 将整个链式非连续内存块添加到fifo
     void *fc_header_fifo_pop(fc_pool_header_t *header);                   // 从fifo中弹出一块链式非连续内存块
+    void *fc_header_fifo_peek(fc_pool_header_t *header);                  // 从fifo中查看一块链式非连续内存块,不弹出
 
 #define fc_pool_fifo_empty(pool) \
     fc_header_fifo_empty(&((pool)->fifo_used))
@@ -145,6 +147,9 @@ extern "C"
 
 #define fc_pool_fifo_pop(pool) \
     fc_header_fifo_pop(&((pool)->fifo_used))
+
+#define fc_pool_fifo_peek(pool) \
+    fc_header_fifo_peek(&((pool)->fifo_used))
 
     //+********************************* 其他 **********************************/
     // bool   fc_pool_check(fc_pool_t *pool);             // 检查内存池是否正常
