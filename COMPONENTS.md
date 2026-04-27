@@ -1,12 +1,8 @@
 # FC Embed 组件总览
 
-本文档只描述当前 `git HEAD` 已提交到仓库的组件与依赖关系。
+本文档描述当前仓库的组件与依赖关系。
 
-> 说明:
-> - 工作区未提交文件不纳入本页。
-> - 文档边界调整记录见 [docs/records/2026-04-14-doc-scope.md](docs/records/2026-04-14-doc-scope.md)。
-
-## 1. 当前已提交组件范围
+## 1. 当前组件范围
 
 ```text
 fc_config.h / core/fc_config_template.h
@@ -57,9 +53,9 @@ fc_config.h / core/fc_config_template.h
 | --- | --- | --- | --- |
 | `fc_type` | `device/fc_type.h` | `fc_config.h` | 设备层公共时间与断言约定。 |
 | `fc_sig` | `device/fc_sig.c/.h` | `fc_type.h` | 二值信号抽象层，负责采样、稳态维护与触发回调。 |
-| `fc_sig_filter` | `device/fc_sig_filter.c/.h` | `fc_sig` | 信号滤波策略集合，当前已提交实现包含比例、重复等滤波器。 |
+| `fc_sig_filter` | `device/fc_sig_filter.c/.h` | `fc_sig` | 信号滤波策略集合，当前实现包含比例、重复等滤波器。 |
 | `fc_stp_base` | `device/fc_stp_base.c/.h` | `core/fc_arch.h` `fc_config.h` | 步进电机底层执行骨架，负责 step/dir/ioctl、速度心跳和位置推进。 |
-| `fc_stp_curve` | `device/fc_stp_curve.c/.h` | `fc_stp_base` | 步进曲线模型集合，当前已提交实现包含 `ladder`、`trapezoid`、`s_curve`、`s_curve_tri_acc`。 |
+| `fc_stp_curve` | `device/fc_stp_curve.c/.h` | `fc_stp_base` | 步进曲线模型集合，当前实现包含 `ladder`、`trapezoid`、`s_curve`、`s_curve_tri_acc`。 |
 
 ## 5. 依赖关系图
 
@@ -97,7 +93,7 @@ fc_compiler / fc_helper / fc_arch / fc_config
 
 ## 7. 配置要点
 
-项目需要提供 `fc_config.h`。按当前已提交组件，常见配置项包括:
+项目需要提供 `fc_config.h`。按当前组件，常见配置项包括:
 
 ```c
 #ifndef _FC_CONFIG_H_
@@ -134,7 +130,7 @@ fc_compiler / fc_helper / fc_arch / fc_config
 
 ## 9. 一句话总结
 
-当前已提交的 `fc_embed` 由两部分构成:
+当前 `fc_embed` 由两部分构成:
 
 - `core/` 负责基础设施、缓冲、日志与传输
 - `device/` 负责设备公共类型、信号抽象与步进底层执行

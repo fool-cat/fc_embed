@@ -131,6 +131,7 @@
         #define RTE_FC_EMBED_CORE_AUTO_INIT    /* fc_embed core:auto_init */
       </RTE_Components_h>
       <files>
+        <file category="doc" name="core/fc_auto_init.md" />
         <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="source" name="core/fc_auto_init.c" />
@@ -146,6 +147,7 @@
         #define RTE_FC_EMBED_CORE_FIFO         /* fc_embed core:fifo */
       </RTE_Components_h>
       <files>
+        <file category="doc" name="core/fc_fifo.md" />
         <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="header" attr="template" select="FIFO Header" name="core/fc_fifo.h" />
@@ -161,6 +163,7 @@
         #define RTE_FC_EMBED_CORE_POOL         /* fc_embed core:pool */
       </RTE_Components_h>
       <files>
+        <file category="doc" name="core/fc_pool.md" />
         <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="header" attr="config" select="Architecture Header" name="core/fc_arch.h" />
@@ -177,6 +180,7 @@
         #define RTE_FC_EMBED_CORE_PORT         /* fc_embed core:port */
       </RTE_Components_h>
       <files>
+        <file category="doc" name="core/fc_port.md" />
         <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="source" name="core/fc_port.c" />
@@ -192,6 +196,7 @@
         #define RTE_FC_EMBED_CORE_TRANS        /* fc_embed core:trans */
       </RTE_Components_h>
       <files>
+        <file category="doc" name="core/fc_trans.md" />
         <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="source" name="core/fc_trans.c" />
@@ -207,6 +212,7 @@
         #define RTE_FC_EMBED_CORE_STDIO        /* fc_embed core:stdio */
       </RTE_Components_h>
       <files>
+        <file category="doc" name="core/fc_stdio.md" />
         <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="source" name="core/fc_stdio.c" />
@@ -222,6 +228,7 @@
         #define RTE_FC_EMBED_CORE_LOG          /* fc_embed core:log */
       </RTE_Components_h>
       <files>
+        <file category="doc" name="core/fc_log.md" />
         <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="header" attr="config" select="Architecture Header" name="core/fc_arch.h" />
@@ -238,6 +245,7 @@
         #define RTE_FC_EMBED_DEVICE_TYPE       /* fc_embed device:type */
       </RTE_Components_h>
       <files>
+        <file category="doc" name="device/fc_type.md" />
         <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="header" attr="template" select="Device Type Header" name="device/fc_type.h" />
@@ -252,6 +260,7 @@
         #define RTE_FC_EMBED_DEVICE_SIG        /* fc_embed device:sig */
       </RTE_Components_h>
       <files>
+        <file category="doc" name="device/fc_sig.md" />
         <file category="source" name="device/fc_sig.c" />
         <file category="header" attr="template" select="Signal Header" name="device/fc_sig.h" />
         <file category="include" name="device/" />
@@ -265,6 +274,7 @@
         #define RTE_FC_EMBED_DEVICE_SIG_FILTER /* fc_embed device:sig_filter */
       </RTE_Components_h>
       <files>
+        <file category="doc" name="device/fc_sig_filter.md" />
         <file category="source" name="device/fc_sig_filter.c" />
         <file category="header" attr="template" select="Signal Filter Header" name="device/fc_sig_filter.h" />
         <file category="include" name="device/" />
@@ -278,6 +288,7 @@
         #define RTE_FC_EMBED_DEVICE_STP_BASE   /* fc_embed device:stp_base */
       </RTE_Components_h>
       <files>
+        <file category="doc" name="device/fc_stp_base.md" />
         <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="source" name="device/fc_stp_base.c" />
@@ -294,6 +305,7 @@
         #define RTE_FC_EMBED_DEVICE_STP_CURVE  /* fc_embed device:stp_curve */
       </RTE_Components_h>
       <files>
+        <file category="doc" name="device/fc_stp_curve.md" />
         <file category="source" name="device/fc_stp_curve.c" />
         <file category="header" attr="template" select="Stepper Curve Header" name="device/fc_stp_curve.h" />
         <file category="include" name="device/" />
