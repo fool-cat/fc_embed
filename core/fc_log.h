@@ -480,6 +480,8 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 // 去掉fc_前缀的log宏API
 #if FC_LOG_NOPREFIX_API
     #define log_level       fc_log_level
+    #define log_lv_roll     fc_log_lv_roll
+    #define log_lv_name     fc_log_lv_name
 
     #define LOG_MERGE       FC_LOG_MERGE
 
@@ -499,6 +501,9 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 #endif
 
 // clang-format on
+
+// 定义log格式的开头,log起始带换行很多时候能保证尾部输出缺失的情况下格式稳定
+// #define FC_LOG_FMT_START "\r\n"
 
 // 除了 FC_LOG_FMT_END 定义结尾外,还可以使用如下宏在每句log后面添加特定内容如换行
 // #define user_printf(fmt, ...) fc_log_printf(fmt "\r\n", ##__VA_ARGS__)
