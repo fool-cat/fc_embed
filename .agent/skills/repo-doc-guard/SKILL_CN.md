@@ -15,15 +15,16 @@
 
 - `readme.md`
 - `COMPONENTS.md`
+- `cmsis-pack/README.md`、`fool_cat.fc_embed.pdsc` 等构建/打包说明或元数据
 - 仓库级导航页或索引页
-- 模块总览页，例如 `core/*.md` 和 `device/*.md`
+- 模块旁路文档，例如与功能同名的 `core/*.md` 和 `device/*.md`
 
 以下内容视为过程记录：
 
 - 文档范围说明
-- 修订边界说明
+- 维护说明
 - 临时维护记录
-- 对未提交工作区内容的解释说明
+- 不适合写入正式用户文档的过程原因说明
 
 ## 开始前必须执行的检查
 
@@ -32,46 +33,63 @@
 ```powershell
 git status --short
 git ls-tree -r --name-only HEAD
+rg --files
 ```
 
-如果要修改已有正式文档，并且需要参考提交基线，再执行：
+修改已有正式文档时，先读取当前文档和它描述的源码。
+
+修改根目录总览、组件总览、构建/打包说明或元数据时，先检查它们描述的已提交文件范围：
 
 ```powershell
+Get-Content readme.md
+Get-Content COMPONENTS.md
 git show HEAD:readme.md
 git show HEAD:COMPONENTS.md
+rg -n "module-name|file-name|key-path" readme.md COMPONENTS.md cmsis-pack docs\records
 ```
 
-可以用 `rg` 做定向搜索，但正式文档中允许引用的路径，必须以 `git ls-tree -r --name-only HEAD` 中存在的路径为准。
+修改 `core/` 和 `device/` 下与功能同名的模块旁路 `.md` 时，先读取工作区里最新的同名源码/头文件：
+
+```powershell
+Get-Content core\fc_pool.md
+Get-Content core\fc_pool.c
+Get-Content core\fc_pool.h
+Get-Content device\fc_sig.md
+Get-Content device\fc_sig.c
+Get-Content device\fc_sig.h
+```
+
+用 `rg`、`git ls-tree` 和直接读文件来核对文档说法，并根据目标文档选择正确基线。
 
 ## 核心规则
 
-1. 正式文档默认以 `git HEAD` 为范围基线，而不是 working tree。
-2. 如果某个文件、模块或路径不在 `HEAD` 中，就不要写进正式文档。
-3. 不要根据 IDE 当前打开的标签页或未提交文件去扩写正式模块列表。
-4. 如果工作区里存在未提交模块：
-   - 默认从正式文档中排除
-   - 如确需说明，单独写入 `docs/records/YYYY-MM-DD-<topic>.md`
-5. 只有当用户明确要求“按 working tree / 未提交代码写文档”时，才可以把未提交内容纳入正式文档。
-6. 如果确实把未提交内容写进正式文档，必须清楚标注：
-   - `based on working tree`
-   - `includes uncommitted content`
-7. 不要在仓库根目录新增零散记录文件。
-8. 不要把过程说明混进正式总览。
+1. 根目录总览、组件总览、构建/打包说明或元数据默认描述已提交仓库范围。
+2. `core/` 和 `device/` 下与功能同名的模块旁路文档描述该模块当前最新源码行为。
+3. 除非用户明确要求按 working tree 写文档，否则不要把新增或未提交模块提升到根目录/构建类文档里。
+4. 文档里的模块、API、路径和依赖关系都要从对应真实文件核对。
+5. 不要只根据 IDE 当前打开的标签页扩写正式模块列表。
+6. 正式文档里不要写过程状态说明；直接描述仓库内容。
+7. 如果确实需要临时维护记录，放到 `docs/records/YYYY-MM-DD-<topic>.md`，正式总览保持干净。
+8. 不要在仓库根目录新增零散记录文件。
+9. 不要把实现过程说明混进正式总览。
 
 ## 标准工作流
 
 1. 先判断目标文件属于“正式文档”还是“过程记录”。
-2. 先根据 `git ls-tree -r --name-only HEAD` 建立本次允许出现的文件/路径集合。
-3. 读取当前文档，清理其中对以下内容的引用：
-   - 未提交文件
+2. 选择基线：
+   - `readme.md`、`COMPONENTS.md`、仓库导航、构建/打包说明或元数据默认使用已提交范围。
+   - 与功能同名的 `core/*.md` 和 `device/*.md` 模块文档使用最新同名源码/头文件行为。
+3. 根据 `git ls-tree`、`rg --files` 和定向源码阅读建立文档应覆盖的文件/路径集合。
+4. 读取当前文档，清理其中对以下内容的引用：
    - 错误路径
    - 已删除路径
-4. 如果这次需求涉及未提交工作：
-   - 正式文档保持在 `HEAD` 基线
-   - 边界说明写到 `docs/records/`
-5. 修改完成后自检：
-   - 文档中提到的关键文件是否存在于 `HEAD`
-   - 过程记录是否放在 `docs/records/`
+   - 过时行为
+   - 过程状态说明
+5. 如果模块源码行为变了，同名模块文档直接更新为最新行为。
+6. 修改完成后自检：
+   - 文档中提到的关键文件是否存在于所选基线
+   - API 和行为说明是否匹配所选源码
+   - 正式文档中是否没有过程状态说明
 
 ## 本仓库专用说明
 
@@ -82,19 +100,21 @@ git show HEAD:COMPONENTS.md
 
 因此建议遵循：
 
-- `readme.md` 和 `COMPONENTS.md` 优先反映已提交仓库状态
+- `readme.md`、`COMPONENTS.md` 和构建/打包说明或元数据默认反映已提交仓库范围
 - 范围说明和维护记录放在 `docs/records/`
+- `core/*.md` 和 `device/*.md` 这类同名模块旁路文档直接描述当前模块最新行为，不写过程状态提示
 
 ## 推荐验证命令
 
 ```powershell
 git status --short
 git ls-tree -r --name-only HEAD
-rg -n "module-name|file-name|key-path" readme.md COMPONENTS.md docs\records
+rg --files
+rg -n "module-name|file-name|key-path" readme.md COMPONENTS.md cmsis-pack core device docs\records
 ```
 
 ## 最终汇报时应说明
 
-- 本次文档是否以 `git HEAD` 为基线
-- 是否发现并排除了未提交文件
-- 是否新增了 `docs/records/...` 记录文件
+- 各类正式文档分别使用了哪个基线
+- 核对了哪些源码、文档文件或已提交文件列表
+- 是否已避免在正式文档中写入过程状态说明

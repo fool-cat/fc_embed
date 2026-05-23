@@ -274,12 +274,21 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 // {
 //     (void)user;
 //     (void)end;
+//     // 从ptr指向的地址开始used大小的数据是连续的,同时你需要输出到你想输出的地方(比如串口输出)
 //     fc_write(ptr, used);
 // }
 
+// // 方式1:一次性遍历完所有链式内存块
 // if (!fc_pool_fifo_empty(&fc_log_pool))
 // {
 //     fc_pool_fifo_walk(&fc_log_pool, fc_log_walker, NULL);
+// }
+// // 方式2:一次弹出一条log日志链,遍历后释放内存,推荐使用这种更容易控制输出粒度
+// void *ptr = fc_pool_fifo_pop(&fc_log_pool);
+// if (NULL != ptr)
+// {
+//     fc_pool_walk(ptr, fc_log_walker, NULL);
+//     fc_pool_free(&fc_log_pool, ptr);
 // }
 
 #endif  // __FC_LOG_H__
@@ -471,6 +480,8 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 // 去掉fc_前缀的log宏API
 #if FC_LOG_NOPREFIX_API
     #define log_level       fc_log_level
+    #define log_lv_roll     fc_log_lv_roll
+    #define log_lv_name     fc_log_lv_name
 
     #define LOG_MERGE       FC_LOG_MERGE
 
@@ -490,6 +501,9 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 #endif
 
 // clang-format on
+
+// 定义log格式的开头,log起始带换行很多时候能保证尾部输出缺失的情况下格式稳定
+// #define FC_LOG_FMT_START "\r\n"
 
 // 除了 FC_LOG_FMT_END 定义结尾外,还可以使用如下宏在每句log后面添加特定内容如换行
 // #define user_printf(fmt, ...) fc_log_printf(fmt "\r\n", ##__VA_ARGS__)

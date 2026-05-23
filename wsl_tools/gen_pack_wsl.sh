@@ -84,6 +84,12 @@ if [ -d "core" ]; then
     cp -r "core" "$BUILD_DIR/"
 fi
 
+# Copy device directory
+if [ -d "device" ]; then
+    echo "Copying device directory..."
+    cp -r "device" "$BUILD_DIR/"
+fi
+
 echo ""
 echo "Creating pack archive..."
 

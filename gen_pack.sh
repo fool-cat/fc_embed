@@ -104,7 +104,7 @@ function postprocess() {
   local pack_path
   local pack_rel
 
-  keep_list="$(git -C "${REPO_ROOT}" ls-tree -r --name-only HEAD -- core device LICENSE readme.md fool_cat.fc_embed.pdsc)"
+  keep_list="$(git -C "${REPO_ROOT}" ls-files --cached --others --exclude-standard -- core device LICENSE readme.md fool_cat.fc_embed.pdsc)"
 
   while IFS= read -r -d '' pack_path; do
     pack_rel="${pack_path#${build}/}"

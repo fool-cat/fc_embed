@@ -1,0 +1,4 @@
+interface:
+  display_name: "fc_embed Skill Guide"
+  short_description: "Route each task to the correct specialist skills before starting work"
+  default_prompt: "Before doing any work in this repository, use $guide to determine which specialist skills need to be loaded. Check whether the task involves pack/release files, host-side tests, or documentation, then load cmsis-pack-guard, host-test-guard, or repo-doc-guard as needed before proceeding."
