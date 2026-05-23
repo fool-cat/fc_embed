@@ -274,12 +274,21 @@ extern fc_pool_t fc_log_pool;  // log组件使用的内存池声明,在fc_log.c�
 // {
 //     (void)user;
 //     (void)end;
+//     // 从ptr指向的地址开始used大小的数据是连续的,同时你需要输出到你想输出的地方(比如串口输出)
 //     fc_write(ptr, used);
 // }
 
+// // 方式1:一次性遍历完所有链式内存块
 // if (!fc_pool_fifo_empty(&fc_log_pool))
 // {
 //     fc_pool_fifo_walk(&fc_log_pool, fc_log_walker, NULL);
+// }
+// // 方式2:一次弹出一条log日志链,遍历后释放内存,推荐使用这种更容易控制输出粒度
+// void *ptr = fc_pool_fifo_pop(&fc_log_pool);
+// if (NULL != ptr)
+// {
+//     fc_pool_walk(ptr, fc_log_walker, NULL);
+//     fc_pool_free(&fc_log_pool, ptr);
 // }
 
 #endif  // __FC_LOG_H__
