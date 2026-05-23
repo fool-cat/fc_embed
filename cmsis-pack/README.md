@@ -4,11 +4,9 @@
 
 ## 自动生成流程
 
-当代码推送到 `develop` 分支时，GitHub Actions 工作流会：
+当代码推送到 `develop` 分支时，GitHub Actions 工作流会运行 `gen_pack.sh` 脚本生成 CMSIS Pack，并将生成的 `.pack` 文件上传为 Artifacts。
 
-1. 运行 `gen_pack.sh` 脚本生成 CMSIS Pack
-2. 将生成的 `.pack` 文件复制到此目录
-3. 自动提交并推送到仓库
+当发布 Release 时，工作流会将生成的 `.pack` 文件自动提交到所有分支的此目录中。
 
 ## 手动下载
 
