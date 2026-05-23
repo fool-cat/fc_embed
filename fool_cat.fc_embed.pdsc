@@ -151,7 +151,6 @@
         <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="header" attr="template" select="FIFO Header" name="core/fc_fifo.h" />
-        <file category="header" select="FIFO C++ Header" name="core/fc_fifo.hpp" />
         <file category="include" name="core/" />
       </files>
     </component>

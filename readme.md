@@ -17,7 +17,7 @@
 | --- | --- | --- |
 | `fc_compiler` / `fc_helper` / `fc_arch` | 编译器兼容、宏工具、原子区与底层辅助能力 | [fc_compiler.h](core/fc_compiler.h) · [fc_helper.h](core/fc_helper.h) · [fc_arch.h](core/fc_arch.h) |
 | `fc_auto_init` | 分阶段、按优先级自动初始化框架 | [说明文档](core/fc_auto_init.md) · [头文件](core/fc_auto_init.h) |
-| `fc_fifo` | 字节流环形缓冲区，支持零拷贝窗口与 C++ 定长封装 | [说明文档](core/fc_fifo.md) · [C 版](core/fc_fifo.h) · [C++ 封装](core/fc_fifo.hpp) |
+| `fc_fifo` | 字节流环形缓冲区，支持零拷贝窗口与 C++ 定长封装 | [说明文档](core/fc_fifo.md) · [头文件](core/fc_fifo.h) |
 | `fc_pool` | 固定块/链式块内存池，支持 FIFO 化已用块管理 | [说明文档](core/fc_pool.md) · [头文件](core/fc_pool.h) |
 | `fc_port` | 基于 FIFO 的多缓冲端口抽象，可接标准输入输出 | [说明文档](core/fc_port.md) · [头文件](core/fc_port.h) |
 | `fc_stdio` | 轻量 `printf`/`fprintf`/`snprintf` 风格输出层 | [说明文档](core/fc_stdio.md) · [头文件](core/fc_stdio.h) · [utils 目录](core/utils/readme.md) |

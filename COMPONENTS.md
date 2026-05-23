@@ -40,7 +40,7 @@ fc_config.h / core/fc_config_template.h
 | 组件 | 主要文件 | 核心依赖 | 当前实现要点 |
 | --- | --- | --- | --- |
 | `fc_auto_init` | `core/fc_auto_init.c/.h` | `fc_compiler` `fc_helper` `fc_config` | 4 段自动初始化框架：`ENV / CLOCK / DEVICE / APP`，支持按优先级注册。 |
-| `fc_fifo` | `core/fc_fifo.h` `core/fc_fifo.hpp` | `fc_compiler` `fc_config` | 2 的幂大小字节流环形缓冲区；支持普通读写、覆盖写与线性零拷贝窗口。 |
+| `fc_fifo` | `core/fc_fifo.h` | `fc_compiler` `fc_config` | 2 的幂大小字节流环形缓冲区；支持普通读写、覆盖写与线性零拷贝窗口；C++ 模板封装已合并至同一头文件。 |
 | `fc_pool` | `core/fc_pool.c/.h` | `fc_compiler` `fc_arch` `fc_config` | 固定块内存池；支持单块分配、连续块、链式块与 FIFO 化已用块。 |
 | `fc_port` | `core/fc_port.c/.h` | `fc_fifo` `fc_config` | 多 ring buffer 端口抽象；提供 `stdin/stdout` 默认对象与 `phy` 回调。 |
 | `fc_stdio` | `core/fc_stdio.c/.h` `core/utils/*.c` | 无强制运行时依赖 | 轻量 `printf` 核心；`fc_stdio.c` 直接聚合 `core/utils/` 下的实现文件。 |
