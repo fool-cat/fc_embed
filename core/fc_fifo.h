@@ -14,6 +14,9 @@
 #ifndef __FC_FIFO_H__
 #define __FC_FIFO_H__
 
+/** fc_fifo component version string — keep in sync with Cversion in fool_cat.fc_embed.pdsc */
+#define FC_FIFO_VERSION "2.0.0"
+
 // > C/C++兼容性宏定义
 #ifdef __cplusplus
 extern "C"

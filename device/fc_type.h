@@ -13,6 +13,9 @@
 #ifndef _FC_TYPE_H_
 #define _FC_TYPE_H_
 
+/** fc_type component version string — keep in sync with Cversion in fool_cat.fc_embed.pdsc */
+#define FC_TYPE_VERSION "2.0.0"
+
 #include <stdint.h>
 #include <stdbool.h>
 

@@ -13,6 +13,7 @@
 | 领域 | 请求中的典型信号 |
 | --- | --- |
 | **打包 / 发布** | `fool_cat.fc_embed.pdsc`、`gen_pack.sh`、`cmsis-pack/`、CMSIS-Pack、`.github/workflows/publish-pack.yml`、pack 生成、发布流水线 |
+| **版本号更新** | version、bump、release version、`fc_version.h`、`FC_EMBED_VERSION`、`FC_*_VERSION`、`Cversion`、update version、升版本、发行版本 |
 | **主机端测试** | `test/host`、WSL、Linux 测试运行、CMake host 构建、`ctest`、主机端验证、`build_linux`、`build_wsl` |
 | **文档** | `readme.md`、`COMPONENTS.md`、`cmsis-pack/README.md`、`core/*.md`、`device/*.md`、`docs/records/`、模块文档、仓库总览 |
 | **纯源码修改** | `core/*.c`、`core/*.h`、`core/*.hpp`、`device/*.c`、`device/*.h`，不涉及文档或打包文件 |
@@ -25,6 +26,7 @@
 | 分类领域 | 需要加载的 skill |
 | --- | --- |
 | 打包 / 发布 | `cmsis-pack-guard` |
+| 版本号更新 | `version-bump` |
 | 主机端测试 | `host-test-guard` |
 | 文档 | `repo-doc-guard` |
 | 纯源码修改 | *（不需要专项 skill）* |
@@ -59,5 +61,6 @@ fc_embed/
 | Skill 名称 | 职责 |
 | --- | --- |
 | `cmsis-pack-guard` | 守护 CMSIS-Pack 定义、`pdsc`、`gen_pack.sh` 和 pack 相关 workflow |
+| `version-bump` | 管理组件头文件中的版本宏，并同步到 PDSC 的 `Cversion` 和 config 版本属性 |
 | `host-test-guard` | 将主机端验证限定在 `test/host`，只支持 Linux 原生和 WSL |
 | `repo-doc-guard` | 修改仓库文档或模块文档时选择正确的基线 |

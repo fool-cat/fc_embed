@@ -5,6 +5,7 @@
 ## 快速入口
 
 - 组件依赖总览: [COMPONENTS.md](COMPONENTS.md)
+- 版本定义: [core/fc_version.h](core/fc_version.h)
 - 配置模板: [core/fc_config_template.h](core/fc_config_template.h)
 - `stdio` 辅助源码编译说明: [core/utils/readme.md](core/utils/readme.md)
 - 文档修订记录: [docs/records/2026-04-14-doc-scope.md](docs/records/2026-04-14-doc-scope.md)
@@ -15,6 +16,7 @@
 
 | 模块 | 作用 | 导航 |
 | --- | --- | --- |
+| `fc_version` | 包级与组件级版本号定义 | [fc_version.h](core/fc_version.h) |
 | `fc_compiler` / `fc_helper` / `fc_arch` | 编译器兼容、宏工具、原子区与底层辅助能力 | [fc_compiler.h](core/fc_compiler.h) · [fc_helper.h](core/fc_helper.h) · [fc_arch.h](core/fc_arch.h) |
 | `fc_auto_init` | 分阶段、按优先级自动初始化框架 | [说明文档](core/fc_auto_init.md) · [头文件](core/fc_auto_init.h) |
 | `fc_fifo` | 字节流环形缓冲区，支持零拷贝窗口与 C++ 定长封装 | [说明文档](core/fc_fifo.md) · [头文件](core/fc_fifo.h) |

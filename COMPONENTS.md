@@ -30,7 +30,8 @@ fc_config.h / core/fc_config_template.h
 
 | 组件 | 主要文件 | 核心依赖 | 当前实现要点 |
 | --- | --- | --- | --- |
-| 配置入口 | `core/fc_config_template.h` | 无 | 项目需自备 `fc_config.h`；模板覆盖 `auto_init`、`port`、`log`、`pool`、`trans`、`stdio` 等常用宏。 |
+| 版本定义 | `core/fc_version.h` | 无 | 包级版本宏 `FC_EMBED_VERSION_MAJOR/MINOR/PATCH`；各组件头文件各自携带 `FC_<NAME>_VERSION` 字符串宏，作为 PDSC `Cversion` 的唯一真值来源。 |
+| 配置入口 | `core/fc_config_template.h` | 无 | 项目需自备 `fc_config.h`；模板覆盖 `auto_init`、`port`、`log`、`pool`、`trans`、`stdio` 等常用宏；携带 `FC_CONFIG_VERSION` 宏。 |
 | 编译器兼容与宏工具 | `core/fc_compiler.h` `core/fc_helper.h` | `fc_config.h` | 提供编译器适配、宏拼接、作用域辅助等基础能力。 |
 | 架构相关原子区 | `core/fc_arch.h` | `fc_config.h` | 提供 `FC_ATOMIC_ENTER/EXIT/SCOPE` 等原子保护接口。 |
 | 设备层公共类型 | `device/fc_type.h` | `fc_config.h` | 统一 `fc_time_t`、时间函数和断言宏入口。 |

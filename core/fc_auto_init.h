@@ -13,6 +13,9 @@
 #ifndef _FC_AUTO_INIT_H_
 #define _FC_AUTO_INIT_H_
 
+/** fc_auto_init component version string — keep in sync with Cversion in fool_cat.fc_embed.pdsc */
+#define FC_AUTO_INIT_VERSION "2.0.0"
+
 // > C/C++兼容性宏定义
 #ifdef __cplusplus
 extern "C"

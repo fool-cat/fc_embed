@@ -14,6 +14,9 @@
 #ifndef __FC_LOG_H__
     #define __FC_LOG_H__
 
+/** fc_log component version string — keep in sync with Cversion in fool_cat.fc_embed.pdsc */
+#define FC_LOG_VERSION "2.0.0"
+
     #include <stddef.h>
     #include <stdbool.h>
     #include <stdint.h>

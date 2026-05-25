@@ -13,6 +13,9 @@
 #ifndef _FC_POOL_H_
 #define _FC_POOL_H_
 
+/** fc_pool component version string — keep in sync with Cversion in fool_cat.fc_embed.pdsc */
+#define FC_POOL_VERSION "2.0.0"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
