@@ -9,6 +9,15 @@
   <license>LICENSE</license>
 
   <releases>
+    <release version="2.0.0" date="2026-05-23">
+      Major version bump — introduce per-component version macros and package-level fc_version.h.
+
+      Changes:
+      - Added FC_EMBED_VERSION_MAJOR/MINOR/PATCH macros to core/fc_version.h (package version source of truth)
+      - Added FC_&lt;NAME&gt;_VERSION string macro to every component header file
+      - Added FC_CONFIG_VERSION to core/fc_config_template.h
+      - All component Cversion and config file version attributes updated to 2.0.0
+    </release>
     <release version="1.0.0" date="2025-12-06">
       Production release with layered CMSIS-Pack metadata fixes
       
@@ -125,14 +134,14 @@
 
   <components>
     <!-- fc_embed core:auto_init -->
-    <component Cclass="fc_embed" Cgroup="core" Csub="auto_init" Cversion="1.0.0" condition="fc_embed_core_auto_init">
+    <component Cclass="fc_embed" Cgroup="core" Csub="auto_init" Cversion="2.0.0" condition="fc_embed_core_auto_init">
       <description>Optional auto-initialization framework with staged ENV/CLOCK/DEVICE/APP execution and priority ordering.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_CORE_AUTO_INIT    /* fc_embed core:auto_init */
       </RTE_Components_h>
       <files>
         <file category="doc" name="core/fc_auto_init.md" />
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+        <file category="header" attr="config" version="2.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="source" name="core/fc_auto_init.c" />
         <file category="header" attr="template" select="Auto Init Header" name="core/fc_auto_init.h" />
@@ -141,30 +150,29 @@
     </component>
 
     <!-- fc_embed core:fifo -->
-    <component Cclass="fc_embed" Cgroup="core" Csub="fifo" Cversion="1.0.0" condition="fc_embed_core_fifo">
+    <component Cclass="fc_embed" Cgroup="core" Csub="fifo" Cversion="2.0.0" condition="fc_embed_core_fifo">
       <description>Header-only power-of-two byte ring buffer based on Linux kfifo style APIs.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_CORE_FIFO         /* fc_embed core:fifo */
       </RTE_Components_h>
       <files>
         <file category="doc" name="core/fc_fifo.md" />
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+        <file category="header" attr="config" version="2.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="header" attr="template" select="FIFO Header" name="core/fc_fifo.h" />
-        <file category="header" select="FIFO C++ Header" name="core/fc_fifo.hpp" />
         <file category="include" name="core/" />
       </files>
     </component>
 
     <!-- fc_embed core:pool -->
-    <component Cclass="fc_embed" Cgroup="core" Csub="pool" Cversion="1.0.0" condition="fc_embed_core_pool">
+    <component Cclass="fc_embed" Cgroup="core" Csub="pool" Cversion="2.0.0" condition="fc_embed_core_pool">
       <description>Fixed-size memory pool with linked-chain support for non-contiguous blocks and optional dynamic allocation fallback.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_CORE_POOL         /* fc_embed core:pool */
       </RTE_Components_h>
       <files>
         <file category="doc" name="core/fc_pool.md" />
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+        <file category="header" attr="config" version="2.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="header" attr="config" select="Architecture Header" name="core/fc_arch.h" />
         <file category="source" name="core/fc_pool.c" />
@@ -174,14 +182,14 @@
     </component>
 
     <!-- fc_embed core:port -->
-    <component Cclass="fc_embed" Cgroup="core" Csub="port" Cversion="1.0.0" condition="fc_embed_core_port">
+    <component Cclass="fc_embed" Cgroup="core" Csub="port" Cversion="2.0.0" condition="fc_embed_core_port">
       <description>Port abstraction layer with multi-buffer ring buffers, RTT-like I/O, and standard input/output redirection helpers.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_CORE_PORT         /* fc_embed core:port */
       </RTE_Components_h>
       <files>
         <file category="doc" name="core/fc_port.md" />
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+        <file category="header" attr="config" version="2.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="source" name="core/fc_port.c" />
         <file category="header" attr="template" select="Port Header" name="core/fc_port.h" />
@@ -190,14 +198,14 @@
     </component>
 
     <!-- fc_embed core:trans -->
-    <component Cclass="fc_embed" Cgroup="core" Csub="trans" Cversion="1.0.0" condition="fc_embed_core_trans">
+    <component Cclass="fc_embed" Cgroup="core" Csub="trans" Cversion="2.0.0" condition="fc_embed_core_trans">
       <description>Transport layer for multiplexed channel transmission over one physical channel using ANSI escape sequence page markers.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_CORE_TRANS        /* fc_embed core:trans */
       </RTE_Components_h>
       <files>
         <file category="doc" name="core/fc_trans.md" />
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+        <file category="header" attr="config" version="2.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="source" name="core/fc_trans.c" />
         <file category="header" attr="template" select="Transport Header" name="core/fc_trans.h" />
@@ -206,14 +214,14 @@
     </component>
 
     <!-- fc_embed core:stdio -->
-    <component Cclass="fc_embed" Cgroup="core" Csub="stdio" Cversion="1.0.0" condition="fc_embed_core_stdio">
+    <component Cclass="fc_embed" Cgroup="core" Csub="stdio" Cversion="2.0.0" condition="fc_embed_core_stdio">
       <description>Lightweight printf-style formatting core built around FC_FILE and aggregated from core/utils via fc_stdio.c.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_CORE_STDIO        /* fc_embed core:stdio */
       </RTE_Components_h>
       <files>
         <file category="doc" name="core/fc_stdio.md" />
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+        <file category="header" attr="config" version="2.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="source" name="core/fc_stdio.c" />
         <file category="header" attr="template" select="StdIO Header" name="core/fc_stdio.h" />
@@ -222,14 +230,14 @@
     </component>
 
     <!-- fc_embed core:log -->
-    <component Cclass="fc_embed" Cgroup="core" Csub="log" Cversion="1.0.0" condition="fc_embed_core_log">
+    <component Cclass="fc_embed" Cgroup="core" Csub="log" Cversion="2.0.0" condition="fc_embed_core_log">
       <description>Buffered multi-level logger with ANSI color support, memory-pool-backed output, and stdio-based serialization.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_CORE_LOG          /* fc_embed core:log */
       </RTE_Components_h>
       <files>
         <file category="doc" name="core/fc_log.md" />
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+        <file category="header" attr="config" version="2.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="header" attr="config" select="Architecture Header" name="core/fc_arch.h" />
         <file category="source" name="core/fc_log.c" />
@@ -239,14 +247,14 @@
     </component>
 
     <!-- fc_embed device:type -->
-    <component Cclass="fc_embed" Cgroup="device" Csub="type" Cversion="1.0.0" condition="fc_embed_device_type">
+    <component Cclass="fc_embed" Cgroup="device" Csub="type" Cversion="2.0.0" condition="fc_embed_device_type">
       <description>Shared device-side type, time, and assertion abstraction used by signal and stepper helpers.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_DEVICE_TYPE       /* fc_embed device:type */
       </RTE_Components_h>
       <files>
         <file category="doc" name="device/fc_type.md" />
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+        <file category="header" attr="config" version="2.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="header" attr="template" select="Device Type Header" name="device/fc_type.h" />
         <file category="include" name="device/" />
@@ -254,7 +262,7 @@
     </component>
 
     <!-- fc_embed device:sig -->
-    <component Cclass="fc_embed" Cgroup="device" Csub="sig" Cversion="1.0.0" condition="fc_embed_device_sig">
+    <component Cclass="fc_embed" Cgroup="device" Csub="sig" Cversion="2.0.0" condition="fc_embed_device_sig">
       <description>Binary signal abstraction that combines platform sampling, steady-state tracking, and edge-trigger callbacks.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_DEVICE_SIG        /* fc_embed device:sig */
@@ -268,7 +276,7 @@
     </component>
 
     <!-- fc_embed device:sig_filter -->
-    <component Cclass="fc_embed" Cgroup="device" Csub="sig_filter" Cversion="1.0.0" condition="fc_embed_device_sig_filter">
+    <component Cclass="fc_embed" Cgroup="device" Csub="sig_filter" Cversion="2.0.0" condition="fc_embed_device_sig_filter">
       <description>Signal filter strategy collection including repeat, asymmetric repeat, integrator, scale, and window-based filters.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_DEVICE_SIG_FILTER /* fc_embed device:sig_filter */
@@ -282,14 +290,14 @@
     </component>
 
     <!-- fc_embed device:stp_base -->
-    <component Cclass="fc_embed" Cgroup="device" Csub="stp_base" Cversion="1.0.0" condition="fc_embed_device_stp_base">
+    <component Cclass="fc_embed" Cgroup="device" Csub="stp_base" Cversion="2.0.0" condition="fc_embed_device_stp_base">
       <description>Stepper execution base with step/dir/ioctl hooks, pulse scheduling, position tracking, and motion heartbeats.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_DEVICE_STP_BASE   /* fc_embed device:stp_base */
       </RTE_Components_h>
       <files>
         <file category="doc" name="device/fc_stp_base.md" />
-        <file category="header" attr="config" version="1.0.0" name="core/fc_config_template.h"
+        <file category="header" attr="config" version="2.0.0" name="core/fc_config_template.h"
           select="Config Template" />
         <file category="source" name="device/fc_stp_base.c" />
         <file category="header" attr="template" select="Stepper Base Header" name="device/fc_stp_base.h" />
@@ -299,7 +307,7 @@
     </component>
 
     <!-- fc_embed device:stp_curve -->
-    <component Cclass="fc_embed" Cgroup="device" Csub="stp_curve" Cversion="1.0.0" condition="fc_embed_device_stp_curve">
+    <component Cclass="fc_embed" Cgroup="device" Csub="stp_curve" Cversion="2.0.0" condition="fc_embed_device_stp_curve">
       <description>Stepper curve library providing ladder, trapezoid, smooth S-curve, and triangular-acceleration S-curve planners.</description>
       <RTE_Components_h>
         #define RTE_FC_EMBED_DEVICE_STP_CURVE  /* fc_embed device:stp_curve */

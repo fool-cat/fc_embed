@@ -14,6 +14,7 @@ Read the user's request and identify which of the following areas are touched. A
 | Area | Signals in the request |
 | --- | --- |
 | **Pack / Release** | `fool_cat.fc_embed.pdsc`, `gen_pack.sh`, `cmsis-pack/`, CMSIS-Pack, `.github/workflows/publish-pack.yml`, pack generation, release pipeline |
+| **Version Bump** | version, bump, release version, `fc_version.h`, `FC_EMBED_VERSION`, `FC_*_VERSION`, `Cversion`, update version, 升版本, 发行版本 |
 | **Host Test** | `test/host`, WSL, Linux test run, CMake host build, `ctest`, host-side validation, `build_linux`, `build_wsl` |
 | **Documentation** | `readme.md`, `COMPONENTS.md`, `cmsis-pack/README.md`, `core/*.md`, `device/*.md`, `docs/records/`, module docs, repo overview |
 | **Source Code Only** | `core/*.c`, `core/*.h`, `core/*.hpp`, `device/*.c`, `device/*.h`, no doc or pack files involved |
@@ -26,6 +27,7 @@ Based on the classification above, load the following skills **before** starting
 | Classified Area | Skill to Load |
 | --- | --- |
 | Pack / Release | `cmsis-pack-guard` |
+| Version Bump | `version-bump` |
 | Host Test | `host-test-guard` |
 | Documentation | `repo-doc-guard` |
 | Source Code Only | *(no specialist skill required)* |
@@ -60,5 +62,6 @@ fc_embed/
 | Skill Name | Responsibility |
 | --- | --- |
 | `cmsis-pack-guard` | Guard CMSIS-Pack definition, `pdsc`, `gen_pack.sh`, and pack-related workflows |
+| `version-bump` | Manage version macros in component headers and synchronize them to the PDSC |
 | `host-test-guard` | Constrain host-side validation to `test/host`, Linux native and WSL only |
 | `repo-doc-guard` | Apply the correct baseline when editing repository or module documentation |

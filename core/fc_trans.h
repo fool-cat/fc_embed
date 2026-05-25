@@ -15,6 +15,9 @@
 #ifndef _FC_TRANS_H_
 #define _FC_TRANS_H_
 
+/** fc_trans component version string — keep in sync with Cversion in fool_cat.fc_embed.pdsc */
+#define FC_TRANS_VERSION "2.0.0"
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdarg.h>

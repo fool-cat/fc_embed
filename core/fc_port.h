@@ -13,6 +13,9 @@
 #ifndef _FC_PORT_H_
 #define _FC_PORT_H_
 
+/** fc_port component version string — keep in sync with Cversion in fool_cat.fc_embed.pdsc */
+#define FC_PORT_VERSION "2.0.0"
+
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>

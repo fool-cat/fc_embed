@@ -14,4 +14,4 @@ components/
 device/STMotor
 cppcheck/
 example/
-cmsis-pack/fool_cat.fc_embed.1.0.0.pack
+cmsis-pack/*.pack

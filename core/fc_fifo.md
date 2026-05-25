@@ -2,8 +2,7 @@
 
 本文档对应以下代码:
 
-- [fc_fifo.h](./fc_fifo.h) — C 版本（字节流环形队列）
-- [fc_fifo.hpp](./fc_fifo.hpp) — C++ 模板封装（固定容量泛型 FIFO）
+- [fc_fifo.h](./fc_fifo.h) — C 版本（字节流环形队列）及 C++ 模板封装（固定容量泛型 FIFO，`#ifdef __cplusplus` 保护块，已合并至同一头文件）
 
 ---
 
@@ -347,11 +346,11 @@ if (fc_fifo_seek_byte(my_fifo, &peek_val, 2)) {
 
 ---
 
-# 第二部分：C++ 模板封装 — fc_fifo.hpp
+# 第二部分：C++ 模板封装（已合并至 fc_fifo.h）
 
 ## CPP-1. 概述与模板参数
 
-[fc_fifo.hpp](./fc_fifo.hpp) 提供了一套泛型固定容量 FIFO 模板类 `fc_embed::fifo_t<T, log2_size>`，接口命名尽量贴近 STL。
+[`fc_fifo.h`](./fc_fifo.h) 的 `#ifdef __cplusplus` 保护块提供了一套泛型固定容量 FIFO 模板类 `fc_embed::fifo_t<T, log2_size>`，接口命名尽量贴近 STL。
 
 ```cpp
 template <typename T, std::size_t log2_size>
@@ -468,7 +467,7 @@ class fifo_t;
 ## CPP-10. C++ 使用示例
 
 ```cpp
-#include "fc_fifo.hpp"
+#include "fc_fifo.h"
 
 // 声明一个容量为 256 (2^8) 的 int 型 FIFO
 fc_embed::fifo_t<int, 8> fifo;
@@ -510,7 +509,7 @@ size_t cap   = fifo.capacity();   // 256
 
 ## 3-1. C/C++ 版本差异对比
 
-| 特性 | C 版 `fc_fifo.h` | C++ 版 `fc_fifo.hpp` |
+| 特性 | C 版 `fc_fifo.h` | C++ 版（`fc_fifo.h` 内 C++ 块） |
 | --- | --- | --- |
 | 存储粒度 | 字节流 (`uint8_t`) | 泛型元素 (`T`) |
 | 容量限制 | 2 的幂 | 2 的幂 (log2 指定) |

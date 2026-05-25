@@ -16,6 +16,9 @@
 #ifndef _FC_CONFIG_TEMPLATE_H_
     #define _FC_CONFIG_TEMPLATE_H_
 
+/** fc_config component version string — keep in sync with version attr on <file attr="config"> in fool_cat.fc_embed.pdsc */
+#define FC_CONFIG_VERSION "2.0.0"
+
 //+********************************* 配置项说明 **********************************/
 /**
  * Configuration Wizard 使用说明:

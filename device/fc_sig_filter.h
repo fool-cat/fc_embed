@@ -13,6 +13,9 @@
 #ifndef _FC_SIG_FILTER_H_
 #define _FC_SIG_FILTER_H_
 
+/** fc_sig_filter component version string — keep in sync with Cversion in fool_cat.fc_embed.pdsc */
+#define FC_SIG_FILTER_VERSION "2.0.0"
+
 #include "fc_sig.h"
 
 // > C/C++兼容性宏定义

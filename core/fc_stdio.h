@@ -13,6 +13,9 @@
 #ifndef _FC_STDIO_H_
 #define _FC_STDIO_H_
 
+/** fc_stdio component version string — keep in sync with Cversion in fool_cat.fc_embed.pdsc */
+#define FC_STDIO_VERSION "2.0.0"
+
 #include <stdarg.h>
 #include <stdio.h>
 

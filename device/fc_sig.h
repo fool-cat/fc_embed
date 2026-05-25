@@ -13,6 +13,9 @@
 #ifndef _FC_SIGNAL_H_
 #define _FC_SIGNAL_H_
 
+/** fc_sig component version string — keep in sync with Cversion in fool_cat.fc_embed.pdsc */
+#define FC_SIG_VERSION "2.0.0"
+
 #include <stdint.h>
 #include <stdbool.h>
 

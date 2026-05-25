@@ -13,6 +13,9 @@
 #ifndef __FC_STEPPER_H_
 #define __FC_STEPPER_H_
 
+/** fc_stp_base component version string — keep in sync with Cversion in fool_cat.fc_embed.pdsc */
+#define FC_STP_BASE_VERSION "2.0.0"
+
 #include <stddef.h>
 
 #include "fc_config.h"

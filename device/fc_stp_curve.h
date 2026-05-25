@@ -3,6 +3,9 @@
 #ifndef _FC_STEPPER_CURVE_H_
 #define _FC_STEPPER_CURVE_H_
 
+/** fc_stp_curve component version string — keep in sync with Cversion in fool_cat.fc_embed.pdsc */
+#define FC_STP_CURVE_VERSION "2.0.0"
+
 #include "fc_stp_base.h"
 
 // > C/C++兼容性宏定义
