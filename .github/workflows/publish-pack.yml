@@ -59,7 +59,7 @@ jobs:
                     cp -v ./output/*.pack cmsis-pack/ 2>/dev/null || true
                     
                     # Add and commit if there are changes
-                    git add cmsis-pack/*.pack
+                    git add -f cmsis-pack/*.pack
                     if ! git diff --staged --quiet; then
                       git commit -m "chore: Update CMSIS pack files from release [skip ci]"
                       git push origin $branch
