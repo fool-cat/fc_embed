@@ -102,9 +102,9 @@
  */
 #if USE_FC_AUTO_INIT
 // 可以无需显式调用
-__attribute__((constructor)) fc_used void fc_section_init_env(void)
+__attribute__((constructor)) fc_used void fc_auto_init_env(void)
 #else
-void fc_section_init_env(void)
+void fc_auto_init_env(void)
 #endif
 {
     ONCE_RUNNING();
@@ -118,7 +118,7 @@ void fc_section_init_env(void)
  * @brief main函数配置完时钟之后自动初始化
  *
  */
-void fc_section_init_clock(void)
+void fc_auto_init_clock(void)
 {
     ONCE_RUNNING();
 
@@ -129,7 +129,7 @@ void fc_section_init_clock(void)
  * @brief main函数配置执行完之后自动初始化,操作系统执行之前
  *
  */
-void fc_section_init_device(void)
+void fc_auto_init_device(void)
 {
     ONCE_RUNNING();
 
@@ -140,7 +140,7 @@ void fc_section_init_device(void)
  * @brief 操作系统创建的第一个任务内自动初始化
  *
  */
-void fc_section_init_app(void)
+void fc_auto_init_app(void)
 {
     ONCE_RUNNING();
 

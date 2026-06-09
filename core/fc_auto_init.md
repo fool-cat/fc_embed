@@ -37,16 +37,16 @@
 上电 / 程序装载
         |
         v
-fc_section_init_env()
+fc_auto_init_env()
         |
         v
 main()
   |
-  +--> 时钟配置完成 -> fc_section_init_clock()
+  +--> 时钟配置完成 -> fc_auto_init_clock()
   |
-  +--> 外设基础初始化 -> fc_section_init_device()
+  +--> 外设基础初始化 -> fc_auto_init_device()
   |
-  +--> 应用任务启动后 -> fc_section_init_app()
+  +--> 应用任务启动后 -> fc_auto_init_app()
 ```
 
 其中只有 `ENV` 阶段可以在 `USE_FC_AUTO_INIT=1` 时自动通过 constructor 触发。
@@ -171,10 +171,10 @@ typedef struct
 
 运行时真正干活的是:
 
-- `fc_section_init_env()`
-- `fc_section_init_clock()`
-- `fc_section_init_device()`
-- `fc_section_init_app()`
+- `fc_auto_init_env()`
+- `fc_auto_init_clock()`
+- `fc_auto_init_device()`
+- `fc_auto_init_app()`
 
 每个函数内部都做了两件关键的事。
 
@@ -184,7 +184,7 @@ typedef struct
 
 - 每个阶段只执行一次
 
-所以即使外部重复调用 `fc_section_init_device()`，也不会重复跑设备初始化。
+所以即使外部重复调用 `fc_auto_init_device()`，也不会重复跑设备初始化。
 
 ### 7.2 `ORDER_SECTION_RUN()`
 
@@ -262,13 +262,13 @@ int main(void)
     /* ENV 阶段可由 constructor 自动执行 */
 
     board_clock_config();
-    fc_section_init_clock();
+    fc_auto_init_clock();
 
     board_device_init();
-    fc_section_init_device();
+    fc_auto_init_device();
 
     app_start();
-    fc_section_init_app();
+    fc_auto_init_app();
 }
 ```
 

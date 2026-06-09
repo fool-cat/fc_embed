@@ -34,7 +34,7 @@ extern "C"
 #define FC_TRANS_INIT_ORDER 110
 #define FC_LOG_INIT_ORDER 120
 
-// fc_section_init_env 注册自动运行段同时自动在main之前运行一遍
+// fc_auto_init_env 注册自动运行段自动在main之前运行一遍
 #ifndef USE_FC_AUTO_INIT
     #define USE_FC_AUTO_INIT 1
 #endif
@@ -145,10 +145,18 @@ extern "C"
      *
      * 在描述的位置调用指定函数
      */
-    extern void fc_section_init_env(void);  // 配置USE_FC_AUTO_INIT为1后 __attribute__((constructor)); 无需显式调用
-    extern void fc_section_init_clock(void);
-    extern void fc_section_init_device(void);
-    extern void fc_section_init_app(void);
+    extern void fc_auto_init_env(void);  // 配置USE_FC_AUTO_INIT为1后 __attribute__((constructor)); 无需显式调用
+    extern void fc_auto_init_clock(void);
+    extern void fc_auto_init_device(void);
+    extern void fc_auto_init_app(void);
+
+    // clang-format off
+    // 兼容旧定义,建议使用新的API
+#define fc_section_init_env     fc_auto_init_env
+#define fc_section_init_clock   fc_auto_init_clock
+#define fc_section_init_device  fc_auto_init_device
+#define fc_section_init_app     fc_auto_init_app
+    // clang-format on
 
     /**
      * @brief 最多允许两个参数,第一个参数为需要导出的函数名,第二个参数为优先级
