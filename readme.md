@@ -1,3 +1,5 @@
+
+
 # fc_embed
 
 `fc_embed` 是一个面向嵌入式场景的轻量基础组件库。本文档只做仓库入口导航。
@@ -6,7 +8,7 @@
 
 - 组件依赖总览: [COMPONENTS.md](COMPONENTS.md)
 - 版本定义: [core/fc_version.h](core/fc_version.h)
-- 配置模板: [core/fc_config_template.h](core/fc_config_template.h)
+- 配置模板（项目需自备 `fc_config.h`）: [core/fc_config_template.h](core/fc_config_template.h)
 - `stdio` 辅助源码编译说明: [core/utils/readme.md](core/utils/readme.md)
 - 文档修订记录: [docs/records/2026-04-14-doc-scope.md](docs/records/2026-04-14-doc-scope.md)
 
